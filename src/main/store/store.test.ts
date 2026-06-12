@@ -171,6 +171,33 @@ describe('journal', () => {
   })
 })
 
+describe('search (FTS5)', () => {
+  it('finds items by title and content, with prefix matching', () => {
+    store.createItem({ kind: 'note', title: 'Quarterly planning', content: 'discuss the budget' })
+    store.createItem({ kind: 'task', title: 'water the plants' })
+
+    expect(store.search('quarter').map((i) => i.title)).toEqual(['Quarterly planning'])
+    expect(store.search('budget')).toHaveLength(1)
+    expect(store.search('plan')).toHaveLength(2) // planning + plants
+  })
+
+  it('stays in sync with edits and never surfaces dropped items', () => {
+    const item = store.createItem({ kind: 'note', title: 'alpha' })
+    store.updateItem(item.id, { title: 'omega' })
+    expect(store.search('alpha')).toHaveLength(0)
+    expect(store.search('omega')).toHaveLength(1)
+
+    store.dropItems([item.id])
+    expect(store.search('omega')).toHaveLength(0)
+  })
+
+  it('operator-ish input is treated as plain text', () => {
+    store.createItem({ kind: 'note', title: 'a AND b' })
+    expect(() => store.search('AND OR NOT "')).not.toThrow()
+    expect(store.search('a AND')).toHaveLength(1)
+  })
+})
+
 describe('settings', () => {
   it('round-trips JSON values', () => {
     store.setSetting('theme', 'dark')

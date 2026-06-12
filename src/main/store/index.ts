@@ -486,6 +486,28 @@ export class Store {
       .all(projectId) as Meeting[]
   }
 
+  // ── Search ──────────────────────────────────────────────────────────
+
+  /**
+   * Full-text search over titles and content. Every word is treated
+   * as a quoted prefix ('mee' finds 'meeting'), so partial typing
+   * works and FTS5 operator syntax can't blow up on the user.
+   */
+  search(query: string, limit = 50): Item[] {
+    const words = query.trim().split(/\s+/).filter(Boolean)
+    if (words.length === 0) return []
+    const ftsQuery = words.map((w) => `"${w.replaceAll('"', '""')}"*`).join(' ')
+    return this.db
+      .prepare(
+        `SELECT i.* FROM items_fts f
+         JOIN items i ON i.rowid = f.rowid
+         WHERE items_fts MATCH ? AND i.status != 'dropped'
+         ORDER BY rank LIMIT ?`
+      )
+      .all(ftsQuery, limit)
+      .map(rowToItem)
+  }
+
   // ── Settings (small key/value JSON blobs) ───────────────────────────
 
   getSetting<T>(key: string): T | null {

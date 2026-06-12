@@ -88,6 +88,9 @@ const api = {
   meetingsForProject: (projectId: string): Promise<Meeting[]> =>
     invoke('meetings:forProject', projectId),
 
+  // Search
+  search: (query: string): Promise<Item[]> => invoke('search:query', query),
+
   // Settings
   getSetting: <T,>(key: string): Promise<T | null> => invoke('settings:get', key),
   setSetting: (key: string, value: unknown): Promise<void> => invoke('settings:set', key, value),

@@ -58,6 +58,9 @@ export function registerStoreIpc(store: Store): void {
   )
   ipcMain.handle('meetings:forProject', (_e, projectId: string) => store.meetingsForProject(projectId))
 
+  // Search
+  ipcMain.handle('search:query', (_e, query: string) => store.search(query))
+
   // Settings
   ipcMain.handle('settings:get', (_e, key: string) => store.getSetting(key))
   ipcMain.handle('settings:set', (_e, key: string, value: unknown) => store.setSetting(key, value))

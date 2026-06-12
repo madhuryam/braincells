@@ -10,7 +10,7 @@ import { ProjectPage } from './screens/ProjectPage'
 import { Settings } from './screens/Settings'
 import { Meeting } from './screens/Meeting'
 import { DailyLog } from './screens/DailyLog'
-import { SearchStub } from './screens/stubs'
+import { Search } from './screens/Search'
 
 function Screen(): React.JSX.Element {
   const { view } = useNav()
@@ -28,7 +28,7 @@ function Screen(): React.JSX.Element {
     case 'log':
       return <DailyLog />
     case 'search':
-      return <SearchStub />
+      return <Search />
     case 'settings':
       return <Settings />
   }
@@ -44,6 +44,11 @@ function Shortcuts(): null {
         navigate({ name: 'today' })
         // Focus after the Today screen has rendered.
         requestAnimationFrame(() => document.getElementById('quick-capture')?.focus())
+      }
+      if (e.metaKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        navigate({ name: 'search' })
+        requestAnimationFrame(() => document.getElementById('search-input')?.focus())
       }
     }
     window.addEventListener('keydown', onKey)

@@ -68,6 +68,35 @@ const MIGRATIONS: string[] = [
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+  `,
+
+  // 2: full-text search over titles and markdown content (SPEC §8).
+  // An "external content" FTS5 table: the text lives only in items;
+  // triggers keep the search index in step with every write.
+  `
+  CREATE VIRTUAL TABLE items_fts USING fts5(
+    title, content,
+    content='items', content_rowid='rowid'
+  );
+
+  CREATE TRIGGER items_fts_insert AFTER INSERT ON items BEGIN
+    INSERT INTO items_fts(rowid, title, content)
+    VALUES (new.rowid, new.title, new.content);
+  END;
+  CREATE TRIGGER items_fts_delete AFTER DELETE ON items BEGIN
+    INSERT INTO items_fts(items_fts, rowid, title, content)
+    VALUES ('delete', old.rowid, old.title, old.content);
+  END;
+  CREATE TRIGGER items_fts_update AFTER UPDATE ON items BEGIN
+    INSERT INTO items_fts(items_fts, rowid, title, content)
+    VALUES ('delete', old.rowid, old.title, old.content);
+    INSERT INTO items_fts(rowid, title, content)
+    VALUES (new.rowid, new.title, new.content);
+  END;
+
+  -- Index whatever already exists.
+  INSERT INTO items_fts(rowid, title, content)
+  SELECT rowid, title, content FROM items;
   `
 ]
 
