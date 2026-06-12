@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+out/
+dist/
+
+# Editor / OS noise
+.DS_Store
+*.local
+.vscode/
+.idea/
+
+# Local databases created during development
+*.sqlite3
+*.sqlite3-*
+
+# TypeScript incremental build cache
+*.tsbuildinfo
