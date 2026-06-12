@@ -19,6 +19,8 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   if (!project) return <div className="canvas">Project not found.</div>
 
   const open = (items ?? []).filter((i) => i.status === 'active' || i.status === 'inbox')
+  const todos = open.filter((i) => i.kind === 'task' || i.kind === 'prep')
+  const notes = open.filter((i) => i.kind === 'note' || i.kind === 'journal')
   const done = (items ?? []).filter((i) => i.status === 'done')
 
   const add = async (): Promise<void> => {
@@ -63,24 +65,45 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
         )}
       </div>
 
-      {open.length === 0 && done.length === 0 && (
+      {open.length === 0 && done.length === 0 && meetings.length === 0 && (
         <EmptyState art="🌱">Nothing here yet. Add a task or note above.</EmptyState>
       )}
 
-      <div className="masonry">
-        <AnimatePresence>
-          {open.map((item) => (
-            <DraggableCard key={item.id} item={item}>
-              <ItemCard item={item} showProject={false} />
-            </DraggableCard>
-          ))}
-        </AnimatePresence>
-      </div>
+      {/* One vertical section per kind of thing — no masonry mixing. */}
+      {todos.length > 0 && (
+        <>
+          <div className="section-label">To-dos</div>
+          <div className="stack project-section">
+            <AnimatePresence initial={false}>
+              {todos.map((item) => (
+                <DraggableCard key={item.id} item={item}>
+                  <ItemCard item={item} showProject={false} />
+                </DraggableCard>
+              ))}
+            </AnimatePresence>
+          </div>
+        </>
+      )}
+
+      {notes.length > 0 && (
+        <>
+          <div className="section-label">Notes</div>
+          <div className="stack project-section">
+            <AnimatePresence initial={false}>
+              {notes.map((item) => (
+                <DraggableCard key={item.id} item={item}>
+                  <ItemCard item={item} showProject={false} />
+                </DraggableCard>
+              ))}
+            </AnimatePresence>
+          </div>
+        </>
+      )}
 
       {meetings.length > 0 && (
         <>
           <div className="section-label">Meetings</div>
-          <div className="stack">
+          <div className="stack project-section">
             {meetings.map((m) => (
               <MeetingRow key={m.eventKey} meeting={m} />
             ))}
@@ -90,11 +113,11 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
 
       {done.length > 0 && (
         <>
-          <button className="section-label btn ghost" onClick={() => setShowDone(!showDone)}>
-            {showDone ? '▾' : '▸'} Done ({done.length})
+          <button className="section-label day-toggle" onClick={() => setShowDone(!showDone)}>
+            {showDone ? '▾' : '▸'} Done <span className="pill">{done.length}</span>
           </button>
           {showDone && (
-            <div className="masonry">
+            <div className="stack project-section">
               {done.map((item) => (
                 <ItemCard key={item.id} item={item} showProject={false} />
               ))}

@@ -516,14 +516,10 @@
   background: var(--danger);
 }
 
-/* Magazine-style column layout for project pages (SPEC §7 Layout). */
-.masonry {
-  columns: 320px;
-  column-gap: 12px;
-}
-.masonry > * {
-  break-inside: avoid;
-  margin-bottom: 12px;
+/* Project pages: comfortable single-column sections. */
+.project-section {
+  max-width: 720px;
+  margin-bottom: 6px;
 }
 
 .stack {
