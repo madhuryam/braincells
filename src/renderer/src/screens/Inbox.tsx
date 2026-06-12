@@ -45,6 +45,7 @@ export function Inbox(): React.JSX.Element {
     useLiveQuery(() => window.api.calendarEvents(todayYmd(), ymdAddDays(todayYmd(), 7)), []) ?? []
   const backlog = useLiveQuery(() => window.api.backlogTasks(), []) ?? []
   const unfiled = useLiveQuery(() => window.api.unfiledNotes(), []) ?? []
+  const completed = useLiveQuery(() => window.api.recentCompleted(50), []) ?? []
   const zero = useMemo(() => ZERO_MESSAGES[Math.floor(Math.random() * ZERO_MESSAGES.length)], [])
 
   const current = items[Math.min(selected, items.length - 1)]
@@ -242,6 +243,11 @@ export function Inbox(): React.JSX.Element {
         title="Notes · unfiled"
         hint="Notes that aren't in any project yet. Drag one onto a project in the sidebar."
         items={unfiled}
+      />
+      <ItemSection
+        title="Completed"
+        hint="Everything you've finished, newest first. Uncheck one to bring it back."
+        items={completed}
       />
     </div>
   )

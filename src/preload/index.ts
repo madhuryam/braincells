@@ -63,6 +63,7 @@ const api = {
   inboxCount: (): Promise<number> => invoke('inbox:count'),
   backlogTasks: (): Promise<Item[]> => invoke('inbox:backlog'),
   unfiledNotes: (): Promise<Item[]> => invoke('inbox:unfiledNotes'),
+  recentCompleted: (limit?: number): Promise<Item[]> => invoke('inbox:recentCompleted', limit),
   tasksFor: (date: string): Promise<Item[]> => invoke('today:tasks', date),
   tasksThisWeek: (date: string): Promise<Item[]> => invoke('today:week', date),
   carriedOver: (date: string): Promise<Item[]> => invoke('today:carriedOver', date),

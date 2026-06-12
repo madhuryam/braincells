@@ -325,6 +325,17 @@ export class Store {
       .map(rowToItem)
   }
 
+  /** Most recently completed items — the visible 'done' history. */
+  recentCompleted(limit = 50): Item[] {
+    return this.db
+      .prepare(
+        `SELECT ${ITEM_COLS} FROM items
+         WHERE status = 'done' ORDER BY completed_at DESC LIMIT ?`
+      )
+      .all(limit)
+      .map(rowToItem)
+  }
+
   /** Tasks completed on a given local date — feeds the daily log. */
   completedOn(date: string): Item[] {
     return this.db

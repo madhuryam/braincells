@@ -16,7 +16,9 @@ const TOP_TASK_CAP = 5 // soft cap — never a hard limit (SPEC §4.1)
 export function Today(): React.JSX.Element {
   const today = todayYmd()
   const tasks = useLiveQuery(() => window.api.tasksFor(today), [today]) ?? []
+  const doneToday = useLiveQuery(() => window.api.completedOn(today), [today]) ?? []
   const carried = useLiveQuery(() => window.api.carriedOver(today), [today]) ?? []
+  const [showDone, setShowDone] = useState(true)
   const inboxCount = useLiveQuery(() => window.api.inboxCount(), []) ?? 0
   const mutate = useMutate()
   const { navigate } = useNav()
@@ -82,6 +84,26 @@ export function Today(): React.JSX.Element {
             <button className="btn ghost" style={{ marginTop: 8 }} onClick={() => setShowAll(!showAll)}>
               {showAll ? 'Show fewer' : `Show all ${tasks.length}`}
             </button>
+          )}
+
+          {/* Checked-off things don't vanish — they move down here,
+              still uncheckable if it was an accident. */}
+          {doneToday.length > 0 && (
+            <>
+              <button className="section-label day-toggle" onClick={() => setShowDone(!showDone)}>
+                {showDone ? '▾' : '▸'} Done today
+                <span className="pill">{doneToday.length}</span>
+              </button>
+              {showDone && (
+                <div className="stack">
+                  <AnimatePresence initial={false}>
+                    {doneToday.map((item) => (
+                      <ItemCard key={item.id} item={item} />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+            </>
           )}
 
           {carried.length > 0 && (

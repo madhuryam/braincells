@@ -244,3 +244,17 @@ describe('pages (rich text)', () => {
     expect(store.search('table')).toHaveLength(0)
   })
 })
+
+describe('completed history', () => {
+  it('lists completions newest first, capped', () => {
+    const a = store.createItem({ kind: 'task', title: 'first', status: 'active' })
+    const b = store.createItem({ kind: 'task', title: 'second', status: 'active' })
+    store.updateItem(a.id, { status: 'done' })
+    store.updateItem(b.id, { status: 'done' })
+
+    const recent = store.recentCompleted(10)
+    expect(recent.map((i) => i.id)).toContain(a.id)
+    expect(recent.map((i) => i.id)).toContain(b.id)
+    expect(store.recentCompleted(1)).toHaveLength(1)
+  })
+})

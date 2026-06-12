@@ -30,6 +30,7 @@ export function registerStoreIpc(store: Store): void {
   ipcMain.handle('inbox:count', () => store.inboxCount())
   ipcMain.handle('inbox:backlog', () => store.backlogTasks())
   ipcMain.handle('inbox:unfiledNotes', () => store.unfiledNotes())
+  ipcMain.handle('inbox:recentCompleted', (_e, limit?: number) => store.recentCompleted(limit))
   ipcMain.handle('today:tasks', (_e, date: string) => store.tasksFor(date))
   ipcMain.handle('today:week', (_e, date: string) => store.tasksThisWeek(date))
   ipcMain.handle('today:carriedOver', (_e, date: string) => store.carriedOver(date))
