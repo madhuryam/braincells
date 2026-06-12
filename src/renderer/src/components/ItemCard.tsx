@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { Item, ItemStatus } from '@shared/types'
-import { todayYmd } from '@shared/dates'
 import { useData, useMutate } from '../state/data'
 import { Card } from './Card'
 import { Checkbox, ProjectDot } from './bits'
 import { Markdown } from './Markdown'
-import { KIND_ICON, prettyDate } from './../format'
+import { KIND_ICON, prettyDate, rollingDays } from './../format'
 
 interface ItemCardProps {
   item: Item
@@ -127,6 +126,27 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
             onChange={(e) => setContent(e.target.value)}
             onBlur={() => content !== item.content && patch({ content })}
           />
+          {/* When to do it: the 5-day rolling window, or someday. */}
+          {(item.kind === 'task' || item.kind === 'prep') && (
+            <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+              {rollingDays().map((d) => (
+                <button
+                  key={d.date}
+                  className={`btn small ${item.scheduledDate === d.date ? 'primary' : ''}`}
+                  onClick={() => patch({ scheduledDate: d.date })}
+                >
+                  {d.chip}
+                </button>
+              ))}
+              <button
+                className={`btn small ${item.scheduledDate === null ? 'primary' : ''}`}
+                title="No date — lives in the backlog until you pick a day"
+                onClick={() => patch({ scheduledDate: null, scheduledTime: null })}
+              >
+                someday
+              </button>
+            </div>
+          )}
           <div className="row" style={{ flexWrap: 'wrap' }}>
             <select
               value={item.projectId ?? ''}
@@ -155,11 +175,6 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
                 onChange={(e) => patch({ dueDate: e.target.value || null })}
               />
             </label>
-            {item.kind === 'task' && item.scheduledDate !== todayYmd() && (
-              <button className="btn" onClick={() => patch({ scheduledDate: todayYmd() })}>
-                Do today
-              </button>
-            )}
             <button
               className="btn ghost"
               title="Drop this item (it goes away, guilt-free)"

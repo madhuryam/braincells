@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useData, useLiveQuery, useMutate } from '../state/data'
-import { prettyDate } from '../format'
+import { prettyDate, rollingDays } from '../format'
 import { ItemCard } from '../components/ItemCard'
 import { Card } from '../components/Card'
 import { DraggableCard } from '../components/dnd'
@@ -17,16 +17,18 @@ const ZERO_MESSAGES = [
   ['🌅', 'Zero. As the universe intended.']
 ] as const
 
-const KEY_LEGEND: Array<[string, string]> = [
-  ['↑↓', 'select'],
-  ['1', 'task · today'],
-  ['2', 'task · tomorrow'],
-  ['3', 'task · someday'],
-  ['N', 'make note'],
-  ['P', 'project…'],
-  ['M', 'meeting prep…'],
-  ['X', 'drop']
-]
+/** 1–5 schedule into the rolling window; 0 is 'someday' (backlog). */
+function keyLegend(): Array<[string, string]> {
+  return [
+    ['↑↓', 'select'],
+    ...rollingDays().map((d, i) => [`${i + 1}`, d.chip] as [string, string]),
+    ['0', 'someday'],
+    ['N', 'make note'],
+    ['P', 'project…'],
+    ['M', 'meeting prep…'],
+    ['X', 'drop']
+  ]
+}
 
 export function Inbox(): React.JSX.Element {
   const items = useLiveQuery(() => window.api.inboxItems(), []) ?? []
@@ -71,6 +73,13 @@ export function Inbox(): React.JSX.Element {
       const triage = (patch: Parameters<typeof window.api.updateItem>[1]): void => {
         mutate(() => window.api.updateItem(current.id, patch))
       }
+      // 1–5: a task on that day of the rolling window.
+      const days = rollingDays()
+      const dayIdx = Number(e.key) - 1
+      if (e.key >= '1' && e.key <= '5' && days[dayIdx]) {
+        triage({ kind: 'task', status: 'active', scheduledDate: days[dayIdx].date })
+        return
+      }
       switch (e.key) {
         case 'ArrowDown':
         case 'j':
@@ -80,13 +89,7 @@ export function Inbox(): React.JSX.Element {
         case 'k':
           setSelected((s) => Math.max(s - 1, 0))
           break
-        case '1':
-          triage({ kind: 'task', status: 'active', scheduledDate: todayYmd() })
-          break
-        case '2':
-          triage({ kind: 'task', status: 'active', scheduledDate: ymdAddDays(todayYmd(), 1) })
-          break
-        case '3': // someday: an active task with no date — lives in its project
+        case '0': // someday: an active task with no date — the backlog
           triage({ kind: 'task', status: 'active' })
           break
         case 'n':
@@ -149,7 +152,7 @@ export function Inbox(): React.JSX.Element {
 
       {items.length > 0 && (
         <div className="row" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
-          {KEY_LEGEND.map(([key, label]) => (
+          {keyLegend().map(([key, label]) => (
             <span key={key} className="pill">
               <b>{key}</b> {label}
             </span>

@@ -1,21 +1,20 @@
 import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { todayYmd, ymdAddDays } from '@shared/dates'
+import { todayYmd } from '@shared/dates'
 import { useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { ItemCard } from '../components/ItemCard'
 import { DraggableCard, DropZone, SortableCard } from '../components/dnd'
 import { Timeline } from '../components/Timeline'
 import { EmptyState } from '../components/bits'
-import { longDate } from '../format'
+import { longDate, rollingDays, type RollingDay } from '../format'
 
 const TOP_TASK_CAP = 5 // soft cap — never a hard limit (SPEC §4.1)
 
 export function Today(): React.JSX.Element {
   const today = todayYmd()
   const tasks = useLiveQuery(() => window.api.tasksFor(today), [today]) ?? []
-  const week = useLiveQuery(() => window.api.tasksThisWeek(today), [today]) ?? []
   const carried = useLiveQuery(() => window.api.carriedOver(today), [today]) ?? []
   const inboxCount = useLiveQuery(() => window.api.inboxCount(), []) ?? 0
   const mutate = useMutate()
@@ -45,13 +44,7 @@ export function Today(): React.JSX.Element {
       </header>
 
       <div className="today-grid">
-        {/* Left column: today's events and time blocks. */}
-        <section className="timeline-pane">
-          <div className="section-label">Schedule</div>
-          <Timeline date={today} />
-        </section>
-
-        {/* Right column: capture + tasks. */}
+        {/* Left column: capture + tasks for the rolling 5-day window. */}
         <section>
           <input
             id="quick-capture"
@@ -122,20 +115,51 @@ export function Today(): React.JSX.Element {
             </>
           )}
 
-          <DropZone id="list-week" data={{ type: 'schedule', date: ymdAddDays(today, 1) }}>
-            {week.length > 0 && <div className="section-label">This week</div>}
-            <div className="stack">
-              <AnimatePresence>
-                {week.map((item) => (
-                  <DraggableCard key={item.id} item={item}>
-                    <ItemCard item={item} />
-                  </DraggableCard>
-                ))}
-              </AnimatePresence>
-            </div>
-          </DropZone>
+          {/* The rest of the 5-day window, one collapsible group per day. */}
+          {rollingDays()
+            .slice(1)
+            .map((day) => (
+              <DaySection key={day.date} day={day} />
+            ))}
+        </section>
+
+        {/* Right column: the day's schedule (events + time blocks). */}
+        <section className="timeline-pane">
+          <div className="section-label">Schedule</div>
+          <Timeline date={today} />
         </section>
       </div>
     </div>
+  )
+}
+
+/** One upcoming day: a collapsible header, a drop target, its tasks. */
+function DaySection({ day }: { day: RollingDay }): React.JSX.Element {
+  const tasks = useLiveQuery(() => window.api.tasksFor(day.date), [day.date]) ?? []
+  const [open, setOpen] = useState(true)
+
+  return (
+    <DropZone id={`list-${day.date}`} data={{ type: 'schedule', date: day.date }}>
+      <button className="section-label day-toggle" onClick={() => setOpen(!open)}>
+        {open ? '▾' : '▸'} {day.label}
+        <span className="pill">{tasks.length}</span>
+      </button>
+      {open && (
+        <div className="stack">
+          <AnimatePresence>
+            {tasks.map((item) => (
+              <DraggableCard key={item.id} item={item}>
+                <ItemCard item={item} />
+              </DraggableCard>
+            ))}
+          </AnimatePresence>
+          {tasks.length === 0 && (
+            <span style={{ color: 'var(--text-faint)', fontSize: 13, padding: '2px 0 8px' }}>
+              Nothing yet — drop a card here.
+            </span>
+          )}
+        </div>
+      )}
+    </DropZone>
   )
 }

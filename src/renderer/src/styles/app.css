@@ -230,6 +230,10 @@
   color: #fff;
   box-shadow: 0 2px 8px var(--accent-soft);
 }
+.btn.small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
 .btn.ghost {
   background: transparent;
   color: var(--text-soft);
@@ -404,12 +408,24 @@
   margin-top: 8px;
 }
 
-/* Today: timeline on one side, tasks on the other (SPEC §7 Layout). */
+/* Today: tasks on the left, timeline on the right (SPEC §7 Layout). */
 .today-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 5fr) minmax(320px, 6fr);
+  grid-template-columns: minmax(320px, 6fr) minmax(280px, 5fr);
   gap: 28px;
   align-items: start;
+}
+
+/* Collapsible day-group headers on Today. */
+.day-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  cursor: pointer;
+}
+.day-toggle:hover {
+  color: var(--text);
 }
 
 /* ── The Today timeline ──────────────────────────────────────────── */
