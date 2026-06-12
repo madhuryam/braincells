@@ -1,0 +1,145 @@
+import { useEffect, useState } from 'react'
+import type { Item, ItemStatus } from '@shared/types'
+import { todayYmd } from '@shared/dates'
+import { useData, useMutate } from '../state/data'
+import { Card } from './Card'
+import { Checkbox, ProjectDot } from './bits'
+import { Markdown } from './Markdown'
+import { KIND_ICON, prettyDate } from './../format'
+
+interface ItemCardProps {
+  item: Item
+  /** Hide the project pill when the card already sits inside its project page. */
+  showProject?: boolean
+  /** Carried-over styling: quiet, faded, never red. */
+  faded?: boolean
+}
+
+/**
+ * The standard card for any item: collapsed it shows just enough at a
+ * glance (title, project color, dates); clicking expands it inline into
+ * a full editor. Edits save on blur — there is no save button to forget.
+ */
+export function ItemCard({ item, showProject = true, faded }: ItemCardProps): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  const [title, setTitle] = useState(item.title)
+  const [content, setContent] = useState(item.content)
+  const mutate = useMutate()
+  const { projects } = useData()
+  const project = projects.find((p) => p.id === item.projectId)
+
+  // If another screen edits this item, pick up the new values.
+  useEffect(() => setTitle(item.title), [item.title])
+  useEffect(() => setContent(item.content), [item.content])
+
+  const patch = (p: Parameters<typeof window.api.updateItem>[1]): Promise<void> =>
+    mutate(() => window.api.updateItem(item.id, p))
+
+  const isCheckable = item.kind === 'task' || item.kind === 'prep'
+  const done = item.status === 'done'
+
+  return (
+    <Card accentColor={project?.color} done={done} faded={faded}>
+      <div className="row">
+        {isCheckable && (
+          <Checkbox
+            checked={done}
+            onToggle={() => patch({ status: done ? 'active' : ('done' as ItemStatus) })}
+          />
+        )}
+        {!isCheckable && <span aria-hidden>{KIND_ICON[item.kind]}</span>}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {open ? (
+            <input
+              autoFocus
+              value={title}
+              style={{ width: '100%' }}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => title !== item.title && patch({ title })}
+              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            />
+          ) : (
+            <button
+              className="card-title"
+              style={{ display: 'block', width: '100%', textAlign: 'left' }}
+              onClick={() => setOpen(true)}
+            >
+              {item.title || <span style={{ color: 'var(--text-faint)' }}>Untitled</span>}
+            </button>
+          )}
+          <div className="card-meta">
+            {showProject && project && (
+              <span className="pill">
+                <ProjectDot color={project.color} /> {project.name}
+              </span>
+            )}
+            {item.scheduledDate && <span className="pill">📅 {prettyDate(item.scheduledDate)}</span>}
+            {item.dueDate && <span className="pill">⏰ due {prettyDate(item.dueDate)}</span>}
+            {item.timeEstimateMinutes != null && (
+              <span className="pill">~{item.timeEstimateMinutes}m</span>
+            )}
+            {!open && item.content && <span title="has notes">📄</span>}
+          </div>
+        </div>
+      </div>
+
+      {open && (
+        <div className="stack" style={{ marginTop: 12 }}>
+          {item.content && <Markdown text={item.content} />}
+          <textarea
+            rows={4}
+            placeholder="Notes — markdown welcome…"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onBlur={() => content !== item.content && patch({ content })}
+          />
+          <div className="row" style={{ flexWrap: 'wrap' }}>
+            <select
+              value={item.projectId ?? ''}
+              onChange={(e) => patch({ projectId: e.target.value || null })}
+            >
+              <option value="">No project</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <label className="pill">
+              do
+              <input
+                type="date"
+                value={item.scheduledDate ?? ''}
+                onChange={(e) => patch({ scheduledDate: e.target.value || null })}
+              />
+            </label>
+            <label className="pill">
+              due
+              <input
+                type="date"
+                value={item.dueDate ?? ''}
+                onChange={(e) => patch({ dueDate: e.target.value || null })}
+              />
+            </label>
+            {item.kind === 'task' && item.scheduledDate !== todayYmd() && (
+              <button className="btn" onClick={() => patch({ scheduledDate: todayYmd() })}>
+                Do today
+              </button>
+            )}
+            <button
+              className="btn ghost"
+              title="Drop this item (it goes away, guilt-free)"
+              style={{ marginLeft: 'auto' }}
+              onClick={() => patch({ status: 'dropped' })}
+            >
+              🗑 drop
+            </button>
+            <button className="btn ghost" onClick={() => setOpen(false)}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </Card>
+  )
+}

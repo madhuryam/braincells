@@ -16,8 +16,6 @@ function Stub({ title }: { title: string }): React.JSX.Element {
 
 export const TodayStub = (): React.JSX.Element => <Stub title="Today" />
 export const InboxStub = (): React.JSX.Element => <Stub title="Inbox" />
-export const ProjectsStub = (): React.JSX.Element => <Stub title="Projects" />
-export const ProjectPageStub = (): React.JSX.Element => <Stub title="Project" />
 export const MeetingStub = (): React.JSX.Element => <Stub title="Meeting" />
 export const DailyLogStub = (): React.JSX.Element => <Stub title="Daily Log" />
 export const SearchStub = (): React.JSX.Element => <Stub title="Search" />

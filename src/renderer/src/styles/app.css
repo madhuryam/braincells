@@ -277,6 +277,16 @@
   margin: 22px 0 10px;
 }
 
+/* Magazine-style column layout for project pages (SPEC §7 Layout). */
+.masonry {
+  columns: 320px;
+  column-gap: 12px;
+}
+.masonry > * {
+  break-inside: avoid;
+  margin-bottom: 12px;
+}
+
 .stack {
   display: flex;
   flex-direction: column;

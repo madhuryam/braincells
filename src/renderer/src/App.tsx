@@ -1,12 +1,12 @@
 import { DataProvider } from './state/data'
 import { NavProvider, useNav } from './state/nav'
 import { Sidebar } from './components/Sidebar'
+import { Projects } from './screens/Projects'
+import { ProjectPage } from './screens/ProjectPage'
 import {
   DailyLogStub,
   InboxStub,
   MeetingStub,
-  ProjectPageStub,
-  ProjectsStub,
   SearchStub,
   SettingsStub,
   TodayStub
@@ -20,9 +20,9 @@ function Screen(): React.JSX.Element {
     case 'inbox':
       return <InboxStub />
     case 'projects':
-      return <ProjectsStub />
+      return <Projects />
     case 'project':
-      return <ProjectPageStub />
+      return <ProjectPage key={view.projectId} projectId={view.projectId} />
     case 'meeting':
       return <MeetingStub />
     case 'log':
