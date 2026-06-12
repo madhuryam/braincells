@@ -13,6 +13,8 @@ interface ItemCardProps {
   item: Item
   /** Hide the project pill when the card already sits inside its project page. */
   showProject?: boolean
+  /** Hide the scheduled-date pill when the surrounding group names the day. */
+  showDate?: boolean
   /** Carried-over styling: quiet, faded, never red. */
   faded?: boolean
 }
@@ -22,7 +24,12 @@ interface ItemCardProps {
  * glance (title, project color, dates); clicking expands it inline into
  * a full editor. Edits save on blur — there is no save button to forget.
  */
-export function ItemCard({ item, showProject = true, faded }: ItemCardProps): React.JSX.Element {
+export function ItemCard({
+  item,
+  showProject = true,
+  showDate = true,
+  faded
+}: ItemCardProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState(item.title)
   const mutate = useMutate()
@@ -147,7 +154,9 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
                 <ProjectDot color={project.color} /> {project.name}
               </span>
             )}
-            {item.scheduledDate && <span className="pill">📅 {prettyDate(item.scheduledDate)}</span>}
+            {showDate && item.scheduledDate && (
+              <span className="pill">📅 {prettyDate(item.scheduledDate)}</span>
+            )}
             {item.dueDate && <span className="pill">⏰ due {prettyDate(item.dueDate)}</span>}
             {item.timeEstimateMinutes != null && (
               <span className="pill">~{item.timeEstimateMinutes}m</span>

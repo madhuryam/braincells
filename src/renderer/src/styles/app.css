@@ -455,6 +455,20 @@
   align-items: start;
 }
 
+/* Project blocks inside a day's task list. */
+.task-group {
+  margin-bottom: 12px;
+}
+.task-group-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-soft);
+  margin: 2px 0 8px;
+}
+
 /* Collapsible day-group headers on Today. */
 .day-toggle {
   display: flex;

@@ -27,7 +27,7 @@ export function weekdayName(date: string): string {
 
 export interface RollingDay {
   date: string
-  /** 'today · Monday', 'tomorrow · Tuesday', then plain weekday names. */
+  /** Group headers: 'today · Friday, June 13', 'tomorrow · Saturday, June 14', then 'Sunday, June 15'. */
   label: string
   /** Compact form for chips/keys: 'today', 'tmrw', 'Wed'… */
   chip: string
@@ -42,10 +42,16 @@ export function rollingDays(count = 5): RollingDay[] {
   const today = todayYmd()
   return Array.from({ length: count }, (_, i) => {
     const date = ymdAddDays(today, i)
-    const weekday = weekdayName(date)
+    const [y, m, d] = date.split('-').map(Number)
+    const full = new Date(y, m - 1, d).toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
+    })
+    const weekday = full.split(',')[0]
     return {
       date,
-      label: i === 0 ? `today · ${weekday}` : i === 1 ? `tomorrow · ${weekday}` : weekday,
+      label: i === 0 ? `today · ${full}` : i === 1 ? `tomorrow · ${full}` : full,
       chip: i === 0 ? 'today' : i === 1 ? 'tmrw' : weekday.slice(0, 3)
     }
   })
