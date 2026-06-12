@@ -41,6 +41,11 @@ export function Card({
   return (
     <motion.div
       layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      // The satisfying exit: completing/dropping physically removes the
+      // card from the list (SPEC §7 micro-interactions).
+      exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.16 } }}
       transition={{ type: 'spring', stiffness: 500, damping: 38 }}
       className={classes}
       style={accentColor ? ({ '--card-accent': accentColor } as CSSProperties) : undefined}
