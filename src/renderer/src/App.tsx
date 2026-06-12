@@ -1,11 +1,11 @@
 import { DataProvider } from './state/data'
 import { NavProvider, useNav } from './state/nav'
 import { Sidebar } from './components/Sidebar'
+import { Inbox } from './screens/Inbox'
 import { Projects } from './screens/Projects'
 import { ProjectPage } from './screens/ProjectPage'
 import {
   DailyLogStub,
-  InboxStub,
   MeetingStub,
   SearchStub,
   SettingsStub,
@@ -18,7 +18,7 @@ function Screen(): React.JSX.Element {
     case 'today':
       return <TodayStub />
     case 'inbox':
-      return <InboxStub />
+      return <Inbox />
     case 'projects':
       return <Projects />
     case 'project':
