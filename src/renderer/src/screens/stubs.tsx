@@ -14,5 +14,4 @@ function Stub({ title }: { title: string }): React.JSX.Element {
   )
 }
 
-export const DailyLogStub = (): React.JSX.Element => <Stub title="Daily Log" />
 export const SearchStub = (): React.JSX.Element => <Stub title="Search" />
