@@ -60,6 +60,8 @@ export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Elem
 
   // "Any line can be promoted to a task with one action" — here the
   // line *is* a task as soon as it's entered, linked as follow-up.
+  // It lands in the INBOX (not the backlog): follow-ups deserve a
+  // conscious triage pass to pick their day.
   const addFollowUp = async (): Promise<void> => {
     const t = followUpDraft.trim()
     if (!t) return
@@ -67,7 +69,7 @@ export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Elem
       const item = await window.api.createItem({
         kind: 'task',
         title: t,
-        status: 'active',
+        status: 'inbox',
         projectId: meeting?.projectId ?? null
       })
       await window.api.linkToEvent(item.id, event, 'follow-up-from')
