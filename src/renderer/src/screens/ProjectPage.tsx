@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { ItemCard } from '../components/ItemCard'
 import { DraggableCard } from '../components/dnd'
+import { MeetingRow } from '../components/MeetingRow'
 import { EmptyState, ProjectDot } from '../components/bits'
 
 export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Element {
@@ -10,6 +11,7 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   const mutate = useMutate()
   const project = projects.find((p) => p.id === projectId)
   const items = useLiveQuery(() => window.api.projectItems(projectId), [projectId])
+  const meetings = useLiveQuery(() => window.api.meetingsForProject(projectId), [projectId]) ?? []
   const [draft, setDraft] = useState('')
   const [draftKind, setDraftKind] = useState<'task' | 'note'>('task')
   const [showDone, setShowDone] = useState(false)
@@ -62,6 +64,17 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
           ))}
         </AnimatePresence>
       </div>
+
+      {meetings.length > 0 && (
+        <>
+          <div className="section-label">Meetings</div>
+          <div className="stack">
+            {meetings.map((m) => (
+              <MeetingRow key={m.eventKey} meeting={m} />
+            ))}
+          </div>
+        </>
+      )}
 
       {done.length > 0 && (
         <>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useData, useLiveQuery, useMutate } from '../state/data'
+import { prettyDate } from '../format'
 import { ItemCard } from '../components/ItemCard'
 import { Card } from '../components/Card'
 import { DraggableCard } from '../components/dnd'
@@ -23,6 +24,7 @@ const KEY_LEGEND: Array<[string, string]> = [
   ['3', 'task · someday'],
   ['N', 'make note'],
   ['P', 'project…'],
+  ['M', 'meeting prep…'],
   ['X', 'drop']
 ]
 
@@ -31,8 +33,11 @@ export function Inbox(): React.JSX.Element {
   const { projects } = useData()
   const mutate = useMutate()
   const [selected, setSelected] = useState(0)
-  const [picking, setPicking] = useState(false) // project picker open?
+  const [picking, setPicking] = useState<'project' | 'meeting' | null>(null)
   const [draft, setDraft] = useState('')
+  // Upcoming events, so a capture can be attached as meeting prep.
+  const events =
+    useLiveQuery(() => window.api.calendarEvents(todayYmd(), ymdAddDays(todayYmd(), 7)), []) ?? []
   const zero = useMemo(() => ZERO_MESSAGES[Math.floor(Math.random() * ZERO_MESSAGES.length)], [])
 
   const current = items[Math.min(selected, items.length - 1)]
@@ -44,14 +49,21 @@ export function Inbox(): React.JSX.Element {
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return
 
       if (picking) {
-        // Second keystroke of "P": a digit picks the project.
+        // Second keystroke of "P"/"M": a digit picks the target.
         const idx = Number(e.key) - 1
-        if (idx >= 0 && idx < projects.length && current) {
+        if (picking === 'project' && idx >= 0 && idx < projects.length && current) {
           mutate(() =>
             window.api.updateItem(current.id, { projectId: projects[idx].id, status: 'active' })
           )
         }
-        setPicking(false)
+        if (picking === 'meeting' && idx >= 0 && idx < events.length && current) {
+          const event = events[idx]
+          mutate(async () => {
+            await window.api.updateItem(current.id, { kind: 'prep', status: 'active' })
+            await window.api.linkToEvent(current.id, event, 'prep-for')
+          })
+        }
+        setPicking(null)
         return
       }
       if (!current) return
@@ -81,7 +93,10 @@ export function Inbox(): React.JSX.Element {
           triage({ kind: 'note', status: 'active' })
           break
         case 'p':
-          setPicking(true)
+          setPicking('project')
+          break
+        case 'm':
+          setPicking('meeting')
           break
         case 'x':
           triage({ status: 'dropped' })
@@ -90,7 +105,7 @@ export function Inbox(): React.JSX.Element {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [current, items.length, picking, projects, mutate])
+  }, [current, items.length, picking, projects, events, mutate])
 
   const capture = async (): Promise<void> => {
     const title = draft.trim()
@@ -133,7 +148,7 @@ export function Inbox(): React.JSX.Element {
         </div>
       )}
 
-      {picking && (
+      {picking === 'project' && (
         <Card className="stack" accentColor="var(--accent)">
           <b>Assign to which project?</b>
           <div className="row" style={{ flexWrap: 'wrap' }}>
@@ -143,6 +158,19 @@ export function Inbox(): React.JSX.Element {
               </span>
             ))}
             {projects.length === 0 && <span>No projects yet — press any key.</span>}
+          </div>
+        </Card>
+      )}
+      {picking === 'meeting' && (
+        <Card className="stack" accentColor="var(--accent)">
+          <b>Prep for which meeting?</b>
+          <div className="row" style={{ flexWrap: 'wrap' }}>
+            {events.slice(0, 9).map((ev, i) => (
+              <span key={ev.eventKey} className="pill">
+                <b>{i + 1}</b> {ev.title} · {prettyDate(ev.date)}
+              </span>
+            ))}
+            {events.length === 0 && <span>No upcoming meetings — press any key.</span>}
           </div>
         </Card>
       )}

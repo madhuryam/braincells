@@ -8,7 +8,8 @@ import { Inbox } from './screens/Inbox'
 import { Projects } from './screens/Projects'
 import { ProjectPage } from './screens/ProjectPage'
 import { Settings } from './screens/Settings'
-import { DailyLogStub, MeetingStub, SearchStub } from './screens/stubs'
+import { Meeting } from './screens/Meeting'
+import { DailyLogStub, SearchStub } from './screens/stubs'
 
 function Screen(): React.JSX.Element {
   const { view } = useNav()
@@ -22,7 +23,7 @@ function Screen(): React.JSX.Element {
     case 'project':
       return <ProjectPage key={view.projectId} projectId={view.projectId} />
     case 'meeting':
-      return <MeetingStub />
+      return <Meeting key={view.eventKey} eventKey={view.eventKey} title={view.title} date={view.date} />
     case 'log':
       return <DailyLogStub />
     case 'search':
