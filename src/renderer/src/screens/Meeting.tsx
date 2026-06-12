@@ -4,7 +4,7 @@ import type { CalendarEvent } from '@shared/types'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { ItemCard } from '../components/ItemCard'
 import { Card } from '../components/Card'
-import { CheckableInput, Checkbox, EmptyState, ProgressBar } from '../components/bits'
+import { BackButton, CheckableInput, Checkbox, EmptyState, ProgressBar } from '../components/bits'
 import { prettyDate } from '../format'
 
 interface MeetingProps {
@@ -88,6 +88,7 @@ export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Elem
   return (
     <div className="canvas">
       <header className="canvas-header">
+        <BackButton />
         <h1>{title}</h1>
         <span className="date">{prettyDate(date)}</span>
         {/* One action assigns this meeting to a project (SPEC §4.4). */}

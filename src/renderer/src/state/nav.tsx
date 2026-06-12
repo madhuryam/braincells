@@ -1,8 +1,10 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
 
 /**
- * Client-side "routing" without a router: the app is four-and-a-bit
- * screens behind a single switch, and nothing needs URLs or history.
+ * Client-side "routing" without a router: a handful of screens behind
+ * a single switch — but with a history stack, so opening a meeting
+ * from a project page (or notes from the daily log) can go *back* to
+ * where you were.
  */
 export type View =
   | { name: 'today' }
@@ -17,14 +19,36 @@ export type View =
 interface NavContextValue {
   view: View
   navigate: (v: View) => void
+  back: () => void
+  canGoBack: boolean
 }
 
 const NavContext = createContext<NavContextValue | null>(null)
 
+const MAX_HISTORY = 50
+
 export function NavProvider({ children }: { children: ReactNode }): React.JSX.Element {
   // SPEC §4.1: the app always opens on Today.
-  const [view, navigate] = useState<View>({ name: 'today' })
-  return <NavContext.Provider value={{ view, navigate }}>{children}</NavContext.Provider>
+  const [stack, setStack] = useState<View[]>([{ name: 'today' }])
+
+  const navigate = useCallback((v: View) => {
+    setStack((s) => {
+      // Re-clicking the current screen shouldn't grow the history.
+      if (JSON.stringify(s[s.length - 1]) === JSON.stringify(v)) return s
+      return [...s.slice(-MAX_HISTORY), v]
+    })
+  }, [])
+
+  const back = useCallback(() => {
+    setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
+  }, [])
+
+  const view = stack[stack.length - 1]
+  return (
+    <NavContext.Provider value={{ view, navigate, back, canGoBack: stack.length > 1 }}>
+      {children}
+    </NavContext.Provider>
+  )
 }
 
 export function useNav(): NavContextValue {

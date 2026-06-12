@@ -4,7 +4,7 @@ import { useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { Card } from '../components/Card'
 import { ItemCard } from '../components/ItemCard'
-import { EmptyState } from '../components/bits'
+import { BackButton, EmptyState } from '../components/bits'
 import { longDate } from '../format'
 
 /**
@@ -33,6 +33,7 @@ export function DailyLog(): React.JSX.Element {
   return (
     <div className="canvas" style={{ maxWidth: 760 }}>
       <header className="canvas-header">
+        <BackButton />
         <h1>Daily Log</h1>
         <span className="date">{longDate(date)}</span>
         <span className="row" style={{ marginLeft: 'auto' }}>

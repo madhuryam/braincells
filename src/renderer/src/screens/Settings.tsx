@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { Card } from '../components/Card'
+import { BackButton } from '../components/bits'
 
 type CalendarMode = 'demo' | 'google' | 'off'
 
@@ -42,6 +43,7 @@ export function Settings(): React.JSX.Element {
   return (
     <div className="canvas" style={{ maxWidth: 720 }}>
       <header className="canvas-header">
+        <BackButton />
         <h1>Settings</h1>
       </header>
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Item } from '@shared/types'
 import { ItemCard } from '../components/ItemCard'
-import { EmptyState } from '../components/bits'
+import { BackButton, EmptyState } from '../components/bits'
 
 /**
  * Full-text search over everything — tasks, notes, journals, meeting
@@ -23,6 +23,7 @@ export function Search(): React.JSX.Element {
   return (
     <div className="canvas" style={{ maxWidth: 760 }}>
       <header className="canvas-header">
+        <BackButton />
         <h1>Search</h1>
       </header>
       <input

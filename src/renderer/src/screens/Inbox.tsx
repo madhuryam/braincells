@@ -6,7 +6,7 @@ import { prettyDate } from '../format'
 import { ItemCard } from '../components/ItemCard'
 import { Card } from '../components/Card'
 import { DraggableCard } from '../components/dnd'
-import { EmptyState } from '../components/bits'
+import { BackButton, EmptyState } from '../components/bits'
 
 // Empty inbox is the app's only "win state" (SPEC §4.2) — celebrate it.
 const ZERO_MESSAGES = [
@@ -130,6 +130,7 @@ export function Inbox(): React.JSX.Element {
   return (
     <div className="canvas">
       <header className="canvas-header">
+        <BackButton />
         <h1>Inbox</h1>
         {items.length > 0 && (
           <button className="btn ghost" onClick={bankruptcy} title="Drop everything, guilt-free">

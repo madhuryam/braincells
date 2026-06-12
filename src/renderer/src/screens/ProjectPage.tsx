@@ -4,7 +4,7 @@ import { useData, useLiveQuery, useMutate } from '../state/data'
 import { ItemCard } from '../components/ItemCard'
 import { DraggableCard } from '../components/dnd'
 import { MeetingRow } from '../components/MeetingRow'
-import { CheckableInput, EmptyState, ProjectDot } from '../components/bits'
+import { BackButton, CheckableInput, EmptyState, ProjectDot } from '../components/bits'
 
 export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Element {
   const { projects } = useData()
@@ -33,6 +33,7 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   return (
     <div className="canvas">
       <header className="canvas-header">
+        <BackButton />
         <ProjectDot color={project.color} />
         <h1>{project.name}</h1>
       </header>

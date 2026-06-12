@@ -1,4 +1,19 @@
 import type { ReactNode } from 'react'
+import { useNav } from '../state/nav'
+
+/**
+ * "← back" in a screen header. Renders nothing on the first screen of
+ * the session, so Today usually stays clean.
+ */
+export function BackButton(): React.JSX.Element | null {
+  const { back, canGoBack } = useNav()
+  if (!canGoBack) return null
+  return (
+    <button className="btn ghost icon-btn" title="Back" onClick={back}>
+      ←
+    </button>
+  )
+}
 
 /** The mini progress bar on meeting cards — satisfying to watch fill. */
 export function ProgressBar({ done, total }: { done: number; total: number }): React.JSX.Element {

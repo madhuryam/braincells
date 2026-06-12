@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useData, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { Card } from '../components/Card'
-import { EmptyState, ProjectDot } from '../components/bits'
+import { BackButton, EmptyState, ProjectDot } from '../components/bits'
 import { PROJECT_COLORS, randomProjectColor } from '../palette'
 
 export function Projects(): React.JSX.Element {
@@ -23,6 +23,7 @@ export function Projects(): React.JSX.Element {
   return (
     <div className="canvas">
       <header className="canvas-header">
+        <BackButton />
         <h1>Projects</h1>
       </header>
 
