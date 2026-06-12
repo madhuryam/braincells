@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { Store } from './store'
 import { registerStoreIpc } from './ipc'
+import { setUpQuickCapture, tearDownQuickCapture } from './capture'
 
 // The main application window. Kept in a variable so macOS can re-show
 // it when the dock icon is clicked after all windows were closed.
@@ -51,6 +52,12 @@ app.whenReady().then(() => {
   store = new Store(join(app.getPath('userData'), 'braincells.sqlite3'))
   registerStoreIpc(store)
 
+  // When the floating capture window adds an item, every open window
+  // refreshes its queries (the renderer listens for this event).
+  setUpQuickCapture(store, () => {
+    for (const w of BrowserWindow.getAllWindows()) w.webContents.send('data-changed')
+  })
+
   createMainWindow()
 
   // macOS convention: clicking the dock icon re-opens the window.
@@ -63,6 +70,10 @@ app.whenReady().then(() => {
 // global capture hotkey keep working). Other platforms quit.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('will-quit', () => {
+  tearDownQuickCapture()
 })
 
 app.on('quit', () => {

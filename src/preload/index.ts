@@ -90,7 +90,18 @@ const api = {
 
   // Settings
   getSetting: <T,>(key: string): Promise<T | null> => invoke('settings:get', key),
-  setSetting: (key: string, value: unknown): Promise<void> => invoke('settings:set', key, value)
+  setSetting: (key: string, value: unknown): Promise<void> => invoke('settings:set', key, value),
+
+  // Quick capture window
+  submitCapture: (text: string): Promise<void> => invoke('capture:submit', text),
+  dismissCapture: (): Promise<void> => invoke('capture:dismiss'),
+
+  /** Fired by the main process when data changed outside this window. */
+  onDataChanged: (cb: () => void): (() => void) => {
+    const listener = (): void => cb()
+    ipcRenderer.on('data-changed', listener)
+    return () => ipcRenderer.removeListener('data-changed', listener)
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)

@@ -36,6 +36,10 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
 
   const bump = useCallback(() => setVersion((v) => v + 1), [])
 
+  // Items can also arrive from outside this window (the ⌥Space quick
+  // capture). The main process tells us; we refresh everything.
+  useEffect(() => window.api.onDataChanged(bump), [bump])
+
   useEffect(() => {
     window.api.listProjects().then(setProjects)
     window.api.inboxCount().then(setInboxCount)

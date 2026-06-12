@@ -277,6 +277,34 @@
   margin: 22px 0 10px;
 }
 
+/* ── The floating quick-capture window (⌥Space) ──────────────────── */
+
+.capture-window {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lift);
+  padding: 14px;
+  margin: 8px; /* breathing room inside the transparent window */
+}
+.capture-window input {
+  width: 100%;
+  font-size: 17px;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  padding: 6px 4px;
+}
+.capture-window input:focus {
+  box-shadow: none;
+  border: none;
+}
+.capture-hints {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 /* Today: timeline on one side, tasks on the other (SPEC §7 Layout). */
 .today-grid {
   display: grid;
