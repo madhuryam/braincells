@@ -277,6 +277,24 @@
   margin: 22px 0 10px;
 }
 
+/* ── Drag & drop ─────────────────────────────────────────────────── */
+
+/* A hovered drop target lights up so it's obvious where the card lands. */
+.drop-over {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-card);
+  background: var(--accent-soft);
+}
+
+/* The ghost card following the pointer. */
+.drag-ghost {
+  box-shadow: var(--shadow-lift);
+  transform: rotate(2deg) scale(1.03);
+  cursor: grabbing;
+  max-width: 340px;
+}
+
 /* ── The floating quick-capture window (⌥Space) ──────────────────── */
 
 .capture-window {

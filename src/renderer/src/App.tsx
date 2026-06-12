@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { DataProvider } from './state/data'
 import { NavProvider, useNav } from './state/nav'
 import { Sidebar } from './components/Sidebar'
+import { AppDnd } from './components/dnd'
 import { Today } from './screens/Today'
 import { Inbox } from './screens/Inbox'
 import { Projects } from './screens/Projects'
@@ -53,10 +54,12 @@ export default function App(): React.JSX.Element {
     <DataProvider>
       <NavProvider>
         <Shortcuts />
-        <div className="shell">
-          <Sidebar />
-          <Screen />
-        </div>
+        <AppDnd>
+          <div className="shell">
+            <Sidebar />
+            <Screen />
+          </div>
+        </AppDnd>
       </NavProvider>
     </DataProvider>
   )

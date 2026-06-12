@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { todayYmd } from '@shared/dates'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { ItemCard } from '../components/ItemCard'
+import { DraggableCard, DropZone, SortableCard } from '../components/dnd'
 import { EmptyState } from '../components/bits'
 import { longDate } from '../format'
 
@@ -62,17 +64,24 @@ export function Today(): React.JSX.Element {
             onKeyDown={(e) => e.key === 'Enter' && capture()}
           />
 
-          <div className="section-label">Top tasks</div>
-          {tasks.length === 0 && (
-            <EmptyState art="🪷">Nothing planned. That’s allowed.</EmptyState>
-          )}
-          <div className="stack">
-            <AnimatePresence>
-              {visibleTasks.map((item) => (
-                <ItemCard key={item.id} item={item} />
-              ))}
-            </AnimatePresence>
-          </div>
+          <DropZone id="list-today" data={{ type: 'schedule', date: today }}>
+            <div className="section-label">Top tasks</div>
+            {tasks.length === 0 && (
+              <EmptyState art="🪷">Nothing planned. That’s allowed.</EmptyState>
+            )}
+            {/* Drag to reprioritize; the order is saved. */}
+            <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+              <div className="stack">
+                <AnimatePresence>
+                  {visibleTasks.map((item) => (
+                    <SortableCard key={item.id} item={item} sortableIds={tasks.map((t) => t.id)}>
+                      <ItemCard item={item} />
+                    </SortableCard>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </SortableContext>
+          </DropZone>
           {tasks.length > TOP_TASK_CAP && (
             <button className="btn ghost" style={{ marginTop: 8 }} onClick={() => setShowAll(!showAll)}>
               {showAll ? 'Show fewer' : `Show all ${tasks.length}`}
@@ -106,25 +115,27 @@ export function Today(): React.JSX.Element {
               <div className="stack">
                 <AnimatePresence>
                   {carried.map((item) => (
-                    <ItemCard key={item.id} item={item} faded />
+                    <DraggableCard key={item.id} item={item}>
+                      <ItemCard item={item} faded />
+                    </DraggableCard>
                   ))}
                 </AnimatePresence>
               </div>
             </>
           )}
 
-          {week.length > 0 && (
-            <>
-              <div className="section-label">This week</div>
-              <div className="stack">
-                <AnimatePresence>
-                  {week.map((item) => (
-                    <ItemCard key={item.id} item={item} />
-                  ))}
-                </AnimatePresence>
-              </div>
-            </>
-          )}
+          <DropZone id="list-week" data={{ type: 'schedule', date: ymdAddDays(today, 1) }}>
+            {week.length > 0 && <div className="section-label">This week</div>}
+            <div className="stack">
+              <AnimatePresence>
+                {week.map((item) => (
+                  <DraggableCard key={item.id} item={item}>
+                    <ItemCard item={item} />
+                  </DraggableCard>
+                ))}
+              </AnimatePresence>
+            </div>
+          </DropZone>
         </section>
       </div>
     </div>

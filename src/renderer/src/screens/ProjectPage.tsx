@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { ItemCard } from '../components/ItemCard'
+import { DraggableCard } from '../components/dnd'
 import { EmptyState, ProjectDot } from '../components/bits'
 
 export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Element {
@@ -55,7 +56,9 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
       <div className="masonry">
         <AnimatePresence>
           {open.map((item) => (
-            <ItemCard key={item.id} item={item} showProject={false} />
+            <DraggableCard key={item.id} item={item}>
+              <ItemCard item={item} showProject={false} />
+            </DraggableCard>
           ))}
         </AnimatePresence>
       </div>

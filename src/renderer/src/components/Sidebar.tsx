@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react'
+import { todayYmd } from '@shared/dates'
 import { useData } from '../state/data'
 import { useNav, type View } from '../state/nav'
 import { ProjectDot } from './bits'
+import { DropZone } from './dnd'
 
 function NavItem({
   view,
@@ -37,7 +39,10 @@ export function Sidebar(): React.JSX.Element {
     <nav className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-brand">{collapsed ? 'b.' : 'braincells'}</div>
 
-      <NavItem view={{ name: 'today' }} icon="☀️" label="Today" isActive={view.name === 'today'} />
+      {/* Dropping any card on "Today" schedules it for today. */}
+      <DropZone id="nav-today" data={{ type: 'schedule', date: todayYmd() }}>
+        <NavItem view={{ name: 'today' }} icon="☀️" label="Today" isActive={view.name === 'today'} />
+      </DropZone>
       <NavItem
         view={{ name: 'inbox' }}
         icon="📥"
@@ -55,16 +60,18 @@ export function Sidebar(): React.JSX.Element {
         label="All projects"
         isActive={view.name === 'projects'}
       />
+      {/* Dropping a card on a project assigns it (SPEC §7 drag & drop). */}
       {!collapsed &&
         projects.map((p) => (
-          <button
-            key={p.id}
-            className={`nav-item ${view.name === 'project' && view.projectId === p.id ? 'active' : ''}`}
-            onClick={() => navigate({ name: 'project', projectId: p.id })}
-          >
-            <ProjectDot color={p.color} />
-            <span>{p.name}</span>
-          </button>
+          <DropZone key={p.id} id={`nav-project-${p.id}`} data={{ type: 'project', projectId: p.id }}>
+            <button
+              className={`nav-item ${view.name === 'project' && view.projectId === p.id ? 'active' : ''}`}
+              onClick={() => navigate({ name: 'project', projectId: p.id })}
+            >
+              <ProjectDot color={p.color} />
+              <span>{p.name}</span>
+            </button>
+          </DropZone>
         ))}
 
       <div className="sidebar-footer">

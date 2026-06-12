@@ -1,0 +1,205 @@
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent
+} from '@dnd-kit/core'
+import { arrayMove, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { useState, type ReactNode } from 'react'
+import type { Item } from '@shared/types'
+import { useMutate } from '../state/data'
+
+/*
+ * One DndContext wraps the whole app (set up in App.tsx), so a card
+ * can be dragged from any screen onto any target — e.g. an inbox card
+ * onto a project in the sidebar. Targets describe themselves through
+ * `data`, and onDragEnd interprets the combination:
+ *
+ *   drop target data            effect
+ *   { type:'project', id }      assign item to that project
+ *   { type:'schedule', date }   set scheduledDate (today/this-week/…)
+ *   a sortable card             reorder within the Today list
+ */
+
+interface DragData {
+  item: Item
+  /** Present when the card lives in a sortable list: ids in list order. */
+  sortableIds?: string[]
+}
+
+/** A drag handle wrapper for cards in plain (non-sortable) lists. */
+export function DraggableCard({
+  item,
+  children
+}: {
+  item: Item
+  children: ReactNode
+}): React.JSX.Element {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: item.id,
+    data: { item } satisfies DragData
+  })
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      style={{ opacity: isDragging ? 0.35 : undefined }}
+    >
+      {children}
+    </div>
+  )
+}
+
+/** Same, but for cards inside a SortableContext (the Today list). */
+export function SortableCard({
+  item,
+  sortableIds,
+  children
+}: {
+  item: Item
+  sortableIds: string[]
+  children: ReactNode
+}): React.JSX.Element {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.id,
+    data: { item, sortableIds } satisfies DragData
+  })
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.35 : undefined
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+/** Anything a card can be dropped on. Highlights itself while hovered. */
+export function DropZone({
+  id,
+  data,
+  children,
+  className = ''
+}: {
+  id: string
+  data: { type: 'project'; projectId: string } | { type: 'schedule'; date: string }
+  children: ReactNode
+  className?: string
+}): React.JSX.Element {
+  const { setNodeRef, isOver } = useDroppable({ id, data })
+  return (
+    <div ref={setNodeRef} className={`${className} ${isOver ? 'drop-over' : ''}`.trim()}>
+      {children}
+    </div>
+  )
+}
+
+/**
+ * PointerSensor, but it never starts a drag from a form control —
+ * otherwise selecting text in an expanded card would drag the card.
+ */
+class CardPointerSensor extends PointerSensor {
+  static activators = [
+    {
+      eventName: 'onPointerDown' as const,
+      handler: ({ nativeEvent }: { nativeEvent: PointerEvent }): boolean =>
+        !(nativeEvent.target as HTMLElement).closest('input, textarea, select, button, a')
+    }
+  ]
+}
+
+export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element {
+  const mutate = useMutate()
+  const [dragged, setDragged] = useState<Item | null>(null)
+
+  // A small movement threshold keeps plain clicks working on cards.
+  const sensors = useSensors(
+    useSensor(CardPointerSensor, { activationConstraint: { distance: 6 } })
+  )
+
+  const onDragStart = (e: DragStartEvent): void => {
+    setDragged((e.active.data.current as DragData).item)
+  }
+
+  const onDragEnd = (e: DragEndEvent): void => {
+    setDragged(null)
+    const { active, over } = e
+    if (!over) return
+    const { item, sortableIds } = active.data.current as DragData
+    const overData = over.data.current as
+      | { type?: string; projectId?: string; date?: string; item?: Item; sortableIds?: string[] }
+      | undefined
+
+    if (overData?.type === 'project' && overData.projectId) {
+      // Dropping on a sidebar project assigns it — and triages it out
+      // of the inbox if that's where it lived.
+      mutate(() =>
+        window.api.updateItem(item.id, {
+          projectId: overData.projectId,
+          ...(item.status === 'inbox' ? { status: 'active' as const } : {})
+        })
+      )
+      return
+    }
+
+    if (overData?.type === 'schedule' && overData.date !== undefined) {
+      mutate(() =>
+        window.api.updateItem(item.id, {
+          kind: 'task',
+          scheduledDate: overData.date || null,
+          ...(item.status === 'inbox' ? { status: 'active' as const } : {})
+        })
+      )
+      return
+    }
+
+    // Dropped on a fellow card of the same sortable list: reorder.
+    if (sortableIds && overData?.item && over.id !== active.id) {
+      const from = sortableIds.indexOf(String(active.id))
+      const to = sortableIds.indexOf(String(over.id))
+      if (from >= 0 && to >= 0) {
+        mutate(() => window.api.reorderItems(arrayMove(sortableIds, from, to)))
+      }
+      return
+    }
+
+    // An outside card dropped directly onto a card in a dated list:
+    // schedule it alongside that card.
+    if (!sortableIds && overData?.item?.scheduledDate) {
+      mutate(() =>
+        window.api.updateItem(item.id, {
+          kind: 'task',
+          scheduledDate: overData.item!.scheduledDate,
+          ...(item.status === 'inbox' ? { status: 'active' as const } : {})
+        })
+      )
+    }
+  }
+
+  return (
+    <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      {children}
+      {/* The ghost card that follows the pointer during a drag. */}
+      <DragOverlay dropAnimation={{ duration: 180 }}>
+        {dragged && (
+          <div className="card drag-ghost">
+            <span className="card-title">{dragged.title || 'Untitled'}</span>
+          </div>
+        )}
+      </DragOverlay>
+    </DndContext>
+  )
+}

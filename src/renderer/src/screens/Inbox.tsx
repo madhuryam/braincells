@@ -4,6 +4,7 @@ import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { ItemCard } from '../components/ItemCard'
 import { Card } from '../components/Card'
+import { DraggableCard } from '../components/dnd'
 import { EmptyState } from '../components/bits'
 
 // Empty inbox is the app's only "win state" (SPEC §4.2) — celebrate it.
@@ -161,7 +162,10 @@ export function Inbox(): React.JSX.Element {
                     : undefined
                 }
               >
-                <ItemCard item={item} />
+                {/* Draggable: drop on a sidebar project or on Today. */}
+                <DraggableCard item={item}>
+                  <ItemCard item={item} />
+                </DraggableCard>
               </div>
             ))}
           </AnimatePresence>
