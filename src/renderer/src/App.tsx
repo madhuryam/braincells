@@ -7,7 +7,8 @@ import { Today } from './screens/Today'
 import { Inbox } from './screens/Inbox'
 import { Projects } from './screens/Projects'
 import { ProjectPage } from './screens/ProjectPage'
-import { DailyLogStub, MeetingStub, SearchStub, SettingsStub } from './screens/stubs'
+import { Settings } from './screens/Settings'
+import { DailyLogStub, MeetingStub, SearchStub } from './screens/stubs'
 
 function Screen(): React.JSX.Element {
   const { view } = useNav()
@@ -27,7 +28,7 @@ function Screen(): React.JSX.Element {
     case 'search':
       return <SearchStub />
     case 'settings':
-      return <SettingsStub />
+      return <Settings />
   }
 }
 

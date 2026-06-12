@@ -92,6 +92,14 @@ const api = {
   getSetting: <T,>(key: string): Promise<T | null> => invoke('settings:get', key),
   setSetting: (key: string, value: unknown): Promise<void> => invoke('settings:set', key, value),
 
+  // Calendar (read live, never stored)
+  calendarEvents: (startDate: string, endDate: string): Promise<CalendarEvent[]> =>
+    invoke('calendar:events', startDate, endDate),
+  googleStatus: (): Promise<{ connected: boolean }> => invoke('calendar:googleStatus'),
+  googleConnect: (clientId: string, clientSecret: string): Promise<{ ok: boolean; error?: string }> =>
+    invoke('calendar:googleConnect', clientId, clientSecret),
+  googleDisconnect: (): Promise<void> => invoke('calendar:googleDisconnect'),
+
   // Quick capture window
   submitCapture: (text: string): Promise<void> => invoke('capture:submit', text),
   dismissCapture: (): Promise<void> => invoke('capture:dismiss'),
