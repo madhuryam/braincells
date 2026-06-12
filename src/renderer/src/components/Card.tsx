@@ -43,9 +43,18 @@ export function Card({
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      // The satisfying exit: completing/dropping physically removes the
-      // card from the list (SPEC §7 micro-interactions).
-      exit={{ opacity: 0, scale: 0.92, transition: { duration: 0.16 } }}
+      // The satisfying exit: completing/dropping physically collapses
+      // the card out of the list (SPEC §7 micro-interactions) — not a
+      // checkbox toggle, an actual departure.
+      exit={{
+        opacity: 0,
+        scale: 0.92,
+        height: 0,
+        paddingTop: 0,
+        paddingBottom: 0,
+        overflow: 'hidden',
+        transition: { duration: 0.22, ease: [0.4, 0, 0.2, 1] }
+      }}
       transition={{ type: 'spring', stiffness: 500, damping: 38 }}
       className={classes}
       style={accentColor ? ({ '--card-accent': accentColor } as CSSProperties) : undefined}

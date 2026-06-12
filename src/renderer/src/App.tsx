@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { DataProvider } from './state/data'
 import { NavProvider, useNav } from './state/nav'
 import { Sidebar } from './components/Sidebar'
@@ -14,6 +15,23 @@ import { Search } from './screens/Search'
 
 function Screen(): React.JSX.Element {
   const { view } = useNav()
+  // A keyed wrapper makes each screen glide in with a soft spring.
+  const screenKey =
+    'projectId' in view ? view.projectId : 'eventKey' in view ? view.eventKey : view.name
+  return (
+    <motion.div
+      key={`${view.name}-${screenKey}`}
+      className="screen-enter"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+    >
+      <ScreenBody view={view} />
+    </motion.div>
+  )
+}
+
+function ScreenBody({ view }: { view: ReturnType<typeof useNav>['view'] }): React.JSX.Element {
   switch (view.name) {
     case 'today':
       return <Today />

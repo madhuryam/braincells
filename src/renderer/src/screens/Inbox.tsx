@@ -114,9 +114,17 @@ export function Inbox(): React.JSX.Element {
     setDraft('')
   }
 
+  const [sweeping, setSweeping] = useState(false)
   const bankruptcy = (): void => {
-    // No grim confirmation — dropping is cheap and recoverable by design.
-    mutate(() => window.api.dropItems(items.map((i) => i.id)))
+    // No grim confirmation — dropping is cheap and recoverable by
+    // design. The cards get swept off-screen one after another, then
+    // the drop lands in the database (SPEC §7: playful, not grim).
+    setSweeping(true)
+    const duration = Math.min(items.length, 12) * 60 + 450
+    setTimeout(async () => {
+      await mutate(() => window.api.dropItems(items.map((i) => i.id)))
+      setSweeping(false)
+    }, duration)
   }
 
   return (
@@ -184,11 +192,13 @@ export function Inbox(): React.JSX.Element {
               <div
                 key={item.id}
                 onClick={() => setSelected(i)}
-                style={
-                  i === selected
+                className={sweeping ? 'sweep-out' : ''}
+                style={{
+                  ...(i === selected && !sweeping
                     ? { outline: '2px solid var(--accent)', borderRadius: 'var(--radius-card)' }
-                    : undefined
-                }
+                    : {}),
+                  ...(sweeping ? { transitionDelay: `${Math.min(i, 12) * 60}ms` } : {})
+                }}
               >
                 {/* Draggable: drop on a sidebar project or on Today. */}
                 <DraggableCard item={item}>
