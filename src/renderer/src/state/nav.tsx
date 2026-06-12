@@ -12,6 +12,7 @@ export type View =
   | { name: 'projects' }
   | { name: 'project'; projectId: string }
   | { name: 'meeting'; eventKey: string; title: string; date: string }
+  | { name: 'calendar' }
   | { name: 'log' }
   | { name: 'search' }
   | { name: 'settings' }

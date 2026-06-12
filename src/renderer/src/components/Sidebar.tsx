@@ -57,6 +57,12 @@ export function Sidebar(): React.JSX.Element {
         isActive={view.name === 'inbox'}
       />
       <NavItem view={{ name: 'log' }} icon="📓" label="Daily Log" isActive={view.name === 'log'} />
+      <NavItem
+        view={{ name: 'calendar' }}
+        icon="🗓️"
+        label="Calendar"
+        isActive={view.name === 'calendar'}
+      />
       <NavItem view={{ name: 'search' }} icon="🔍" label="Search" isActive={view.name === 'search'} />
 
       {!collapsed && <div className="nav-section">Projects</div>}
