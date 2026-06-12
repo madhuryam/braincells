@@ -18,6 +18,7 @@ export interface NewItem {
   kind: ItemKind
   title: string
   content?: string
+  richContent?: string | null
   status?: ItemStatus
   projectId?: string | null
   dueDate?: string | null

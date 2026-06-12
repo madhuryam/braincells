@@ -14,6 +14,13 @@ describe('buildExport', () => {
       projectId: project.id
     })
     store.createItem({ kind: 'note', title: '' }) // untitled edge case
+    store.createItem({
+      kind: 'page',
+      title: 'Canvas',
+      content: 'plain mirror',
+      richContent: '<h1>Canvas</h1>',
+      status: 'active'
+    })
 
     const files = buildExport(store, new Date('2026-06-12T10:00:00Z'))
     const paths = files.map((f) => f.path)
@@ -22,7 +29,11 @@ describe('buildExport', () => {
     expect(paths).toContain('projects.json')
     expect(paths).toContain('links.json')
     expect(paths).toContain('meetings.json')
-    expect(paths.filter((p) => p.endsWith('.md'))).toHaveLength(2)
+    expect(paths.filter((p) => p.endsWith('.md'))).toHaveLength(3)
+    // Pages additionally export their rich layout as .html.
+    const html = files.find((f) => f.path.endsWith('.html'))!
+    expect(html.path).toContain('items/page/')
+    expect(html.contents).toBe('<h1>Canvas</h1>')
 
     // Titles become safe slugs; the id suffix keeps names unique.
     const taskFile = files.find((f) => f.path.includes('write-the-announcement'))!
@@ -36,6 +47,6 @@ describe('buildExport', () => {
     expect(taskFile.contents).toContain('Draft in **markdown**.')
 
     const manifest = JSON.parse(files.find((f) => f.path === 'manifest.json')!.contents)
-    expect(manifest.counts).toMatchObject({ projects: 1, items: 2 })
+    expect(manifest.counts).toMatchObject({ projects: 1, items: 3 })
   })
 })

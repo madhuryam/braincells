@@ -227,3 +227,20 @@ describe('backlog and unfiled notes', () => {
     expect(store.unfiledNotes()).toHaveLength(0)
   })
 })
+
+describe('pages (rich text)', () => {
+  it('stores HTML alongside a searchable plain-text mirror', () => {
+    const page = store.createItem({
+      kind: 'page',
+      title: 'Architecture braindump',
+      richContent: '<h1>Plan</h1><table><tr><td>quarterly budget</td></tr></table>',
+      content: 'Plan quarterly budget', // what the editor's getText() returns
+      status: 'active'
+    })
+    expect(store.getItem(page.id)!.richContent).toContain('<table>')
+
+    // Search hits the plain text, not the HTML tags.
+    expect(store.search('budget').map((i) => i.id)).toEqual([page.id])
+    expect(store.search('table')).toHaveLength(0)
+  })
+})

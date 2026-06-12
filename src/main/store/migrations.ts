@@ -97,11 +97,75 @@ const MIGRATIONS: string[] = [
   -- Index whatever already exists.
   INSERT INTO items_fts(rowid, title, content)
   SELECT rowid, title, content FROM items;
+  `,
+
+  // 3: rich-text Pages. Two schema changes that SQLite can't ALTER in
+  // place (the kind CHECK gains 'page', and rich_content is added), so
+  // this follows the official table-rebuild recipe: new table, copy
+  // rows (keeping rowids — FTS points at them), swap, recreate the
+  // indexes and FTS triggers that dropped with the old table.
+  // For pages, `content` holds a plain-text mirror (search/export) and
+  // `rich_content` holds the editor's HTML.
+  `
+  CREATE TABLE items_new (
+    id                    TEXT PRIMARY KEY,
+    kind                  TEXT NOT NULL
+                          CHECK (kind IN ('task','note','journal','prep','page')),
+    title                 TEXT NOT NULL DEFAULT '',
+    content               TEXT NOT NULL DEFAULT '',
+    rich_content          TEXT,
+    status                TEXT NOT NULL DEFAULT 'inbox'
+                          CHECK (status IN ('inbox','active','done','dropped')),
+    project_id            TEXT REFERENCES projects(id) ON DELETE SET NULL,
+    due_date              TEXT,
+    scheduled_date        TEXT,
+    scheduled_time        TEXT,
+    time_estimate_minutes INTEGER,
+    sort_order            REAL NOT NULL DEFAULT 0,
+    created_at            TEXT NOT NULL,
+    completed_at          TEXT
+  );
+
+  INSERT INTO items_new (rowid, id, kind, title, content, status, project_id,
+    due_date, scheduled_date, scheduled_time, time_estimate_minutes,
+    sort_order, created_at, completed_at)
+  SELECT rowid, id, kind, title, content, status, project_id,
+    due_date, scheduled_date, scheduled_time, time_estimate_minutes,
+    sort_order, created_at, completed_at FROM items;
+
+  DROP TABLE items;
+  ALTER TABLE items_new RENAME TO items;
+
+  CREATE INDEX idx_items_status    ON items(status);
+  CREATE INDEX idx_items_project   ON items(project_id);
+  CREATE INDEX idx_items_scheduled ON items(scheduled_date);
+
+  CREATE TRIGGER items_fts_insert AFTER INSERT ON items BEGIN
+    INSERT INTO items_fts(rowid, title, content)
+    VALUES (new.rowid, new.title, new.content);
+  END;
+  CREATE TRIGGER items_fts_delete AFTER DELETE ON items BEGIN
+    INSERT INTO items_fts(items_fts, rowid, title, content)
+    VALUES ('delete', old.rowid, old.title, old.content);
+  END;
+  CREATE TRIGGER items_fts_update AFTER UPDATE ON items BEGIN
+    INSERT INTO items_fts(items_fts, rowid, title, content)
+    VALUES ('delete', old.rowid, old.title, old.content);
+    INSERT INTO items_fts(rowid, title, content)
+    VALUES (new.rowid, new.title, new.content);
+  END;
+
+  INSERT INTO items_fts(items_fts) VALUES ('rebuild');
   `
 ]
 
 export function migrate(db: Database): void {
   const current = db.pragma('user_version', { simple: true }) as number
+  if (current >= MIGRATIONS.length) return
+  // Table rebuilds (migration 3) drop a table other tables reference;
+  // FK enforcement must be off while that happens. The Store turns it
+  // back on right after migrating.
+  db.pragma('foreign_keys = OFF')
   for (let v = current; v < MIGRATIONS.length; v++) {
     db.transaction(() => {
       db.exec(MIGRATIONS[v])

@@ -516,6 +516,127 @@
   background: var(--danger);
 }
 
+/* ── Pages: the rich text editor ─────────────────────────────────── */
+
+.page-title {
+  flex: 1;
+  font-size: 24px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  border: none;
+  background: transparent;
+  padding: 2px 0;
+}
+.page-title:focus {
+  border: none;
+  box-shadow: none;
+}
+
+.rich-toolbar {
+  position: sticky;
+  top: -28px; /* counters the canvas padding so it pins to the window */
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 8px;
+  margin-bottom: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+.rt-btn {
+  min-width: 30px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-soft);
+}
+.rt-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.rt-btn.on {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.rt-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
+.rt-font {
+  padding: 4px 8px;
+  font-size: 12.5px;
+}
+
+.rich-editor .ProseMirror {
+  outline: none;
+  min-height: 55vh;
+  line-height: 1.65;
+  font-size: 15px;
+}
+.rich-editor .ProseMirror > * + * {
+  margin-top: 0.5em;
+}
+.rich-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-faint);
+  pointer-events: none;
+  height: 0;
+}
+.rich-editor .ProseMirror blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 12px;
+  color: var(--text-soft);
+  margin: 0.6em 0;
+}
+.rich-editor .ProseMirror pre {
+  background: var(--bg-sunken);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  overflow-x: auto;
+}
+.rich-editor .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.6em 0;
+  table-layout: fixed;
+}
+.rich-editor .ProseMirror th,
+.rich-editor .ProseMirror td {
+  border: 1px solid var(--border);
+  padding: 6px 9px;
+  vertical-align: top;
+  min-width: 40px;
+}
+.rich-editor .ProseMirror th {
+  background: var(--bg-sunken);
+  font-weight: 700;
+  text-align: left;
+}
+.rich-editor .ProseMirror .selectedCell {
+  background: var(--accent-soft);
+}
+.rich-editor .ProseMirror ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 2px;
+}
+.rich-editor .ProseMirror ul[data-type='taskList'] li {
+  display: flex;
+  gap: 8px;
+}
+.rich-editor .ProseMirror ul[data-type='taskList'] input[type='checkbox'] {
+  accent-color: var(--accent);
+  width: 16px;
+}
+
 /* ── The Calendar screen (month grid) ────────────────────────────── */
 
 .cal-weekdays {

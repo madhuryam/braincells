@@ -12,13 +12,20 @@ import { Settings } from './screens/Settings'
 import { Meeting } from './screens/Meeting'
 import { DailyLog } from './screens/DailyLog'
 import { CalendarScreen } from './screens/CalendarScreen'
+import { Page } from './screens/Page'
 import { Search } from './screens/Search'
 
 function Screen(): React.JSX.Element {
   const { view } = useNav()
   // A keyed wrapper makes each screen glide in with a soft spring.
   const screenKey =
-    'projectId' in view ? view.projectId : 'eventKey' in view ? view.eventKey : view.name
+    'projectId' in view
+      ? view.projectId
+      : 'eventKey' in view
+        ? view.eventKey
+        : 'itemId' in view
+          ? view.itemId
+          : view.name
   return (
     <motion.div
       key={`${view.name}-${screenKey}`}
@@ -44,6 +51,8 @@ function ScreenBody({ view }: { view: ReturnType<typeof useNav>['view'] }): Reac
       return <ProjectPage key={view.projectId} projectId={view.projectId} />
     case 'meeting':
       return <Meeting key={view.eventKey} eventKey={view.eventKey} title={view.title} date={view.date} />
+    case 'page':
+      return <Page key={view.itemId} itemId={view.itemId} />
     case 'calendar':
       return <CalendarScreen />
     case 'log':

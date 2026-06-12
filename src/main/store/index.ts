@@ -19,6 +19,7 @@ export interface NewItem {
   kind: ItemKind
   title: string
   content?: string
+  richContent?: string | null
   status?: ItemStatus
   projectId?: string | null
   dueDate?: string | null
@@ -36,7 +37,7 @@ export interface LinkedItem {
 }
 
 // Column lists are written out once so every query returns identical shapes.
-const ITEM_COLS = `id, kind, title, content, status, project_id, due_date,
+const ITEM_COLS = `id, kind, title, content, rich_content, status, project_id, due_date,
   scheduled_date, scheduled_time, time_estimate_minutes, sort_order,
   created_at, completed_at`
 
@@ -47,6 +48,7 @@ function rowToItem(r: any): Item {
     kind: r.kind,
     title: r.title,
     content: r.content,
+    richContent: r.rich_content,
     status: r.status,
     projectId: r.project_id,
     dueDate: r.due_date,
@@ -85,8 +87,8 @@ export class Store {
   constructor(path: string) {
     this.db = new DatabaseConstructor(path)
     this.db.pragma('journal_mode = WAL')
+    migrate(this.db) // may rebuild tables, so FKs go on afterwards
     this.db.pragma('foreign_keys = ON')
-    migrate(this.db)
   }
 
   close(): void {
@@ -139,6 +141,7 @@ export class Store {
       kind: n.kind,
       title: n.title,
       content: n.content ?? '',
+      richContent: n.richContent ?? null,
       status: n.status ?? 'inbox',
       projectId: n.projectId ?? null,
       dueDate: n.dueDate ?? null,
@@ -151,13 +154,14 @@ export class Store {
     }
     this.db
       .prepare(
-        `INSERT INTO items (${ITEM_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO items (${ITEM_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         item.id,
         item.kind,
         item.title,
         item.content,
+        item.richContent,
         item.status,
         item.projectId,
         item.dueDate,
@@ -193,6 +197,7 @@ export class Store {
       kind: 'kind',
       title: 'title',
       content: 'content',
+      richContent: 'rich_content',
       status: 'status',
       projectId: 'project_id',
       dueDate: 'due_date',

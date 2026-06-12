@@ -8,7 +8,7 @@
 //   This is a single-user local app; storing local wall-clock time keeps
 //   SQL date() queries and exported files human-readable.
 
-export type ItemKind = 'task' | 'note' | 'journal' | 'prep'
+export type ItemKind = 'task' | 'note' | 'journal' | 'prep' | 'page'
 export type ItemStatus = 'inbox' | 'active' | 'done' | 'dropped'
 export type LinkRole = 'prep-for' | 'notes-for' | 'follow-up-from' | 'related'
 export type ProjectStatus = 'active' | 'archived'
@@ -18,7 +18,9 @@ export interface Item {
   id: string
   kind: ItemKind
   title: string
-  content: string // Markdown
+  content: string // Markdown (for pages: a plain-text mirror for search/export)
+  /** Pages only: the rich editor's HTML. */
+  richContent: string | null
   status: ItemStatus
   projectId: string | null
   dueDate: string | null

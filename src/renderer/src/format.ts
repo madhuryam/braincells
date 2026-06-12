@@ -55,5 +55,6 @@ export const KIND_ICON: Record<string, string> = {
   task: '✅',
   note: '📝',
   journal: '📓',
-  prep: '🎯'
+  prep: '🎯',
+  page: '📄'
 }

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { useData, useLiveQuery, useMutate } from '../state/data'
+import { useNav } from '../state/nav'
+import { Card } from '../components/Card'
 import { ItemCard } from '../components/ItemCard'
 import { DraggableCard } from '../components/dnd'
 import { MeetingRow } from '../components/MeetingRow'
@@ -8,6 +10,7 @@ import { BackButton, CheckableInput, EmptyState, ProjectDot } from '../component
 
 export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Element {
   const { projects } = useData()
+  const { navigate } = useNav()
   const mutate = useMutate()
   const project = projects.find((p) => p.id === projectId)
   const items = useLiveQuery(() => window.api.projectItems(projectId), [projectId])
@@ -19,9 +22,10 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   if (!project) return <div className="canvas">Project not found.</div>
 
   const open = (items ?? []).filter((i) => i.status === 'active' || i.status === 'inbox')
+  const pages = open.filter((i) => i.kind === 'page')
   const todos = open.filter((i) => i.kind === 'task' || i.kind === 'prep')
   const notes = open.filter((i) => i.kind === 'note' || i.kind === 'journal')
-  const done = (items ?? []).filter((i) => i.status === 'done')
+  const done = (items ?? []).filter((i) => i.status === 'done' && i.kind !== 'page')
 
   const add = async (): Promise<void> => {
     const title = draft.trim()
@@ -30,6 +34,17 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
       window.api.createItem({ kind: draftKind, title, status: 'active', projectId })
     )
     setDraft('')
+  }
+
+  const newPage = async (): Promise<void> => {
+    const item = await window.api.createItem({
+      kind: 'page',
+      title: '',
+      status: 'active',
+      projectId
+    })
+    await mutate(() => Promise.resolve())
+    navigate({ name: 'page', itemId: item.id })
   }
 
   return (
@@ -68,6 +83,32 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
       {open.length === 0 && done.length === 0 && meetings.length === 0 && (
         <EmptyState art="🌱">Nothing here yet. Add a task or note above.</EmptyState>
       )}
+
+      {/* Pages: full writing surfaces (rich text, tables) per project. */}
+      <div className="section-label row">
+        Pages
+        <button className="btn ghost" onClick={newPage}>
+          ＋ new page
+        </button>
+      </div>
+      <div className="stack project-section">
+        {pages.map((p) => (
+          <Card key={p.id} interactive onClick={() => navigate({ name: 'page', itemId: p.id })}>
+            <div className="row">
+              <span aria-hidden>📄</span>
+              <span className="card-title">{p.title || 'Untitled page'}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
+                open ↗
+              </span>
+            </div>
+          </Card>
+        ))}
+        {pages.length === 0 && (
+          <span style={{ color: 'var(--text-faint)', fontSize: 13 }}>
+            No pages yet — a page is a full document for brain-dumping knowledge.
+          </span>
+        )}
+      </div>
 
       {/* One vertical section per kind of thing — no masonry mixing. */}
       {todos.length > 0 && (

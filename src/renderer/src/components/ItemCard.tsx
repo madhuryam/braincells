@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Item, ItemStatus } from '@shared/types'
 import { useData, useMutate } from '../state/data'
+import { useNav } from '../state/nav'
 import { Card } from './Card'
 import { Checkbox, ProjectDot } from './bits'
 import { Markdown } from './Markdown'
@@ -25,6 +26,7 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
   const [content, setContent] = useState(item.content)
   const mutate = useMutate()
   const { projects } = useData()
+  const { navigate } = useNav()
   const project = projects.find((p) => p.id === item.projectId)
 
   // If another screen edits this item, pick up the new values.
@@ -95,7 +97,12 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
             <button
               className="card-title"
               style={{ display: 'block', width: '100%', textAlign: 'left' }}
-              onClick={() => setOpen(true)}
+              onClick={() =>
+                // Pages open as a full document, not an inline editor.
+                item.kind === 'page'
+                  ? navigate({ name: 'page', itemId: item.id })
+                  : setOpen(true)
+              }
             >
               {item.title || <span style={{ color: 'var(--text-faint)' }}>Untitled</span>}
             </button>
