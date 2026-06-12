@@ -10,7 +10,7 @@
 
 export type ItemKind = 'task' | 'note' | 'journal' | 'prep' | 'page'
 export type ItemStatus = 'inbox' | 'active' | 'done' | 'dropped'
-export type LinkRole = 'prep-for' | 'notes-for' | 'follow-up-from' | 'related'
+export type LinkRole = 'prep-for' | 'notes-for' | 'follow-up-from' | 'related' | 'subtask-of'
 export type ProjectStatus = 'active' | 'archived'
 
 /** Everything the user creates is an Item; `kind` says how it behaves. */

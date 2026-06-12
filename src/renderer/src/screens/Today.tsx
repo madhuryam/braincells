@@ -88,7 +88,7 @@ export function Today(): React.JSX.Element {
               <EmptyState art="🪷">Nothing planned. That’s allowed.</EmptyState>
             )}
             {/* One block per project; drag to reprioritize within a block. */}
-            <TaskGroups items={visibleTasks} sortable />
+            <TaskGroups items={visibleTasks} date={today} sortable />
           </DropZone>
           {tasks.length > TOP_TASK_CAP && (
             <button className="btn ghost" style={{ marginTop: 8 }} onClick={() => setShowAll(!showAll)}>
@@ -189,7 +189,7 @@ function DaySection({ day }: { day: RollingDay }): React.JSX.Element {
       </button>
       {open && (
         <div>
-          <TaskGroups items={tasks} />
+          <TaskGroups items={tasks} date={day.date} />
           {tasks.length === 0 && (
             <span style={{ color: 'var(--text-faint)', fontSize: 13, padding: '2px 0 8px', display: 'block' }}>
               Nothing yet — drop a card here.

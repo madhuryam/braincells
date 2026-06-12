@@ -58,6 +58,7 @@ const api = {
   reorderItems: (ids: string[]): Promise<void> => invoke('items:reorder', ids),
   dropItems: (ids: string[]): Promise<void> => invoke('items:drop', ids),
   starredItems: (): Promise<Item[]> => invoke('items:starred'),
+  subtasksOf: (parentId: string): Promise<Item[]> => invoke('items:subtasks', parentId),
 
   // Screen queries
   inboxItems: (): Promise<Item[]> => invoke('inbox:items'),

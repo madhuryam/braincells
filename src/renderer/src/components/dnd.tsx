@@ -100,6 +100,7 @@ export function DropZone({
   data:
     | { type: 'project'; projectId: string }
     | { type: 'schedule'; date: string }
+    | { type: 'project-schedule'; projectId: string | null; date: string }
     | { type: 'timeblock'; date: string; time: string }
     | { type: 'event-prep'; event: CalendarEvent }
   children: ReactNode
@@ -195,6 +196,19 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
       return
     }
 
+    // A project block inside a day list: file it there, same day.
+    if (overData?.type === 'project-schedule' && overData.date) {
+      mutate(() =>
+        window.api.updateItem(item.id, {
+          kind: 'task',
+          projectId: overData.projectId ?? null,
+          scheduledDate: overData.date,
+          ...(item.status === 'inbox' ? { status: 'active' as const } : {})
+        })
+      )
+      return
+    }
+
     if (overData?.type === 'schedule' && overData.date !== undefined) {
       mutate(() =>
         window.api.updateItem(item.id, {
@@ -216,13 +230,15 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
       return
     }
 
-    // An outside card dropped directly onto a card in a dated list:
-    // schedule it alongside that card.
-    if (!sortableIds && overData?.item?.scheduledDate) {
+    // Dropped directly onto a card in another list: adopt that card's
+    // home — same day, same project block.
+    if (overData?.item && over.id !== active.id) {
+      const target = overData.item
       mutate(() =>
         window.api.updateItem(item.id, {
           kind: 'task',
-          scheduledDate: overData.item!.scheduledDate,
+          scheduledDate: target.scheduledDate,
+          projectId: target.projectId,
           ...(item.status === 'inbox' ? { status: 'active' as const } : {})
         })
       )

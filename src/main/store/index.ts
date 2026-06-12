@@ -294,12 +294,17 @@ export class Store {
   /**
    * The 'someday' backlog: live tasks with no scheduled date. They sit
    * on the Inbox screen until a day (or a project board) claims them.
+   * Subtasks are excluded — they live inside their parent's card.
    */
   backlogTasks(): Item[] {
     return this.db
       .prepare(
         `SELECT ${ITEM_COLS} FROM items
          WHERE kind = 'task' AND status = 'active' AND scheduled_date IS NULL
+           AND NOT EXISTS (
+             SELECT 1 FROM links l
+             WHERE l.from_item_id = items.id AND l.role = 'subtask-of'
+           )
          ORDER BY created_at`
       )
       .all()
@@ -318,15 +323,34 @@ export class Store {
       .map(rowToItem)
   }
 
-  /** Everything in a project that isn't dropped, newest activity first. */
+  /**
+   * Everything in a project that isn't dropped, newest activity first.
+   * Subtasks are excluded — they show inside their parent's card.
+   */
   projectItems(projectId: string): Item[] {
     return this.db
       .prepare(
         `SELECT ${ITEM_COLS} FROM items
          WHERE project_id = ? AND status != 'dropped'
+           AND NOT EXISTS (
+             SELECT 1 FROM links l
+             WHERE l.from_item_id = items.id AND l.role = 'subtask-of'
+           )
          ORDER BY created_at DESC`
       )
       .all(projectId)
+      .map(rowToItem)
+  }
+
+  /** A task's checkbox subtasks, oldest first. */
+  subtasksOf(parentId: string): Item[] {
+    return this.db
+      .prepare(
+        `SELECT i.* FROM links l JOIN items i ON i.id = l.from_item_id
+         WHERE l.to_item_id = ? AND l.role = 'subtask-of' AND i.status != 'dropped'
+         ORDER BY i.created_at`
+      )
+      .all(parentId)
       .map(rowToItem)
   }
 

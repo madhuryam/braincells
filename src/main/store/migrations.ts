@@ -161,6 +161,32 @@ const MIGRATIONS: string[] = [
   // 4: starred items — quick-access favorites shown in the sidebar.
   `
   ALTER TABLE items ADD COLUMN starred INTEGER NOT NULL DEFAULT 0;
+  `,
+
+  // 5: subtasks. A subtask is an ordinary task item linked to its
+  // parent with role 'subtask-of' — the Items+Links model at work.
+  // The role lives in a CHECK constraint, which SQLite can't ALTER,
+  // so links gets the same rebuild recipe items got in migration 3.
+  `
+  CREATE TABLE links_new (
+    id            TEXT PRIMARY KEY,
+    from_item_id  TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    to_item_id    TEXT REFERENCES items(id) ON DELETE CASCADE,
+    to_event_key  TEXT,
+    role          TEXT NOT NULL
+                  CHECK (role IN ('prep-for','notes-for','follow-up-from','related','subtask-of')),
+    event_title   TEXT,
+    event_date    TEXT,
+    created_at    TEXT NOT NULL,
+    CHECK ((to_item_id IS NULL) <> (to_event_key IS NULL))
+  );
+
+  INSERT INTO links_new SELECT * FROM links;
+  DROP TABLE links;
+  ALTER TABLE links_new RENAME TO links;
+
+  CREATE INDEX idx_links_from  ON links(from_item_id);
+  CREATE INDEX idx_links_event ON links(to_event_key);
   `
 ]
 

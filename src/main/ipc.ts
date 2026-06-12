@@ -25,6 +25,7 @@ export function registerStoreIpc(store: Store): void {
   ipcMain.handle('items:reorder', (_e, ids: string[]) => store.reorderItems(ids))
   ipcMain.handle('items:drop', (_e, ids: string[]) => store.dropItems(ids))
   ipcMain.handle('items:starred', () => store.starredItems())
+  ipcMain.handle('items:subtasks', (_e, parentId: string) => store.subtasksOf(parentId))
 
   // Screen queries
   ipcMain.handle('inbox:items', () => store.inboxItems())

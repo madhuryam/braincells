@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Item, ItemStatus } from '@shared/types'
-import { useData, useMutate } from '../state/data'
+import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { shortTitle, useUndo } from '../state/undo'
 import { Card } from './Card'
-import { Checkbox, ProjectDot } from './bits'
+import { CheckableInput, Checkbox, ProjectDot } from './bits'
 import { RichEditor } from './RichEditor'
 import { itemBodyHtml } from '../richtext'
 import { KIND_ICON, prettyDate, rollingDays } from './../format'
@@ -72,6 +72,29 @@ export function ItemCard({
 
   const isCheckable = item.kind === 'task' || item.kind === 'prep'
   const done = item.status === 'done'
+
+  // Checkbox subtasks: ordinary task items linked 'subtask-of' this one.
+  const subtasks =
+    useLiveQuery(() => (isCheckable ? window.api.subtasksOf(item.id) : Promise.resolve([])), [
+      item.id,
+      isCheckable
+    ]) ?? []
+  const subtasksDone = subtasks.filter((s) => s.status === 'done').length
+  const [subDraft, setSubDraft] = useState('')
+  const addSubtask = async (): Promise<void> => {
+    const t = subDraft.trim()
+    if (!t) return
+    await mutate(async () => {
+      const sub = await window.api.createItem({
+        kind: 'task',
+        title: t,
+        status: 'active',
+        projectId: item.projectId
+      })
+      await window.api.linkItems(sub.id, item.id, 'subtask-of')
+    })
+    setSubDraft('')
+  }
 
   /**
    * Collapse, flushing any unsaved edits first. Bound to onMouseDown
@@ -161,6 +184,11 @@ export function ItemCard({
             {item.timeEstimateMinutes != null && (
               <span className="pill">~{item.timeEstimateMinutes}m</span>
             )}
+            {subtasks.length > 0 && (
+              <span className="pill" title="subtasks">
+                ☑ {subtasksDone}/{subtasks.length}
+              </span>
+            )}
             {!open && item.content && <span title="has notes">📄</span>}
           </div>
         </div>
@@ -177,6 +205,48 @@ export function ItemCard({
             placeholder="Notes — type **bold**, # headings, - lists…"
             onChange={onBodyChange}
           />
+          {/* Checkbox subtasks. */}
+          {isCheckable && (
+            <div className="subtasks">
+              {subtasks.map((sub) => (
+                <div key={sub.id} className="subtask-row">
+                  <Checkbox
+                    checked={sub.status === 'done'}
+                    onToggle={() =>
+                      mutate(() =>
+                        window.api.updateItem(sub.id, {
+                          status: sub.status === 'done' ? 'active' : 'done'
+                        })
+                      )
+                    }
+                  />
+                  <span className={`subtask-title ${sub.status === 'done' ? 'done' : ''}`}>
+                    {sub.title}
+                  </span>
+                  <button
+                    className="btn ghost small"
+                    title="Drop this subtask"
+                    onClick={() => {
+                      mutate(() => window.api.updateItem(sub.id, { status: 'dropped' }))
+                      pushUndo(`Dropped “${shortTitle(sub.title)}”`, async () => {
+                        await window.api.updateItem(sub.id, { status: 'active' })
+                      })
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <CheckableInput
+                placeholder="Add a subtask…"
+                value={subDraft}
+                onChange={(e) => setSubDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') addSubtask()
+                }}
+              />
+            </div>
+          )}
           {/* When to do it: the 5-day rolling window, or someday. */}
           {(item.kind === 'task' || item.kind === 'prep') && (
             <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>

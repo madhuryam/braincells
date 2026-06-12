@@ -3,23 +3,26 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { Item, Project } from '@shared/types'
 import { useData } from '../state/data'
 import { ItemCard } from './ItemCard'
-import { DraggableCard, SortableCard } from './dnd'
+import { DraggableCard, DropZone, SortableCard } from './dnd'
 import { ProjectDot } from './bits'
 
 interface TaskGroupsProps {
   items: Item[]
+  /** The day these tasks belong to — block drops keep this date. */
+  date: string
   /** Per-group drag-to-reorder (used by Top tasks). */
   sortable?: boolean
 }
 
 /**
  * A day's task list, broken into one block per project (sidebar order,
- * 'No project' last). The surrounding section already names the day,
- * so cards hide their date pill; inside a block the project is in the
- * header, so cards hide their project pill too. If nothing has a
- * project, the list renders flat with no headers at all.
+ * 'No project' last). Each block is itself a drop target: dragging a
+ * card from 'No project' (or anywhere else) onto a project's block
+ * files it into that project on this same day. The surrounding section
+ * names the day and the block names the project, so cards hide both
+ * pills. If nothing has a project, the list renders flat.
  */
-export function TaskGroups({ items, sortable = false }: TaskGroupsProps): React.JSX.Element {
+export function TaskGroups({ items, date, sortable = false }: TaskGroupsProps): React.JSX.Element {
   const { projects } = useData()
 
   const groups: Array<{ key: string; project: Project | null; items: Item[] }> = []
@@ -38,7 +41,7 @@ export function TaskGroups({ items, sortable = false }: TaskGroupsProps): React.
       {groups.map((group) => {
         const ids = group.items.map((i) => i.id)
         const cards = (
-          <div className="stack">
+          <div className={`stack ${showHeaders ? 'task-group-indent' : ''}`}>
             <AnimatePresence initial={false}>
               {group.items.map((item) =>
                 sortable ? (
@@ -54,8 +57,20 @@ export function TaskGroups({ items, sortable = false }: TaskGroupsProps): React.
             </AnimatePresence>
           </div>
         )
+        const body = sortable ? (
+          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+            {cards}
+          </SortableContext>
+        ) : (
+          cards
+        )
         return (
-          <div className="task-group" key={group.key}>
+          <DropZone
+            key={group.key}
+            id={`pg-${date}-${group.key}`}
+            data={{ type: 'project-schedule', projectId: group.project?.id ?? null, date }}
+            className="task-group"
+          >
             {showHeaders && (
               <div className="task-group-header">
                 {group.project ? (
@@ -67,14 +82,8 @@ export function TaskGroups({ items, sortable = false }: TaskGroupsProps): React.
                 )}
               </div>
             )}
-            {sortable ? (
-              <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-                {cards}
-              </SortableContext>
-            ) : (
-              cards
-            )}
-          </div>
+            {body}
+          </DropZone>
         )
       })}
     </>

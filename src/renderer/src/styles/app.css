@@ -457,16 +457,48 @@
 
 /* Project blocks inside a day's task list. */
 .task-group {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .task-group-header {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  font-weight: 650;
-  color: var(--text-soft);
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
   margin: 2px 0 8px;
+}
+.task-group-indent {
+  padding-left: 18px;
+}
+
+/* Subtask rows inside an expanded card. */
+.subtasks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 6px;
+}
+.subtask-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.subtask-row .subtask-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+}
+.subtask-row .subtask-title.done {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+.subtask-row .btn {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.subtask-row:hover .btn {
+  opacity: 1;
 }
 
 /* Collapsible day-group headers on Today. */

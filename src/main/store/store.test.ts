@@ -272,3 +272,25 @@ describe('starred items', () => {
     expect(store.starredItems()).toHaveLength(0)
   })
 })
+
+describe('subtasks', () => {
+  it('lists a task’s subtasks and keeps them out of other lists', () => {
+    const p = store.createProject('Launch', '#339af0')
+    const parent = store.createItem({
+      kind: 'task', title: 'ship v2', status: 'active', projectId: p.id
+    })
+    const sub = store.createItem({
+      kind: 'task', title: 'write changelog', status: 'active', projectId: p.id
+    })
+    store.linkItems(sub.id, parent.id, 'subtask-of')
+
+    expect(store.subtasksOf(parent.id).map((i) => i.id)).toEqual([sub.id])
+    // Subtasks live inside their parent's card, not in the backlog
+    // or the project page lists.
+    expect(store.backlogTasks().map((i) => i.id)).toEqual([parent.id])
+    expect(store.projectItems(p.id).map((i) => i.id)).toEqual([parent.id])
+
+    store.updateItem(sub.id, { status: 'dropped' })
+    expect(store.subtasksOf(parent.id)).toHaveLength(0)
+  })
+})
