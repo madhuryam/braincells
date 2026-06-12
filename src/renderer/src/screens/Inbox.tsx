@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
+import type { Item } from '@shared/types'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { prettyDate, rollingDays } from '../format'
@@ -40,6 +41,8 @@ export function Inbox(): React.JSX.Element {
   // Upcoming events, so a capture can be attached as meeting prep.
   const events =
     useLiveQuery(() => window.api.calendarEvents(todayYmd(), ymdAddDays(todayYmd(), 7)), []) ?? []
+  const backlog = useLiveQuery(() => window.api.backlogTasks(), []) ?? []
+  const unfiled = useLiveQuery(() => window.api.unfiledNotes(), []) ?? []
   const zero = useMemo(() => ZERO_MESSAGES[Math.floor(Math.random() * ZERO_MESSAGES.length)], [])
 
   const current = items[Math.min(selected, items.length - 1)]
@@ -191,7 +194,7 @@ export function Inbox(): React.JSX.Element {
         <EmptyState art={zero[0]}>{zero[1]}</EmptyState>
       ) : (
         <div className="stack">
-          <AnimatePresence>
+          <AnimatePresence initial={false}>
             {items.map((item, i) => (
               <div
                 key={item.id}
@@ -213,6 +216,55 @@ export function Inbox(): React.JSX.Element {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Triaged-but-unplaced things keep a visible home down here, so
+          'someday' is a real backlog you can revisit — never a void. */}
+      <ItemSection
+        title="Backlog · someday"
+        hint="Tasks with no date. Open one to put it on a day, or drag it onto Today."
+        items={backlog}
+      />
+      <ItemSection
+        title="Notes · unfiled"
+        hint="Notes that aren't in any project yet. Drag one onto a project in the sidebar."
+        items={unfiled}
+      />
     </div>
+  )
+}
+
+/** A collapsible card list with a count, used for backlog and notes. */
+function ItemSection({
+  title,
+  hint,
+  items
+}: {
+  title: string
+  hint: string
+  items: Item[]
+}): React.JSX.Element | null {
+  const [open, setOpen] = useState(false)
+  if (items.length === 0) return null
+  return (
+    <section style={{ marginTop: 18 }}>
+      <button className="section-label day-toggle" onClick={() => setOpen(!open)}>
+        {open ? '▾' : '▸'} {title}
+        <span className="pill">{items.length}</span>
+      </button>
+      {open && (
+        <>
+          <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--text-faint)' }}>{hint}</p>
+          <div className="stack">
+            <AnimatePresence initial={false}>
+              {items.map((item) => (
+                <DraggableCard key={item.id} item={item}>
+                  <ItemCard item={item} />
+                </DraggableCard>
+              ))}
+            </AnimatePresence>
+          </div>
+        </>
+      )}
+    </section>
   )
 }

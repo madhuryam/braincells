@@ -60,6 +60,8 @@ const api = {
   // Screen queries
   inboxItems: (): Promise<Item[]> => invoke('inbox:items'),
   inboxCount: (): Promise<number> => invoke('inbox:count'),
+  backlogTasks: (): Promise<Item[]> => invoke('inbox:backlog'),
+  unfiledNotes: (): Promise<Item[]> => invoke('inbox:unfiledNotes'),
   tasksFor: (date: string): Promise<Item[]> => invoke('today:tasks', date),
   tasksThisWeek: (date: string): Promise<Item[]> => invoke('today:week', date),
   carriedOver: (date: string): Promise<Item[]> => invoke('today:carriedOver', date),

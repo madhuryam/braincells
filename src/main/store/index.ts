@@ -281,6 +281,33 @@ export class Store {
       .map(rowToItem)
   }
 
+  /**
+   * The 'someday' backlog: live tasks with no scheduled date. They sit
+   * on the Inbox screen until a day (or a project board) claims them.
+   */
+  backlogTasks(): Item[] {
+    return this.db
+      .prepare(
+        `SELECT ${ITEM_COLS} FROM items
+         WHERE kind = 'task' AND status = 'active' AND scheduled_date IS NULL
+         ORDER BY created_at`
+      )
+      .all()
+      .map(rowToItem)
+  }
+
+  /** Notes that were triaged out of the inbox but never given a project. */
+  unfiledNotes(): Item[] {
+    return this.db
+      .prepare(
+        `SELECT ${ITEM_COLS} FROM items
+         WHERE kind = 'note' AND status = 'active' AND project_id IS NULL
+         ORDER BY created_at DESC`
+      )
+      .all()
+      .map(rowToItem)
+  }
+
   /** Everything in a project that isn't dropped, newest activity first. */
   projectItems(projectId: string): Item[] {
     return this.db

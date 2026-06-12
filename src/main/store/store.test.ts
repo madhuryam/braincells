@@ -207,3 +207,23 @@ describe('settings', () => {
     expect(store.getSetting('missing')).toBeNull()
   })
 })
+
+describe('backlog and unfiled notes', () => {
+  it('someday tasks (no date) appear in the backlog until scheduled', () => {
+    const t = store.createItem({ kind: 'task', title: 'learn sqlite', status: 'active' })
+    expect(store.backlogTasks().map((i) => i.id)).toEqual([t.id])
+
+    store.updateItem(t.id, { scheduledDate: today })
+    expect(store.backlogTasks()).toHaveLength(0)
+  })
+
+  it('unfiled notes are active notes without a project', () => {
+    const n = store.createItem({ kind: 'note', title: 'an idea', status: 'active' })
+    store.createItem({ kind: 'note', title: 'still in inbox' }) // status inbox — not unfiled yet
+    expect(store.unfiledNotes().map((i) => i.id)).toEqual([n.id])
+
+    const p = store.createProject('Ideas', '#cc5de8')
+    store.updateItem(n.id, { projectId: p.id })
+    expect(store.unfiledNotes()).toHaveLength(0)
+  })
+})
