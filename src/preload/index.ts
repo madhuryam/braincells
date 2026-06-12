@@ -57,6 +57,7 @@ const api = {
   deleteItem: (id: string): Promise<void> => invoke('items:delete', id),
   reorderItems: (ids: string[]): Promise<void> => invoke('items:reorder', ids),
   dropItems: (ids: string[]): Promise<void> => invoke('items:drop', ids),
+  starredItems: (): Promise<Item[]> => invoke('items:starred'),
 
   // Screen queries
   inboxItems: (): Promise<Item[]> => invoke('inbox:items'),

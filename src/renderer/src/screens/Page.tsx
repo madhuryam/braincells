@@ -68,6 +68,13 @@ export function Page({ itemId }: { itemId: string }): React.JSX.Element {
             <ProjectDot color={project.color} /> {project.name}
           </span>
         )}
+        <button
+          className="btn ghost icon-btn"
+          title={item.starred ? 'Unstar' : 'Star — pin it to the sidebar'}
+          onClick={() => mutate(() => window.api.updateItem(itemId, { starred: !item.starred }))}
+        >
+          {item.starred ? '⭐' : '☆'}
+        </button>
       </header>
 
       {/* Keyed by id: the editor seeds once per page and owns the

@@ -258,3 +258,17 @@ describe('completed history', () => {
     expect(store.recentCompleted(1)).toHaveLength(1)
   })
 })
+
+describe('starred items', () => {
+  it('round-trips the star and lists favorites (never dropped ones)', () => {
+    const note = store.createItem({ kind: 'note', title: 'cheatsheet', status: 'active' })
+    expect(note.starred).toBe(false)
+
+    store.updateItem(note.id, { starred: true })
+    expect(store.getItem(note.id)!.starred).toBe(true)
+    expect(store.starredItems().map((i) => i.id)).toEqual([note.id])
+
+    store.dropItems([note.id])
+    expect(store.starredItems()).toHaveLength(0)
+  })
+})

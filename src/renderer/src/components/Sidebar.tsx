@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { KIND_ICON } from '../format'
 import { todayYmd } from '@shared/dates'
 import { useData } from '../state/data'
 import { useNav, type View } from '../state/nav'
@@ -37,9 +38,10 @@ function NavItem({
 export function Sidebar(): React.JSX.Element {
   // `dark` comes from context state (not the DOM attribute) so the
   // toggle button always re-renders in step with the actual theme.
-  const { projects, inboxCount, dark, setTheme } = useData()
+  const { projects, inboxCount, starred, dark, setTheme } = useData()
   const { view, navigate } = useNav()
   const [collapsed, setCollapsed] = useState(false)
+  const [starredOpen, setStarredOpen] = useState(true)
 
   return (
     <nav className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -64,6 +66,28 @@ export function Sidebar(): React.JSX.Element {
         isActive={view.name === 'calendar'}
       />
       <NavItem view={{ name: 'search' }} icon="🔍" label="Search" isActive={view.name === 'search'} />
+
+      {/* Quick access to starred notes/pages, no project digging. */}
+      {!collapsed && starred.length > 0 && (
+        <button className="nav-section nav-section-toggle" onClick={() => setStarredOpen(!starredOpen)}>
+          {starredOpen ? '▾' : '▸'} Starred
+        </button>
+      )}
+      {!collapsed &&
+        starredOpen &&
+        starred.map((item) => (
+          <button
+            key={item.id}
+            className={`nav-item ${view.name === 'page' && view.itemId === item.id ? 'active' : ''}`}
+            title={item.title}
+            onClick={() => navigate({ name: 'page', itemId: item.id })}
+          >
+            <span className="nav-icon" aria-hidden>
+              {KIND_ICON[item.kind]}
+            </span>
+            <span>{item.title || 'Untitled'}</span>
+          </button>
+        ))}
 
       {!collapsed && <div className="nav-section">Projects</div>}
       <NavItem

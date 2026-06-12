@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode
 } from 'react'
-import type { Project } from '@shared/types'
+import type { Item, Project } from '@shared/types'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -22,6 +22,7 @@ interface DataContextValue {
   /** Loaded centrally because the sidebar shows them on every screen. */
   projects: Project[]
   inboxCount: number
+  starred: Item[]
   theme: Theme
   /** The currently *resolved* appearance (theme + system preference). */
   dark: boolean
@@ -34,6 +35,7 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
   const [version, setVersion] = useState(0)
   const [projects, setProjects] = useState<Project[]>([])
   const [inboxCount, setInboxCount] = useState(0)
+  const [starred, setStarred] = useState<Item[]>([])
   const [theme, setThemeState] = useState<Theme>('system')
   const [dark, setDark] = useState(false)
 
@@ -46,6 +48,7 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
   useEffect(() => {
     window.api.listProjects().then(setProjects)
     window.api.inboxCount().then(setInboxCount)
+    window.api.starredItems().then(setStarred)
   }, [version])
 
   // Theme: load once, then keep the <html data-theme> attribute in sync.
@@ -75,7 +78,7 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
   }, [])
 
   return (
-    <DataContext.Provider value={{ version, bump, projects, inboxCount, theme, dark, setTheme }}>
+    <DataContext.Provider value={{ version, bump, projects, inboxCount, starred, theme, dark, setTheme }}>
       {children}
     </DataContext.Provider>
   )

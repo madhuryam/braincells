@@ -156,6 +156,11 @@ const MIGRATIONS: string[] = [
   END;
 
   INSERT INTO items_fts(items_fts) VALUES ('rebuild');
+  `,
+
+  // 4: starred items — quick-access favorites shown in the sidebar.
+  `
+  ALTER TABLE items ADD COLUMN starred INTEGER NOT NULL DEFAULT 0;
   `
 ]
 

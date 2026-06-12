@@ -141,6 +141,7 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
             </button>
           )}
           <div className="card-meta">
+            {item.starred && <span title="Starred — pinned in the sidebar">⭐</span>}
             {showProject && project && (
               <span className="pill">
                 <ProjectDot color={project.color} /> {project.name}
@@ -216,6 +217,15 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
                 onChange={(e) => patch({ dueDate: e.target.value || null })}
               />
             </label>
+            {(item.kind === 'note' || item.kind === 'page') && (
+              <button
+                className="btn ghost"
+                title={item.starred ? 'Unstar' : 'Star — pin it to the sidebar'}
+                onClick={() => patch({ starred: !item.starred })}
+              >
+                {item.starred ? '⭐ starred' : '☆ star'}
+              </button>
+            )}
             <button
               className="btn ghost"
               title="Drop this item (it goes away, guilt-free)"

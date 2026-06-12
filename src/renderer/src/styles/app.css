@@ -104,6 +104,16 @@
   overflow: hidden;
 }
 
+.nav-section-toggle {
+  display: block;
+  width: calc(100% - 20px);
+  text-align: left;
+  cursor: pointer;
+}
+.nav-section-toggle:hover {
+  color: var(--text-soft);
+}
+
 .project-dot {
   width: 10px;
   height: 10px;

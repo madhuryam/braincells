@@ -38,7 +38,7 @@ export interface LinkedItem {
 
 // Column lists are written out once so every query returns identical shapes.
 const ITEM_COLS = `id, kind, title, content, rich_content, status, project_id, due_date,
-  scheduled_date, scheduled_time, time_estimate_minutes, sort_order,
+  scheduled_date, scheduled_time, time_estimate_minutes, sort_order, starred,
   created_at, completed_at`
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -56,6 +56,7 @@ function rowToItem(r: any): Item {
     scheduledTime: r.scheduled_time,
     timeEstimateMinutes: r.time_estimate_minutes,
     sortOrder: r.sort_order,
+    starred: !!r.starred,
     createdAt: r.created_at,
     completedAt: r.completed_at
   }
@@ -149,12 +150,13 @@ export class Store {
       scheduledTime: n.scheduledTime ?? null,
       timeEstimateMinutes: n.timeEstimateMinutes ?? null,
       sortOrder: this.nextSortOrder(),
+      starred: false,
       createdAt: nowStamp(),
       completedAt: null
     }
     this.db
       .prepare(
-        `INSERT INTO items (${ITEM_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO items (${ITEM_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         item.id,
@@ -169,6 +171,7 @@ export class Store {
         item.scheduledTime,
         item.timeEstimateMinutes,
         item.sortOrder,
+        item.starred ? 1 : 0,
         item.createdAt,
         item.completedAt
       )
@@ -204,7 +207,8 @@ export class Store {
       scheduledDate: 'scheduled_date',
       scheduledTime: 'scheduled_time',
       timeEstimateMinutes: 'time_estimate_minutes',
-      sortOrder: 'sort_order'
+      sortOrder: 'sort_order',
+      starred: 'starred'
     }
     const sets: string[] = []
     const vals: unknown[] = []
@@ -212,7 +216,8 @@ export class Store {
       const v = (patch as any)[field]
       if (v !== undefined) {
         sets.push(`${col} = ?`)
-        vals.push(v)
+        // SQLite can't bind booleans directly.
+        vals.push(typeof v === 'boolean' ? (v ? 1 : 0) : v)
       }
     }
     if (patch.status === 'done' && existing.status !== 'done') {
@@ -322,6 +327,17 @@ export class Store {
          ORDER BY created_at DESC`
       )
       .all(projectId)
+      .map(rowToItem)
+  }
+
+  /** Quick-access favorites for the sidebar. */
+  starredItems(): Item[] {
+    return this.db
+      .prepare(
+        `SELECT ${ITEM_COLS} FROM items
+         WHERE starred = 1 AND status != 'dropped' ORDER BY title`
+      )
+      .all()
       .map(rowToItem)
   }
 

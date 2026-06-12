@@ -31,6 +31,8 @@ export interface Item {
   timeEstimateMinutes: number | null
   /** Manual ordering within the Today "top tasks" list. */
   sortOrder: number
+  /** Quick-access favorites, surfaced in the sidebar. */
+  starred: boolean
   createdAt: string
   completedAt: string | null
 }
