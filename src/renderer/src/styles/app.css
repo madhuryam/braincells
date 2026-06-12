@@ -63,7 +63,8 @@
 }
 
 .icon-btn {
-  font-size: 17px;
+  font-size: 20px; /* matches the sidebar nav icons */
+  line-height: 1;
   padding: 8px 11px;
 }
 
@@ -309,6 +310,13 @@
 .check-input .checkbox {
   pointer-events: none;
   opacity: 0.45;
+}
+.check-input .input-icon {
+  opacity: 0.5;
+  font-size: 15px;
+}
+.check-input:focus-within .input-icon {
+  opacity: 0.9;
 }
 .check-input input {
   flex: 1;

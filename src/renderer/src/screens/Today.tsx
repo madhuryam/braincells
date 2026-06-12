@@ -7,7 +7,7 @@ import { useNav } from '../state/nav'
 import { ItemCard } from '../components/ItemCard'
 import { DraggableCard, DropZone, SortableCard } from '../components/dnd'
 import { Timeline } from '../components/Timeline'
-import { EmptyState } from '../components/bits'
+import { EmptyState, IconInput } from '../components/bits'
 import { longDate, rollingDays, type RollingDay } from '../format'
 
 const TOP_TASK_CAP = 5 // soft cap — never a hard limit (SPEC §4.1)
@@ -46,14 +46,17 @@ export function Today(): React.JSX.Element {
       <div className="today-grid">
         {/* Left column: capture + tasks for the rolling 5-day window. */}
         <section>
-          <input
-            id="quick-capture"
-            style={{ width: '100%', marginBottom: 16 }}
-            placeholder="Capture anything (⌘N)…"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && capture()}
-          />
+          <div style={{ marginBottom: 16 }}>
+            <IconInput
+              icon="📝"
+              iconTitle="Lands in the Inbox as a note — triage it later"
+              id="quick-capture"
+              placeholder="Capture anything (⌘N)…"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && capture()}
+            />
+          </div>
 
           <DropZone id="list-today" data={{ type: 'schedule', date: today }}>
             <div className="section-label">Top tasks</div>

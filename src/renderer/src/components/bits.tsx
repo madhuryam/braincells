@@ -54,6 +54,26 @@ export function CheckableInput(
   )
 }
 
+/**
+ * Same idea for inputs that create something other than a checkbox:
+ * a faded icon shows what hitting return produces (📝 = a note in
+ * the Inbox, etc.).
+ */
+export function IconInput({
+  icon,
+  iconTitle,
+  ...props
+}: { icon: string; iconTitle?: string } & React.InputHTMLAttributes<HTMLInputElement>): React.JSX.Element {
+  return (
+    <div className="check-input">
+      <span className="input-icon" aria-hidden title={iconTitle}>
+        {icon}
+      </span>
+      <input {...props} />
+    </div>
+  )
+}
+
 /** A toggleable round-rect checkbox used on task and prep cards. */
 export function Checkbox({
   checked,

@@ -7,7 +7,7 @@ import { prettyDate, rollingDays } from '../format'
 import { ItemCard } from '../components/ItemCard'
 import { Card } from '../components/Card'
 import { DraggableCard } from '../components/dnd'
-import { BackButton, EmptyState } from '../components/bits'
+import { BackButton, EmptyState, IconInput } from '../components/bits'
 
 // Empty inbox is the app's only "win state" (SPEC §4.2) — celebrate it.
 const ZERO_MESSAGES = [
@@ -145,13 +145,16 @@ export function Inbox(): React.JSX.Element {
         )}
       </header>
 
-      <input
-        style={{ width: '100%', marginBottom: 14 }}
-        placeholder="Capture anything — sort it out later…"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && capture()}
-      />
+      <div style={{ marginBottom: 14 }}>
+        <IconInput
+          icon="📝"
+          iconTitle="Lands here as a note — triage it with the keys below"
+          placeholder="Capture anything — sort it out later…"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && capture()}
+        />
+      </div>
 
       {items.length > 0 && (
         <div className="row" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
