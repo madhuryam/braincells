@@ -23,6 +23,14 @@ export interface RichEditorProps {
   initialHtml: string
   placeholder?: string
   onChange: (html: string, plainText: string) => void
+  /**
+   * 'full' (default): the whole toolbar, for Pages.
+   * 'compact': a slim toolbar and short height, for notes inside
+   * cards and the meeting notes pane. Markdown-style shortcuts
+   * (`# `, `**bold**`, `- `, `> `…) work in both — text formats as
+   * you type, Obsidian-style.
+   */
+  variant?: 'full' | 'compact'
 }
 
 const FONTS: Array<[label: string, css: string]> = [
@@ -32,7 +40,12 @@ const FONTS: Array<[label: string, css: string]> = [
   ['Rounded', 'ui-rounded, "SF Pro Rounded", "Comic Sans MS", cursive']
 ]
 
-export function RichEditor({ initialHtml, placeholder, onChange }: RichEditorProps): React.JSX.Element | null {
+export function RichEditor({
+  initialHtml,
+  placeholder,
+  onChange,
+  variant = 'full'
+}: RichEditorProps): React.JSX.Element | null {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -48,14 +61,14 @@ export function RichEditor({ initialHtml, placeholder, onChange }: RichEditorPro
 
   if (!editor) return null
   return (
-    <div className="rich-editor">
-      <Toolbar editor={editor} />
+    <div className={`rich-editor ${variant}`}>
+      <Toolbar editor={editor} compact={variant === 'compact'} />
       <EditorContent editor={editor} />
     </div>
   )
 }
 
-function Toolbar({ editor }: { editor: Editor }): React.JSX.Element {
+function Toolbar({ editor, compact }: { editor: Editor; compact: boolean }): React.JSX.Element {
   // Re-renders the buttons as the selection moves, so active marks light up.
   const state = useEditorState({
     editor,
@@ -99,6 +112,22 @@ function Toolbar({ editor }: { editor: Editor }): React.JSX.Element {
   )
 
   const chain = (): ReturnType<Editor['chain']> => editor.chain().focus()
+
+  if (compact) {
+    return (
+      <div className="rich-toolbar">
+        {btn('B', 'Bold (⌘B)', () => chain().toggleBold().run(), state.bold)}
+        {btn('I', 'Italic (⌘I)', () => chain().toggleItalic().run(), state.italic)}
+        {btn('S̶', 'Strikethrough', () => chain().toggleStrike().run(), state.strike)}
+        <span className="rt-sep" />
+        {btn('•', 'Bullet list', () => chain().toggleBulletList().run(), state.bullet)}
+        {btn('1.', 'Numbered list', () => chain().toggleOrderedList().run(), state.ordered)}
+        {btn('☑', 'Checklist', () => chain().toggleTaskList().run(), state.task)}
+        {btn('❝', 'Quote', () => chain().toggleBlockquote().run(), state.quote)}
+        <span className="rt-hint">md shortcuts work: # ** - [ ] &gt;</span>
+      </div>
+    )
+  }
 
   return (
     <div className="rich-toolbar">

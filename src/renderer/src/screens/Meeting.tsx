@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import type { CalendarEvent } from '@shared/types'
+import type { CalendarEvent, Item } from '@shared/types'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { shortTitle, useUndo } from '../state/undo'
 import { ItemCard } from '../components/ItemCard'
 import { Card } from '../components/Card'
 import { BackButton, CheckableInput, Checkbox, EmptyState, ProgressBar } from '../components/bits'
+import { RichEditor } from '../components/RichEditor'
+import { itemBodyHtml } from '../richtext'
 import { prettyDate } from '../format'
 
 interface MeetingProps {
@@ -23,7 +25,9 @@ interface MeetingProps {
  */
 export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Element {
   const preps = useLiveQuery(() => window.api.itemsForEvent(eventKey, 'prep-for'), [eventKey]) ?? []
-  const notes = useLiveQuery(() => window.api.itemsForEvent(eventKey, 'notes-for'), [eventKey]) ?? []
+  // undefined = still loading; the editor must not mount until we know
+  // whether notes exist, or it would seed itself empty.
+  const notesQuery = useLiveQuery(() => window.api.itemsForEvent(eventKey, 'notes-for'), [eventKey])
   const followUps =
     useLiveQuery(() => window.api.itemsForEvent(eventKey, 'follow-up-from'), [eventKey]) ?? []
   const meeting = useLiveQuery(() => window.api.getMeeting(eventKey), [eventKey])
@@ -33,9 +37,13 @@ export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Elem
 
   const [prepDraft, setPrepDraft] = useState('')
   const [followUpDraft, setFollowUpDraft] = useState('')
-  const noteItem = notes[0]?.item ?? null
-  const [noteText, setNoteText] = useState('')
-  useEffect(() => setNoteText(noteItem?.content ?? ''), [noteItem?.id])
+  const noteItem = notesQuery?.[0]?.item ?? null
+  // The editor stays mounted across saves (keyed by eventKey), so the
+  // current note item lives in a ref the debounced save reads.
+  const noteItemRef = useRef<Item | null>(null)
+  useEffect(() => {
+    if (noteItem) noteItemRef.current = noteItem
+  }, [noteItem])
 
   // The minimal event identity needed for links and snapshots.
   const event: CalendarEvent = { eventKey, title, date, startTime: null, endTime: null }
@@ -67,23 +75,42 @@ export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Elem
     setFollowUpDraft('')
   }
 
-  const saveNotes = (): void => {
-    const text = noteText
-    if (noteItem) {
-      if (text !== noteItem.content) mutate(() => window.api.updateItem(noteItem.id, { content: text }))
-    } else if (text.trim()) {
-      // The note item is created lazily, the first time anything is written.
-      mutate(async () => {
-        const item = await window.api.createItem({
-          kind: 'note',
-          title: `Notes — ${title}`,
-          content: text,
-          status: 'active'
-        })
-        await window.api.linkToEvent(item.id, event, 'notes-for')
+  // Notes autosave, 600ms after the last keystroke. The note item is
+  // created lazily on first write and reused from then on.
+  const pendingNotes = useRef<{ html: string; text: string } | null>(null)
+  const notesTimer = useRef<number | undefined>(undefined)
+  const flushNotes = async (): Promise<void> => {
+    const p = pendingNotes.current
+    pendingNotes.current = null
+    if (!p) return
+    const existing = noteItemRef.current
+    if (existing) {
+      await window.api.updateItem(existing.id, { richContent: p.html, content: p.text })
+    } else if (p.text.trim()) {
+      const item = await window.api.createItem({
+        kind: 'note',
+        title: `Notes — ${title}`,
+        content: p.text,
+        richContent: p.html,
+        status: 'active'
       })
+      noteItemRef.current = item // future saves update, never re-create
+      await window.api.linkToEvent(item.id, event, 'notes-for')
     }
   }
+  const onNotesChange = (html: string, text: string): void => {
+    pendingNotes.current = { html, text }
+    window.clearTimeout(notesTimer.current)
+    notesTimer.current = window.setTimeout(() => mutate(flushNotes), 600)
+  }
+  useEffect(
+    () => () => {
+      window.clearTimeout(notesTimer.current)
+      flushNotes() // leave the screen with nothing unsaved
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [eventKey]
+  )
 
   const prepDone = preps.filter((p) => p.item.status === 'done').length
 
@@ -175,16 +202,16 @@ export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Elem
           )}
         </section>
 
-        <section>
+        <section className="meeting-notes">
           <div className="section-label">Notes</div>
-          <textarea
-            rows={18}
-            style={{ width: '100%', resize: 'vertical' }}
-            placeholder="Markdown notes for this meeting…"
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            onBlur={saveNotes}
-          />
+          {notesQuery !== undefined && (
+            <RichEditor
+              key={eventKey}
+              initialHtml={noteItem ? itemBodyHtml(noteItem) : ''}
+              placeholder="Notes for this meeting — they format as you type…"
+              onChange={onNotesChange}
+            />
+          )}
         </section>
       </div>
     </div>

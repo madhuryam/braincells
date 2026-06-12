@@ -44,9 +44,10 @@ export function buildExport(store: Store, now = new Date()): ExportFile[] {
     while (seen.has(path)) path = path.replace(/\.md$/, '_.md')
     seen.add(path)
     files.push({ path, contents: itemMarkdown(item, projectName) })
-    // Pages also export their full rich layout as a sibling .html —
-    // the .md holds the plain-text mirror, which loses tables/format.
-    if (item.kind === 'page' && item.richContent) {
+    // Anything written in the rich editor (pages, card notes, meeting
+    // notes) also exports its full layout as a sibling .html — the .md
+    // holds the plain-text mirror, which loses tables/formatting.
+    if (item.richContent) {
       files.push({ path: path.replace(/\.md$/, '.html'), contents: item.richContent })
     }
   }

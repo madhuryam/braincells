@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Item, ItemStatus } from '@shared/types'
 import { useData, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { shortTitle, useUndo } from '../state/undo'
 import { Card } from './Card'
 import { Checkbox, ProjectDot } from './bits'
-import { Markdown } from './Markdown'
+import { RichEditor } from './RichEditor'
+import { itemBodyHtml } from '../richtext'
 import { KIND_ICON, prettyDate, rollingDays } from './../format'
 
 interface ItemCardProps {
@@ -24,7 +25,6 @@ interface ItemCardProps {
 export function ItemCard({ item, showProject = true, faded }: ItemCardProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState(item.title)
-  const [content, setContent] = useState(item.content)
   const mutate = useMutate()
   const { projects } = useData()
   const { navigate } = useNav()
@@ -33,7 +33,32 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
 
   // If another screen edits this item, pick up the new values.
   useEffect(() => setTitle(item.title), [item.title])
-  useEffect(() => setContent(item.content), [item.content])
+
+  // Notes autosave: the rich editor owns the text while typing; saves
+  // land 600ms after the last keystroke, and flush on close/unmount.
+  const pendingBody = useRef<{ html: string; text: string } | null>(null)
+  const bodyTimer = useRef<number | undefined>(undefined)
+  const flushBody = (): void => {
+    window.clearTimeout(bodyTimer.current)
+    const p = pendingBody.current
+    pendingBody.current = null
+    if (p) patch({ richContent: p.html, content: p.text })
+  }
+  const onBodyChange = (html: string, text: string): void => {
+    pendingBody.current = { html, text }
+    window.clearTimeout(bodyTimer.current)
+    bodyTimer.current = window.setTimeout(flushBody, 600)
+  }
+  useEffect(
+    () => () => {
+      // Unmount flush goes straight to the API (no re-render needed).
+      const p = pendingBody.current
+      pendingBody.current = null
+      window.clearTimeout(bodyTimer.current)
+      if (p) window.api.updateItem(item.id, { richContent: p.html, content: p.text })
+    },
+    [item.id]
+  )
 
   const patch = (p: Parameters<typeof window.api.updateItem>[1]): Promise<void> =>
     mutate(() => window.api.updateItem(item.id, p))
@@ -48,10 +73,8 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
    * made expanded cards impossible to close.
    */
   const closeCard = (): void => {
-    const changes: Record<string, string> = {}
-    if (title !== item.title) changes.title = title
-    if (content !== item.content) changes.content = content
-    if (Object.keys(changes).length > 0) patch(changes)
+    if (title !== item.title) patch({ title })
+    flushBody()
     setOpen(false)
   }
 
@@ -135,13 +158,14 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
 
       {open && (
         <div className="stack" style={{ marginTop: 12 }}>
-          {item.content && <Markdown text={item.content} />}
-          <textarea
-            rows={4}
-            placeholder="Notes — markdown welcome…"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onBlur={() => content !== item.content && patch({ content })}
+          {/* One notes surface that formats as you type (no separate
+              preview): markdown shortcuts become real formatting. */}
+          <RichEditor
+            key={item.id}
+            variant="compact"
+            initialHtml={itemBodyHtml(item)}
+            placeholder="Notes — type **bold**, # headings, - lists…"
+            onChange={onBodyChange}
           />
           {/* When to do it: the 5-day rolling window, or someday. */}
           {(item.kind === 'task' || item.kind === 'prep') && (

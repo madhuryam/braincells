@@ -4,7 +4,7 @@ import { useLiveQuery } from '../state/data'
 import { useNav } from '../state/nav'
 import { Card } from './Card'
 import { ItemCard } from './ItemCard'
-import { Markdown } from './Markdown'
+import { ItemBody } from './Markdown'
 import { prettyDate } from '../format'
 
 /**
@@ -53,8 +53,8 @@ export function MeetingRow({ meeting }: { meeting: Meeting }): React.JSX.Element
 
       {open && (
         <div className="stack" style={{ marginTop: 12 }}>
-          {notes[0]?.item.content ? (
-            <Markdown text={notes[0].item.content} />
+          {notes[0]?.item.content || notes[0]?.item.richContent ? (
+            <ItemBody item={notes[0].item} />
           ) : (
             <span style={{ color: 'var(--text-faint)' }}>No notes for this one.</span>
           )}

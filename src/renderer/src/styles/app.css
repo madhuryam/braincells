@@ -607,6 +607,33 @@
   line-height: 1.65;
   font-size: 15px;
 }
+
+/* Compact variant: notes inside cards. */
+.rich-editor.compact .ProseMirror {
+  min-height: 88px;
+  font-size: 14px;
+  background: var(--bg-sunken);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.rich-editor.compact .rich-toolbar {
+  position: static;
+  margin-bottom: 8px;
+  padding: 4px 6px;
+  box-shadow: none;
+  background: transparent;
+  border: none;
+}
+.rt-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* Meeting notes pane: full toolbar, mid height. */
+.meeting-notes .ProseMirror {
+  min-height: 46vh;
+}
 .rich-editor .ProseMirror > * + * {
   margin-top: 0.5em;
 }
