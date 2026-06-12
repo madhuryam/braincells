@@ -8,7 +8,7 @@ import { useUndo } from '../state/undo'
 import { ItemCard } from '../components/ItemCard'
 import { DraggableCard, DropZone, SortableCard } from '../components/dnd'
 import { Timeline } from '../components/Timeline'
-import { EmptyState, IconInput } from '../components/bits'
+import { CheckableInput, EmptyState, IconInput } from '../components/bits'
 import { longDate, rollingDays, type RollingDay } from '../format'
 
 const TOP_TASK_CAP = 5 // soft cap — never a hard limit (SPEC §4.1)
@@ -24,6 +24,7 @@ export function Today(): React.JSX.Element {
   const { navigate } = useNav()
   const { pushUndo } = useUndo()
   const [draft, setDraft] = useState('')
+  const [taskDraft, setTaskDraft] = useState('')
   const [showAll, setShowAll] = useState(false)
 
   const visibleTasks = showAll ? tasks : tasks.slice(0, TOP_TASK_CAP)
@@ -33,6 +34,17 @@ export function Today(): React.JSX.Element {
     if (!title) return
     await mutate(() => window.api.createItem({ kind: 'note', title }))
     setDraft('')
+  }
+
+  // Straight onto today's list — no inbox detour for things you
+  // already know are tasks for today.
+  const addTask = async (): Promise<void> => {
+    const title = taskDraft.trim()
+    if (!title) return
+    await mutate(() =>
+      window.api.createItem({ kind: 'task', title, status: 'active', scheduledDate: today })
+    )
+    setTaskDraft('')
   }
 
   return (
@@ -64,6 +76,14 @@ export function Today(): React.JSX.Element {
 
           <DropZone id="list-today" data={{ type: 'schedule', date: today }}>
             <div className="section-label">Top tasks</div>
+            <div style={{ marginBottom: 10 }}>
+              <CheckableInput
+                placeholder="Add a task for today…"
+                value={taskDraft}
+                onChange={(e) => setTaskDraft(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addTask()}
+              />
+            </div>
             {tasks.length === 0 && (
               <EmptyState art="🪷">Nothing planned. That’s allowed.</EmptyState>
             )}

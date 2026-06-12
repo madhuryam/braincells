@@ -62,7 +62,9 @@
   flex-shrink: 0;
 }
 
-.icon-btn {
+/* Doubled selector so this outranks the later `.btn { font-size }`
+   rule — with a single class the order of rules silently won it. */
+.btn.icon-btn {
   font-size: 20px; /* matches the sidebar nav icons */
   line-height: 1;
   padding: 8px 11px;
@@ -695,10 +697,27 @@
 .rich-editor .ProseMirror ul[data-type='taskList'] li {
   display: flex;
   gap: 8px;
+  align-items: flex-start;
+}
+/* The checkbox lives in a <label>, the text in a <div><p>. The p's
+   default margin pushed the text below the checkbox — kill it and
+   nudge the box down to the text's first line instead. */
+.rich-editor .ProseMirror ul[data-type='taskList'] li > label {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.rich-editor .ProseMirror ul[data-type='taskList'] li > div {
+  flex: 1;
+  min-width: 0;
+}
+.rich-editor .ProseMirror ul[data-type='taskList'] li p {
+  margin: 0;
 }
 .rich-editor .ProseMirror ul[data-type='taskList'] input[type='checkbox'] {
   accent-color: var(--accent);
   width: 16px;
+  height: 16px;
+  margin: 0;
 }
 
 /* ── The Calendar screen (month grid) ────────────────────────────── */
