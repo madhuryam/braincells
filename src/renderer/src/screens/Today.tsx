@@ -4,6 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { todayYmd } from '@shared/dates'
 import { useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
+import { useUndo } from '../state/undo'
 import { ItemCard } from '../components/ItemCard'
 import { DraggableCard, DropZone, SortableCard } from '../components/dnd'
 import { Timeline } from '../components/Timeline'
@@ -19,6 +20,7 @@ export function Today(): React.JSX.Element {
   const inboxCount = useLiveQuery(() => window.api.inboxCount(), []) ?? 0
   const mutate = useMutate()
   const { navigate } = useNav()
+  const { pushUndo } = useUndo()
   const [draft, setDraft] = useState('')
   const [showAll, setShowAll] = useState(false)
 
@@ -101,7 +103,13 @@ export function Today(): React.JSX.Element {
                 <button
                   className="btn ghost"
                   title="Let them go, guilt-free"
-                  onClick={() => mutate(() => window.api.dropItems(carried.map((i) => i.id)))}
+                  onClick={() => {
+                    const ids = carried.map((i) => i.id)
+                    mutate(() => window.api.dropItems(ids))
+                    pushUndo(`Let go of ${ids.length} carried-over tasks`, async () => {
+                      for (const id of ids) await window.api.updateItem(id, { status: 'active' })
+                    })
+                  }}
                 >
                   🧹 let go
                 </button>

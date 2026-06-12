@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import type { CalendarEvent } from '@shared/types'
 import { useData, useLiveQuery, useMutate } from '../state/data'
+import { shortTitle, useUndo } from '../state/undo'
 import { ItemCard } from '../components/ItemCard'
 import { Card } from '../components/Card'
 import { BackButton, CheckableInput, Checkbox, EmptyState, ProgressBar } from '../components/bits'
@@ -28,6 +29,7 @@ export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Elem
   const meeting = useLiveQuery(() => window.api.getMeeting(eventKey), [eventKey])
   const { projects } = useData()
   const mutate = useMutate()
+  const { pushUndo } = useUndo()
 
   const [prepDraft, setPrepDraft] = useState('')
   const [followUpDraft, setFollowUpDraft] = useState('')
@@ -135,13 +137,17 @@ export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Elem
                   <div className="row">
                     <Checkbox
                       checked={item.status === 'done'}
-                      onToggle={() =>
+                      onToggle={() => {
+                        const wasDone = item.status === 'done'
                         mutate(() =>
-                          window.api.updateItem(item.id, {
-                            status: item.status === 'done' ? 'active' : 'done'
-                          })
+                          window.api.updateItem(item.id, { status: wasDone ? 'active' : 'done' })
                         )
-                      }
+                        if (!wasDone) {
+                          pushUndo(`Completed “${shortTitle(item.title)}”`, async () => {
+                            await window.api.updateItem(item.id, { status: 'active' })
+                          })
+                        }
+                      }}
                     />
                     <span className="card-title">{item.title}</span>
                   </div>

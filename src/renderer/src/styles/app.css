@@ -370,6 +370,25 @@
   margin: 22px 0 10px;
 }
 
+/* The undo toast (bottom center). */
+.undo-toast {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-lift);
+  padding: 9px 12px 9px 18px;
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
 /* ── Drag & drop ─────────────────────────────────────────────────── */
 
 /* A hovered drop target lights up so it's obvious where the card lands. */

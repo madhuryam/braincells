@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion'
 import type { Item } from '@shared/types'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useData, useLiveQuery, useMutate } from '../state/data'
+import { shortTitle, useUndo } from '../state/undo'
 import { prettyDate, rollingDays } from '../format'
 import { ItemCard } from '../components/ItemCard'
 import { Card } from '../components/Card'
@@ -35,6 +36,7 @@ export function Inbox(): React.JSX.Element {
   const items = useLiveQuery(() => window.api.inboxItems(), []) ?? []
   const { projects } = useData()
   const mutate = useMutate()
+  const { pushUndo } = useUndo()
   const [selected, setSelected] = useState(0)
   const [picking, setPicking] = useState<'project' | 'meeting' | null>(null)
   const [draft, setDraft] = useState('')
@@ -104,14 +106,19 @@ export function Inbox(): React.JSX.Element {
         case 'm':
           setPicking('meeting')
           break
-        case 'x':
+        case 'x': {
+          const dropped = current
           triage({ status: 'dropped' })
+          pushUndo(`Dropped “${shortTitle(dropped.title)}”`, async () => {
+            await window.api.updateItem(dropped.id, { status: 'inbox' })
+          })
           break
+        }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [current, items.length, picking, projects, events, mutate])
+  }, [current, items.length, picking, projects, events, mutate, pushUndo])
 
   const capture = async (): Promise<void> => {
     const title = draft.trim()
@@ -126,10 +133,14 @@ export function Inbox(): React.JSX.Element {
     // design. The cards get swept off-screen one after another, then
     // the drop lands in the database (SPEC §7: playful, not grim).
     setSweeping(true)
+    const swept = items.map((i) => ({ id: i.id, status: i.status }))
     const duration = Math.min(items.length, 12) * 60 + 450
     setTimeout(async () => {
-      await mutate(() => window.api.dropItems(items.map((i) => i.id)))
+      await mutate(() => window.api.dropItems(swept.map((s) => s.id)))
       setSweeping(false)
+      pushUndo(`Declared bankruptcy on ${swept.length} items`, async () => {
+        for (const s of swept) await window.api.updateItem(s.id, { status: s.status })
+      })
     }, duration)
   }
 

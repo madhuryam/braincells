@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Item, ItemStatus } from '@shared/types'
 import { useData, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
+import { shortTitle, useUndo } from '../state/undo'
 import { Card } from './Card'
 import { Checkbox, ProjectDot } from './bits'
 import { Markdown } from './Markdown'
@@ -27,6 +28,7 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
   const mutate = useMutate()
   const { projects } = useData()
   const { navigate } = useNav()
+  const { pushUndo } = useUndo()
   const project = projects.find((p) => p.id === item.projectId)
 
   // If another screen edits this item, pick up the new values.
@@ -67,7 +69,15 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
         {isCheckable && (
           <Checkbox
             checked={done}
-            onToggle={() => patch({ status: done ? 'active' : ('done' as ItemStatus) })}
+            onToggle={() => {
+              const prev = item.status
+              patch({ status: done ? 'active' : ('done' as ItemStatus) })
+              if (!done) {
+                pushUndo(`Completed “${shortTitle(item.title)}”`, async () => {
+                  await window.api.updateItem(item.id, { status: prev })
+                })
+              }
+            }}
           />
         )}
         {!isCheckable && <span aria-hidden>{KIND_ICON[item.kind]}</span>}
@@ -186,7 +196,13 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
               className="btn ghost"
               title="Drop this item (it goes away, guilt-free)"
               style={{ marginLeft: 'auto' }}
-              onClick={() => patch({ status: 'dropped' })}
+              onClick={() => {
+                const prev = item.status
+                patch({ status: 'dropped' })
+                pushUndo(`Dropped “${shortTitle(item.title)}”`, async () => {
+                  await window.api.updateItem(item.id, { status: prev })
+                })
+              }}
             >
               🗑 drop
             </button>

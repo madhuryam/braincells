@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { DataProvider } from './state/data'
+import { UndoProvider } from './state/undo'
 import { NavProvider, useNav } from './state/nav'
 import { Sidebar } from './components/Sidebar'
 import { AppDnd } from './components/dnd'
@@ -90,15 +91,17 @@ function Shortcuts(): null {
 export default function App(): React.JSX.Element {
   return (
     <DataProvider>
-      <NavProvider>
-        <Shortcuts />
-        <AppDnd>
-          <div className="shell">
-            <Sidebar />
-            <Screen />
-          </div>
-        </AppDnd>
-      </NavProvider>
+      <UndoProvider>
+        <NavProvider>
+          <Shortcuts />
+          <AppDnd>
+            <div className="shell">
+              <Sidebar />
+              <Screen />
+            </div>
+          </AppDnd>
+        </NavProvider>
+      </UndoProvider>
     </DataProvider>
   )
 }
