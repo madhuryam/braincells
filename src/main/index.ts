@@ -1,9 +1,15 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
+import { Store } from './store'
+import { registerStoreIpc } from './ipc'
 
 // The main application window. Kept in a variable so macOS can re-show
 // it when the dock icon is clicked after all windows were closed.
 let mainWindow: BrowserWindow | null = null
+
+// The one database for the whole app. On a Mac this lives at
+// ~/Library/Application Support/braincells/braincells.sqlite3.
+let store: Store
 
 function createMainWindow(): void {
   mainWindow = new BrowserWindow({
@@ -42,6 +48,9 @@ function createMainWindow(): void {
 }
 
 app.whenReady().then(() => {
+  store = new Store(join(app.getPath('userData'), 'braincells.sqlite3'))
+  registerStoreIpc(store)
+
   createMainWindow()
 
   // macOS convention: clicking the dock icon re-opens the window.
@@ -54,4 +63,8 @@ app.whenReady().then(() => {
 // global capture hotkey keep working). Other platforms quit.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('quit', () => {
+  store?.close()
 })
