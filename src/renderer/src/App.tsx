@@ -1,18 +1,48 @@
-import { useEffect, useState } from 'react'
+import { DataProvider } from './state/data'
+import { NavProvider, useNav } from './state/nav'
+import { Sidebar } from './components/Sidebar'
+import {
+  DailyLogStub,
+  InboxStub,
+  MeetingStub,
+  ProjectPageStub,
+  ProjectsStub,
+  SearchStub,
+  SettingsStub,
+  TodayStub
+} from './screens/stubs'
 
-// Temporary smoke-test UI: proves the renderer can reach the database
-// through the preload bridge. Replaced by the real screens next.
+function Screen(): React.JSX.Element {
+  const { view } = useNav()
+  switch (view.name) {
+    case 'today':
+      return <TodayStub />
+    case 'inbox':
+      return <InboxStub />
+    case 'projects':
+      return <ProjectsStub />
+    case 'project':
+      return <ProjectPageStub />
+    case 'meeting':
+      return <MeetingStub />
+    case 'log':
+      return <DailyLogStub />
+    case 'search':
+      return <SearchStub />
+    case 'settings':
+      return <SettingsStub />
+  }
+}
+
 export default function App(): React.JSX.Element {
-  const [inboxCount, setInboxCount] = useState<number | null>(null)
-
-  useEffect(() => {
-    window.api.inboxCount().then(setInboxCount)
-  }, [])
-
   return (
-    <main style={{ fontFamily: 'system-ui', padding: '4rem', textAlign: 'center' }}>
-      <h1>braincells</h1>
-      <p>{inboxCount === null ? 'Connecting to database…' : `Inbox items: ${inboxCount}`}</p>
-    </main>
+    <DataProvider>
+      <NavProvider>
+        <div className="shell">
+          <Sidebar />
+          <Screen />
+        </div>
+      </NavProvider>
+    </DataProvider>
   )
 }

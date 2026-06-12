@@ -1,0 +1,119 @@
+/* Resets and app-wide typography. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden; /* each pane scrolls itself */
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 750; /* bold and confident, not whisper-quiet */
+  letter-spacing: -0.02em;
+}
+
+h1 {
+  font-size: 26px;
+}
+h2 {
+  font-size: 17px;
+}
+h3 {
+  font-size: 14px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  padding: 8px 11px;
+  outline: none;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* Markdown content should read like a good blog post (SPEC §7). */
+.markdown {
+  max-width: 62ch;
+  line-height: 1.65;
+  font-size: 15px;
+}
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  margin: 0.9em 0 0.35em;
+}
+.markdown p,
+.markdown ul,
+.markdown ol {
+  margin: 0.45em 0;
+}
+.markdown code {
+  background: var(--bg-sunken);
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-size: 0.9em;
+}
+.markdown pre {
+  background: var(--bg-sunken);
+  border-radius: 10px;
+  padding: 12px;
+  overflow-x: auto;
+}
+.markdown blockquote {
+  margin: 0.6em 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--accent);
+  color: var(--text-soft);
+}

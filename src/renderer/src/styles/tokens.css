@@ -1,0 +1,65 @@
+/*
+ * Design tokens — the app's whole visual vocabulary in one file.
+ * Light and dark are both *colorful* (SPEC §7): dark mode is a deep
+ * warm plum, not gray-on-gray, and the accent gradient stays vivid.
+ */
+
+:root {
+  /* Type */
+  --font-sans: 'Inter Variable', -apple-system, 'Helvetica Neue', sans-serif;
+
+  /* Shape */
+  --radius-card: 14px;
+  --radius-pill: 999px;
+  --radius-input: 10px;
+
+  /* The app accent (violet → periwinkle) used for primary actions,
+     focus rings, progress bars, and the Today header. */
+  --accent: #845ef7;
+  --accent-soft: #845ef722;
+  --gradient-accent: linear-gradient(135deg, #845ef7, #5c7cfa);
+
+  /* Light theme (default): warm paper, soft colored shadows */
+  --bg: #faf7f2;
+  --bg-sunken: #f2ede4;
+  --bg-card: #ffffff;
+  --bg-hover: #f6f1ff;
+  --text: #2d2a32;
+  --text-soft: #6f6a78;
+  --text-faint: #a39dad;
+  --border: #e7e1d8;
+  --shadow-card: 0 1px 2px rgb(45 42 50 / 0.06), 0 4px 12px rgb(45 42 50 / 0.07);
+  --shadow-lift: 0 2px 4px rgb(45 42 50 / 0.08), 0 10px 24px rgb(45 42 50 / 0.13);
+  --sidebar-bg: #f3eee6;
+  --danger: #e8590c; /* warm, not alarm-red — the app never shames */
+  --ok: #2f9e44;
+}
+
+[data-theme='dark'] {
+  --bg: #1b1825;
+  --bg-sunken: #141220;
+  --bg-card: #262236;
+  --bg-hover: #2e2941;
+  --text: #ece9f1;
+  --text-soft: #aaa3ba;
+  --text-faint: #6f6884;
+  --border: #353048;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 14px rgb(0 0 0 / 0.35);
+  --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.35), 0 12px 28px rgb(0 0 0 / 0.5);
+  --sidebar-bg: #161325;
+  --accent-soft: #845ef736;
+}
+
+/* The fixed palette projects pick their accent color from. */
+:root {
+  --palette-coral: #ff6b6b;
+  --palette-orange: #ff922b;
+  --palette-amber: #fcc419;
+  --palette-lime: #94d82d;
+  --palette-teal: #20c997;
+  --palette-cyan: #22b8cf;
+  --palette-blue: #339af0;
+  --palette-violet: #845ef7;
+  --palette-grape: #cc5de8;
+  --palette-pink: #f06595;
+}
