@@ -36,24 +36,36 @@ Useful commands:
 
 ## The five-minute tour
 
-- **Today** (always opens here): the day's meetings on the left with their
-  prep progress, your manually-ordered top tasks on the right. Yesterday's
-  unfinished tasks appear in a faded "carried over" group — reschedule them
-  all with one click or let them all go with one click.
+- **Today** (always opens here): manually-ordered top tasks on the left,
+  the day's meeting timeline (with prep progress) on the right. Below the
+  top tasks: a faded "carried over" group for yesterday's unfinished tasks
+  (reschedule all or let go of all in one click) and a collapsible group
+  for each of the next four days.
+- **Scheduling** is a 5-day rolling window: today, tomorrow, and the next
+  three weekdays — or "someday", which parks the task in the Inbox's
+  Backlog section until you give it a day.
 - **⌥Space from anywhere on the Mac**: a floating capture field. Type, hit
   return, done — it lands in the Inbox. Optional shorthand: `#project`,
   `!today`, `!tomorrow` (anything that doesn't parse just stays in the text).
-- **Inbox**: triage each capture with one keystroke — `1`/`2`/`3` make it a
-  task (today/tomorrow/someday), `N` note, `P` project, `M` meeting prep,
-  `X` drop. "Declare bankruptcy" sweeps the whole pile, guilt-free.
-- **Meetings**: click any event on the timeline → prep checklist, markdown
-  notes, and follow-ups that are real tasks the moment you type them. Assign
-  the meeting to a project and it shows up on that project's page, live.
-- **Drag everything**: cards onto sidebar projects, onto Today, onto the
-  timeline (time blocking), onto meetings (prep), and up/down to reorder.
+- **Inbox**: triage each capture with one keystroke — `1`–`5` make it a task
+  on that day of the window, `0` someday, `N` note, `P` project, `M` meeting
+  prep, `X` drop. "Declare bankruptcy" sweeps the whole pile, guilt-free.
+  Someday tasks and unfiled notes stay visible in sections at the bottom.
+- **Meetings**: click any event on the timeline or the Calendar tab → prep
+  checklist, markdown notes, and follow-ups that are real tasks the moment
+  you type them. Assign the meeting to a project and it shows up on that
+  project's page, live.
+- **Calendar**: a month grid of every meeting, past and future — click any
+  chip to open that meeting's notes.
+- **Pages**: every project can hold full rich-text documents (headings,
+  tables, checklists, fonts) for long-form brain dumps — the Slack-canvas
+  replacement. Find them in the project's Pages section.
+- **Drag everything**: cards onto sidebar projects, onto Today or any day
+  group, onto the timeline (time blocking), onto meetings (prep), and
+  up/down to reorder.
 - **Daily Log**: what got done, which meetings happened, plus a journal box.
-- **⌘K**: full-text search across every title and note. **⌘N**: quick
-  capture inside the app.
+- **⌘K**: full-text search across every title, note, and page. **⌘N**:
+  quick capture inside the app. **←** in any header goes back.
 
 ## Calendar
 
