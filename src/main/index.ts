@@ -4,6 +4,8 @@ import { Store } from './store'
 import { registerStoreIpc } from './ipc'
 import { setUpQuickCapture, tearDownQuickCapture } from './capture'
 import { registerCalendarIpc } from './calendar'
+import { registerBackupIpc } from './backup'
+import { setUpMenu } from './menu'
 
 // The main application window. Kept in a variable so macOS can re-show
 // it when the dock icon is clicked after all windows were closed.
@@ -53,6 +55,8 @@ app.whenReady().then(() => {
   store = new Store(join(app.getPath('userData'), 'braincells.sqlite3'))
   registerStoreIpc(store)
   registerCalendarIpc(store)
+  registerBackupIpc(store, () => mainWindow)
+  setUpMenu(store, () => mainWindow)
 
   // When the floating capture window adds an item, every open window
   // refreshes its queries (the renderer listens for this event).

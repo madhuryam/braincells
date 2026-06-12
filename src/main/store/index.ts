@@ -486,6 +486,22 @@ export class Store {
       .all(projectId) as Meeting[]
   }
 
+  // ── Full dumps (markdown export) ────────────────────────────────────
+
+  allItems(): Item[] {
+    return this.db.prepare(`SELECT ${ITEM_COLS} FROM items ORDER BY created_at`).all().map(rowToItem)
+  }
+
+  allLinks(): Link[] {
+    return this.db.prepare('SELECT * FROM links ORDER BY created_at').all().map(rowToLink)
+  }
+
+  allMeetings(): Meeting[] {
+    return this.db
+      .prepare('SELECT event_key AS eventKey, project_id AS projectId, title, date FROM meetings ORDER BY date')
+      .all() as Meeting[]
+  }
+
   // ── Search ──────────────────────────────────────────────────────────
 
   /**

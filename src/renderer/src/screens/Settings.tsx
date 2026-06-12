@@ -13,6 +13,7 @@ export function Settings(): React.JSX.Element {
   const [clientSecret, setClientSecret] = useState('')
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [backupNote, setBackupNote] = useState<string | null>(null)
 
   // Pre-fill the saved OAuth client so reconnecting is one click.
   useEffect(() => {
@@ -128,6 +129,39 @@ export function Settings(): React.JSX.Element {
               )}
             </div>
           )}
+        </Card>
+
+        <Card className="stack">
+          <h2>Backup</h2>
+          <p style={{ margin: 0, color: 'var(--text-soft)' }}>
+            Everything lives in one local SQLite file — no cloud, no account. A backup is a copy
+            of that file; the markdown export is the same data as plain .md files you can read
+            anywhere. These are also in the File menu.
+          </p>
+          <div className="row" style={{ flexWrap: 'wrap' }}>
+            <button
+              className="btn primary"
+              onClick={async () => {
+                const path = await window.api.createBackup()
+                setBackupNote(path ? `Backup written to ${path}` : null)
+              }}
+            >
+              Create Backup…
+            </button>
+            <button
+              className="btn"
+              onClick={async () => {
+                const path = await window.api.exportMarkdown()
+                setBackupNote(path ? `Exported to ${path}` : null)
+              }}
+            >
+              Export as Markdown…
+            </button>
+            <button className="btn" onClick={() => window.api.restoreBackup()}>
+              Restore from Backup…
+            </button>
+          </div>
+          {backupNote && <p style={{ margin: 0, color: 'var(--ok)' }}>{backupNote}</p>}
         </Card>
       </div>
     </div>

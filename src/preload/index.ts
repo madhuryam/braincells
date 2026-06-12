@@ -103,6 +103,11 @@ const api = {
     invoke('calendar:googleConnect', clientId, clientSecret),
   googleDisconnect: (): Promise<void> => invoke('calendar:googleDisconnect'),
 
+  // Backup / export / restore (each opens a native dialog)
+  createBackup: (): Promise<string | null> => invoke('backup:create'),
+  exportMarkdown: (): Promise<string | null> => invoke('backup:exportMarkdown'),
+  restoreBackup: (): Promise<void> => invoke('backup:restore'),
+
   // Quick capture window
   submitCapture: (text: string): Promise<void> => invoke('capture:submit', text),
   dismissCapture: (): Promise<void> => invoke('capture:dismiss'),
