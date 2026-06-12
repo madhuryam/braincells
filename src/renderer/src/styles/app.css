@@ -331,6 +331,94 @@
   align-items: start;
 }
 
+/* ── The Today timeline ──────────────────────────────────────────── */
+
+.timeline {
+  position: relative;
+  margin-left: 8px;
+}
+.timeline-hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--border);
+}
+.timeline-hour span {
+  position: absolute;
+  top: -9px;
+  left: 0;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  background: var(--bg);
+  padding-right: 6px;
+}
+.timeline-slot {
+  position: absolute;
+  left: 44px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.timeline-event {
+  position: absolute;
+  left: 44px;
+  right: 0;
+  overflow: hidden;
+  background: var(--bg-card);
+  border-left: 3.5px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.timeline-event:hover {
+  box-shadow: var(--shadow-lift);
+  transform: translateY(-1px);
+  z-index: 2;
+}
+.timeline-event.past {
+  opacity: 0.55;
+}
+.timeline-task {
+  position: absolute;
+  left: 56px;
+  right: 12px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--accent-soft);
+  border: 1px dashed var(--accent);
+  border-radius: 8px;
+  padding: 3px 8px;
+  pointer-events: none; /* blocks are suggestions; manage them in the list */
+}
+.timeline-task.done {
+  opacity: 0.5;
+  border-style: solid;
+}
+.timeline-task.missed {
+  opacity: 0.45; /* missed ≠ shamed: it quietly fades, stays on the list */
+}
+.timeline-now {
+  position: absolute;
+  left: 36px;
+  right: 0;
+  border-top: 2px solid var(--danger);
+  z-index: 3;
+}
+.timeline-now::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
 /* Magazine-style column layout for project pages (SPEC §7 Layout). */
 .masonry {
   columns: 320px;

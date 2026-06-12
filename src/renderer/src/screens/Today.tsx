@@ -6,6 +6,7 @@ import { useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { ItemCard } from '../components/ItemCard'
 import { DraggableCard, DropZone, SortableCard } from '../components/dnd'
+import { Timeline } from '../components/Timeline'
 import { EmptyState } from '../components/bits'
 import { longDate } from '../format'
 
@@ -44,13 +45,10 @@ export function Today(): React.JSX.Element {
       </header>
 
       <div className="today-grid">
-        {/* Left column: the day's timeline (calendar events + time
-            blocks). Populated once the calendar lands. */}
+        {/* Left column: today's events and time blocks. */}
         <section className="timeline-pane">
           <div className="section-label">Schedule</div>
-          <EmptyState art="🗓️">
-            The calendar timeline arrives in an upcoming commit.
-          </EmptyState>
+          <Timeline date={today} />
         </section>
 
         {/* Right column: capture + tasks. */}

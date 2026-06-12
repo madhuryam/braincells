@@ -12,7 +12,7 @@ import {
 import { arrayMove, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useState, type ReactNode } from 'react'
-import type { Item } from '@shared/types'
+import type { CalendarEvent, Item } from '@shared/types'
 import { useMutate } from '../state/data'
 
 /*
@@ -24,6 +24,8 @@ import { useMutate } from '../state/data'
  *   drop target data            effect
  *   { type:'project', id }      assign item to that project
  *   { type:'schedule', date }   set scheduledDate (today/this-week/…)
+ *   { type:'timeblock', time }  schedule into a time block (timeline)
+ *   { type:'event-prep', ev }   attach as prep for a meeting
  *   a sortable card             reorder within the Today list
  */
 
@@ -95,7 +97,11 @@ export function DropZone({
   className = ''
 }: {
   id: string
-  data: { type: 'project'; projectId: string } | { type: 'schedule'; date: string }
+  data:
+    | { type: 'project'; projectId: string }
+    | { type: 'schedule'; date: string }
+    | { type: 'timeblock'; date: string; time: string }
+    | { type: 'event-prep'; event: CalendarEvent }
   children: ReactNode
   className?: string
 }): React.JSX.Element {
@@ -140,7 +146,15 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
     if (!over) return
     const { item, sortableIds } = active.data.current as DragData
     const overData = over.data.current as
-      | { type?: string; projectId?: string; date?: string; item?: Item; sortableIds?: string[] }
+      | {
+          type?: string
+          projectId?: string
+          date?: string
+          time?: string
+          event?: CalendarEvent
+          item?: Item
+          sortableIds?: string[]
+        }
       | undefined
 
     if (overData?.type === 'project' && overData.projectId) {
@@ -152,6 +166,32 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
           ...(item.status === 'inbox' ? { status: 'active' as const } : {})
         })
       )
+      return
+    }
+
+    // Time blocking (SPEC §4.6): dropping on a timeline slot sets the
+    // date AND a time. Blocks are suggestions, not commitments.
+    if (overData?.type === 'timeblock' && overData.date && overData.time) {
+      mutate(() =>
+        window.api.updateItem(item.id, {
+          kind: 'task',
+          scheduledDate: overData.date,
+          scheduledTime: overData.time,
+          ...(item.status === 'inbox' ? { status: 'active' as const } : {})
+        })
+      )
+      return
+    }
+
+    // Dropping a card on a meeting attaches it as prep (SPEC §7).
+    if (overData?.type === 'event-prep' && overData.event) {
+      const event = overData.event
+      mutate(async () => {
+        await window.api.linkToEvent(item.id, event, 'prep-for')
+        if (item.status === 'inbox') {
+          await window.api.updateItem(item.id, { status: 'active' })
+        }
+      })
       return
     }
 
