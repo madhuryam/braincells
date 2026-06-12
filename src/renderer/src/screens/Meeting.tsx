@@ -4,7 +4,7 @@ import type { CalendarEvent } from '@shared/types'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { ItemCard } from '../components/ItemCard'
 import { Card } from '../components/Card'
-import { Checkbox, EmptyState, ProgressBar } from '../components/bits'
+import { CheckableInput, Checkbox, EmptyState, ProgressBar } from '../components/bits'
 import { prettyDate } from '../format'
 
 interface MeetingProps {
@@ -121,7 +121,7 @@ export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Elem
               </span>
             )}
           </div>
-          <input
+          <CheckableInput
             placeholder="Add a prep item…"
             value={prepDraft}
             onChange={(e) => setPrepDraft(e.target.value)}
@@ -150,7 +150,7 @@ export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Elem
           </div>
 
           <div className="section-label">Follow-ups</div>
-          <input
+          <CheckableInput
             placeholder="Add a follow-up — it becomes a real task…"
             value={followUpDraft}
             onChange={(e) => setFollowUpDraft(e.target.value)}

@@ -23,6 +23,8 @@ interface DataContextValue {
   projects: Project[]
   inboxCount: number
   theme: Theme
+  /** The currently *resolved* appearance (theme + system preference). */
+  dark: boolean
   setTheme: (t: Theme) => void
 }
 
@@ -33,6 +35,7 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
   const [projects, setProjects] = useState<Project[]>([])
   const [inboxCount, setInboxCount] = useState(0)
   const [theme, setThemeState] = useState<Theme>('system')
+  const [dark, setDark] = useState(false)
 
   const bump = useCallback(() => setVersion((v) => v + 1), [])
 
@@ -51,10 +54,14 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
   }, [])
   useEffect(() => {
     const apply = (): void => {
-      const dark =
+      const isDark =
         theme === 'dark' ||
         (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-      document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      document.documentElement.dataset.theme = isDark ? 'dark' : 'light'
+      // Mirrored into React state so components (the sidebar toggle)
+      // re-render with the right icon — reading the DOM attribute at
+      // render time races with this effect and froze the toggle.
+      setDark(isDark)
     }
     apply()
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
@@ -68,7 +75,7 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
   }, [])
 
   return (
-    <DataContext.Provider value={{ version, bump, projects, inboxCount, theme, setTheme }}>
+    <DataContext.Provider value={{ version, bump, projects, inboxCount, theme, dark, setTheme }}>
       {children}
     </DataContext.Provider>
   )

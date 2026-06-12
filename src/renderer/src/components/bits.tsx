@@ -23,6 +23,22 @@ export function EmptyState({ art, children }: { art: string; children: ReactNode
   )
 }
 
+/**
+ * An input that visibly creates a *checkable* item: a faded checkbox
+ * sits inside the field, so it's obvious before hitting return that
+ * the line becomes a task/prep checkbox, not a plain note.
+ */
+export function CheckableInput(
+  props: React.InputHTMLAttributes<HTMLInputElement>
+): React.JSX.Element {
+  return (
+    <div className="check-input">
+      <span className="checkbox" aria-hidden />
+      <input {...props} />
+    </div>
+  )
+}
+
 /** A toggleable round-rect checkbox used on task and prep cards. */
 export function Checkbox({
   checked,

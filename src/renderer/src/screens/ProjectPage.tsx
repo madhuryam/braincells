@@ -4,7 +4,7 @@ import { useData, useLiveQuery, useMutate } from '../state/data'
 import { ItemCard } from '../components/ItemCard'
 import { DraggableCard } from '../components/dnd'
 import { MeetingRow } from '../components/MeetingRow'
-import { EmptyState, ProjectDot } from '../components/bits'
+import { CheckableInput, EmptyState, ProjectDot } from '../components/bits'
 
 export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Element {
   const { projects } = useData()
@@ -42,13 +42,24 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
           <option value="task">Task</option>
           <option value="note">Note</option>
         </select>
-        <input
-          style={{ flex: 1 }}
-          placeholder={`Add a ${draftKind} to ${project.name}…`}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-        />
+        {/* Tasks get the checkbox-flavored input so it's obvious the
+            line becomes a checkable card, not a plain note. */}
+        {draftKind === 'task' ? (
+          <CheckableInput
+            placeholder={`Add a task to ${project.name}…`}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && add()}
+          />
+        ) : (
+          <input
+            style={{ flex: 1 }}
+            placeholder={`Add a note to ${project.name}…`}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && add()}
+          />
+        )}
       </div>
 
       {open.length === 0 && done.length === 0 && (

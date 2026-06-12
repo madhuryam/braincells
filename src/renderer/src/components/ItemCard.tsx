@@ -38,8 +38,30 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
   const isCheckable = item.kind === 'task' || item.kind === 'prep'
   const done = item.status === 'done'
 
+  /**
+   * Collapse, flushing any unsaved edits first. Bound to onMouseDown
+   * (not onClick): a plain click first blurs the focused field, whose
+   * save re-renders the whole list and the click never lands — which
+   * made expanded cards impossible to close.
+   */
+  const closeCard = (): void => {
+    const changes: Record<string, string> = {}
+    if (title !== item.title) changes.title = title
+    if (content !== item.content) changes.content = content
+    if (Object.keys(changes).length > 0) patch(changes)
+    setOpen(false)
+  }
+
   return (
     <Card accentColor={project?.color} done={done} faded={faded}>
+      <div
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && open) {
+            e.stopPropagation()
+            closeCard()
+          }
+        }}
+      >
       <div className="row">
         {isCheckable && (
           <Checkbox
@@ -50,14 +72,26 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
         {!isCheckable && <span aria-hidden>{KIND_ICON[item.kind]}</span>}
         <div style={{ flex: 1, minWidth: 0 }}>
           {open ? (
-            <input
-              autoFocus
-              value={title}
-              style={{ width: '100%' }}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={() => title !== item.title && patch({ title })}
-              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-            />
+            <div className="row">
+              <input
+                autoFocus
+                value={title}
+                style={{ flex: 1 }}
+                onChange={(e) => setTitle(e.target.value)}
+                onBlur={() => title !== item.title && patch({ title })}
+                onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+              />
+              <button
+                className="btn ghost"
+                title="Collapse (Esc)"
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  closeCard()
+                }}
+              >
+                ▴
+              </button>
+            </div>
           ) : (
             <button
               className="card-title"
@@ -134,12 +168,19 @@ export function ItemCard({ item, showProject = true, faded }: ItemCardProps): Re
             >
               🗑 drop
             </button>
-            <button className="btn ghost" onClick={() => setOpen(false)}>
+            <button
+              className="btn ghost"
+              onMouseDown={(e) => {
+                e.preventDefault()
+                closeCard()
+              }}
+            >
               Close
             </button>
           </div>
         </div>
       )}
+      </div>
     </Card>
   )
 }

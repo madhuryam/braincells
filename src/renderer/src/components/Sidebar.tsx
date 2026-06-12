@@ -20,8 +20,14 @@ function NavItem({
 }): React.JSX.Element {
   const { navigate } = useNav()
   return (
-    <button className={`nav-item ${isActive ? 'active' : ''}`} onClick={() => navigate(view)}>
-      <span aria-hidden>{icon}</span>
+    <button
+      className={`nav-item ${isActive ? 'active' : ''}`}
+      title={label}
+      onClick={() => navigate(view)}
+    >
+      <span className="nav-icon" aria-hidden>
+        {icon}
+      </span>
       <span>{label}</span>
       {badge !== undefined && badge > 0 && <span className="badge">{badge}</span>}
     </button>
@@ -29,11 +35,11 @@ function NavItem({
 }
 
 export function Sidebar(): React.JSX.Element {
-  const { projects, inboxCount, setTheme } = useData()
+  // `dark` comes from context state (not the DOM attribute) so the
+  // toggle button always re-renders in step with the actual theme.
+  const { projects, inboxCount, dark, setTheme } = useData()
   const { view, navigate } = useNav()
   const [collapsed, setCollapsed] = useState(false)
-
-  const dark = document.documentElement.dataset.theme === 'dark'
 
   return (
     <nav className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -74,26 +80,32 @@ export function Sidebar(): React.JSX.Element {
           </DropZone>
         ))}
 
+      {/* When collapsed, only the expand button remains — the footer
+          used to overflow the 64px rail, leaving it unclickable. */}
       <div className="sidebar-footer">
+        {!collapsed && (
+          <>
+            <button
+              className="btn ghost icon-btn"
+              title="Toggle light/dark"
+              onClick={() => setTheme(dark ? 'light' : 'dark')}
+            >
+              {dark ? '☀️' : '🌙'}
+            </button>
+            <button
+              className="btn ghost icon-btn"
+              title="Settings"
+              onClick={() => navigate({ name: 'settings' })}
+            >
+              ⚙️
+            </button>
+          </>
+        )}
         <button
-          className="btn ghost"
-          title="Toggle light/dark"
-          onClick={() => setTheme(dark ? 'light' : 'dark')}
-        >
-          {dark ? '☀️' : '🌙'}
-        </button>
-        <button
-          className="btn ghost"
-          title="Settings"
-          onClick={() => navigate({ name: 'settings' })}
-        >
-          ⚙️
-        </button>
-        <button
-          className="btn ghost"
+          className="btn ghost icon-btn"
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           onClick={() => setCollapsed(!collapsed)}
-          style={{ marginLeft: 'auto' }}
+          style={collapsed ? undefined : { marginLeft: 'auto' }}
         >
           {collapsed ? '»' : '«'}
         </button>
