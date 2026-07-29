@@ -113,6 +113,7 @@ const api = {
   createBackup: (): Promise<string | null> => invoke('backup:create'),
   exportMarkdown: (): Promise<string | null> => invoke('backup:exportMarkdown'),
   restoreBackup: (): Promise<void> => invoke('backup:restore'),
+  clearDatabase: (): Promise<void> => invoke('backup:clearDatabase'),
 
   // Quick capture window
   submitCapture: (text: string): Promise<void> => invoke('capture:submit', text),

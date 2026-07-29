@@ -607,6 +607,22 @@ export class Store {
       .map(rowToItem)
   }
 
+  // ── Danger zone ─────────────────────────────────────────────────────
+
+  /**
+   * Wipe every piece of content — items, links, meetings, projects —
+   * while leaving settings (theme, calendar mode, OAuth client) intact.
+   * Links go first so no FK fires; the FTS index empties via triggers.
+   */
+  clearContent(): void {
+    this.db.transaction(() => {
+      this.db.prepare('DELETE FROM links').run()
+      this.db.prepare('DELETE FROM meetings').run()
+      this.db.prepare('DELETE FROM items').run()
+      this.db.prepare('DELETE FROM projects').run()
+    })()
+  }
+
   // ── Settings (small key/value JSON blobs) ───────────────────────────
 
   getSetting<T>(key: string): T | null {

@@ -52,6 +52,12 @@ function createMainWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // The packaged app gets its icon from electron-builder; in dev the
+  // dock would show the stock Electron logo unless set at runtime.
+  if (process.platform === 'darwin' && !app.isPackaged) {
+    app.dock?.setIcon(join(__dirname, '../../build/icon.png'))
+  }
+
   store = new Store(join(app.getPath('userData'), 'braincells.sqlite3'))
   registerStoreIpc(store)
   registerCalendarIpc(store)

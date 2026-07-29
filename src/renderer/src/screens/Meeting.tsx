@@ -48,11 +48,18 @@ export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Elem
   // The minimal event identity needed for links and snapshots.
   const event: CalendarEvent = { eventKey, title, date, startTime: null, endTime: null }
 
+  // Like follow-ups below, prep lands in the INBOX for a conscious
+  // triage pass — it stays listed here via its 'prep-for' link.
   const addPrep = async (): Promise<void> => {
     const t = prepDraft.trim()
     if (!t) return
     await mutate(async () => {
-      const item = await window.api.createItem({ kind: 'prep', title: t, status: 'active' })
+      const item = await window.api.createItem({
+        kind: 'prep',
+        title: t,
+        status: 'inbox',
+        projectId: meeting?.projectId ?? null
+      })
       await window.api.linkToEvent(item.id, event, 'prep-for')
     })
     setPrepDraft('')

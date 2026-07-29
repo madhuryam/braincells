@@ -165,6 +165,23 @@ export function Settings(): React.JSX.Element {
           </div>
           {backupNote && <p style={{ margin: 0, color: 'var(--ok)' }}>{backupNote}</p>}
         </Card>
+
+        <Card className="stack">
+          <h2>Start over</h2>
+          <p style={{ margin: 0, color: 'var(--text-soft)' }}>
+            Clear Database wipes every item, note, project, and meeting and relaunches the app
+            empty. A full backup is saved automatically first, and your settings are kept.
+          </p>
+          <div className="row">
+            <button
+              className="btn"
+              style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+              onClick={() => window.api.clearDatabase()}
+            >
+              Clear Database…
+            </button>
+          </div>
+        </Card>
       </div>
     </div>
   )

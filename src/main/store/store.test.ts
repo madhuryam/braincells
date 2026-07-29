@@ -294,3 +294,22 @@ describe('subtasks', () => {
     expect(store.subtasksOf(parent.id)).toHaveLength(0)
   })
 })
+
+describe('clear database', () => {
+  it('wipes all content but preserves settings', () => {
+    const p = store.createProject('Roadmap', '#339af0')
+    const item = store.createItem({ kind: 'task', title: 'call dentist', projectId: p.id })
+    store.linkToEvent(item.id, demoEvent, 'prep-for')
+    store.assignMeetingProject(demoEvent, p.id)
+    store.setSetting('theme', 'dark')
+
+    store.clearContent()
+
+    expect(store.listProjects(true)).toHaveLength(0)
+    expect(store.allItems()).toHaveLength(0)
+    expect(store.allLinks()).toHaveLength(0)
+    expect(store.allMeetings()).toHaveLength(0)
+    expect(store.search('dentist')).toHaveLength(0) // FTS emptied too
+    expect(store.getSetting('theme')).toBe('dark')
+  })
+})

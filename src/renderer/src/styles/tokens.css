@@ -6,7 +6,7 @@
 
 :root {
   /* Type */
-  --font-sans: 'Inter Variable', -apple-system, 'Helvetica Neue', sans-serif;
+  --font-sans: 'Open Sans Variable', -apple-system, 'Helvetica Neue', sans-serif;
 
   /* Shape */
   --radius-card: 14px;

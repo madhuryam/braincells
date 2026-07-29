@@ -67,6 +67,35 @@ export async function restoreBackup(store: Store, win: BrowserWindow): Promise<v
   app.exit(0)
 }
 
+/**
+ * "Clear Database": a fresh start that can't lose data. A full backup
+ * is written automatically (no dialog) before anything is deleted;
+ * settings survive; the app relaunches on the empty database.
+ * (In dev the relaunched process loses the Vite dev-server URL and
+ * comes up blank — quirk of `npm run dev`, fine in the packaged app.)
+ */
+export async function clearDatabase(store: Store, win: BrowserWindow): Promise<void> {
+  const backupDir = join(app.getPath('userData'), 'backups')
+  mkdirSync(backupDir, { recursive: true })
+  const backupPath = join(backupDir, `braincells-pre-clear-${todayYmd()}-${Date.now()}.sqlite3`)
+
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'warning',
+    buttons: ['Back up, clear, and relaunch', 'Cancel'],
+    defaultId: 1,
+    message: 'Clear the database?',
+    detail:
+      `Every item, note, project, link, and meeting is deleted. Settings are kept.\n\n` +
+      `A full backup is saved first to:\n${backupPath}`
+  })
+  if (response !== 0) return
+
+  await store.db.backup(backupPath)
+  store.clearContent()
+  app.relaunch()
+  app.exit(0)
+}
+
 export function registerBackupIpc(store: Store, getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('backup:create', async () => {
     const win = getWindow()
@@ -79,5 +108,9 @@ export function registerBackupIpc(store: Store, getWindow: () => BrowserWindow |
   ipcMain.handle('backup:restore', async () => {
     const win = getWindow()
     if (win) await restoreBackup(store, win)
+  })
+  ipcMain.handle('backup:clearDatabase', async () => {
+    const win = getWindow()
+    if (win) await clearDatabase(store, win)
   })
 }
