@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useData, useMutate } from '../state/data'
+import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { Card } from '../components/Card'
 import { BackButton, EmptyState, ProjectDot } from '../components/bits'
@@ -11,6 +11,9 @@ export function Projects(): React.JSX.Element {
   const mutate = useMutate()
   const [name, setName] = useState('')
   const [color, setColor] = useState<string>(randomProjectColor())
+  // Archived projects stay reachable — a project is a bucket, not a bin.
+  const allProjects = useLiveQuery(() => window.api.listProjects(true), []) ?? []
+  const archived = allProjects.filter((p) => p.status === 'archived')
 
   const create = async (): Promise<void> => {
     const trimmed = name.trim()
@@ -88,6 +91,39 @@ export function Projects(): React.JSX.Element {
           </Card>
         ))}
       </div>
+
+      {archived.length > 0 && (
+        <>
+          <div className="section-label" style={{ marginTop: 24 }}>
+            Archived
+          </div>
+          <div className="stack">
+            {archived.map((p) => (
+              <Card
+                key={p.id}
+                interactive
+                onClick={() => navigate({ name: 'project', projectId: p.id })}
+              >
+                <div className="row" style={{ opacity: 0.7 }}>
+                  <ProjectDot color={p.color} />
+                  <span className="card-title">{p.name}</span>
+                  <button
+                    className="btn ghost"
+                    style={{ marginLeft: 'auto' }}
+                    title="Restore project"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      mutate(() => window.api.updateProject(p.id, { status: 'active' }))
+                    }}
+                  >
+                    Restore
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

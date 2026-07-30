@@ -688,9 +688,19 @@
   color: var(--text-faint);
 }
 
-/* Meeting notes pane: full toolbar, mid height. */
+/* Meeting notes pane: full toolbar, mid height. A soft outline and a
+   focus ring make it read as a typeable area, not blank canvas. */
 .meeting-notes .ProseMirror {
   min-height: 46vh;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.meeting-notes .ProseMirror:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .rich-editor .ProseMirror > * + * {
   margin-top: 0.5em;
