@@ -41,7 +41,7 @@ export function CalendarScreen(): React.JSX.Element {
   }
 
   return (
-    <div className="canvas">
+    <div className="canvas cal-screen">
       <header className="canvas-header">
         <BackButton />
         <h1>Calendar</h1>
@@ -88,21 +88,22 @@ export function CalendarScreen(): React.JSX.Element {
               className={`cal-cell ${inMonth ? '' : 'dim'} ${date === today ? 'today' : ''}`}
             >
               <div className="cal-daynum">{Number(date.slice(8))}</div>
-              {dayEvents.slice(0, 4).map((e) => (
-                <button
-                  key={e.eventKey}
-                  className="cal-event"
-                  title={`${e.title}${e.startTime ? ` · ${e.startTime}` : ''} — open notes`}
-                  onClick={() =>
-                    navigate({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
-                  }
-                >
-                  {e.startTime && <span className="cal-time">{e.startTime}</span>} {e.title}
-                </button>
-              ))}
-              {dayEvents.length > 4 && (
-                <span className="cal-more">+{dayEvents.length - 4} more</span>
-              )}
+              {/* Every event renders; a crowded day scrolls inside its
+                  own cell instead of clipping behind a "+n more". */}
+              <div className="cal-cell-events">
+                {dayEvents.map((e) => (
+                  <button
+                    key={e.eventKey}
+                    className="cal-event"
+                    title={`${e.title}${e.startTime ? ` · ${e.startTime}` : ''} — open notes`}
+                    onClick={() =>
+                      navigate({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
+                    }
+                  >
+                    {e.startTime && <span className="cal-time">{e.startTime}</span>} {e.title}
+                  </button>
+                ))}
+              </div>
             </div>
           )
         })}

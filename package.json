@@ -10,7 +10,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "electron-vite dev --watch",
     "predev": "electron-rebuild -f -o better-sqlite3",
     "start": "electron-vite preview",
     "build": "electron-vite build",

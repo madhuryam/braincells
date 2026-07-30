@@ -10,6 +10,8 @@ export function Settings(): React.JSX.Element {
   const mutate = useMutate()
   const mode = useLiveQuery(() => window.api.getSetting<CalendarMode>('calendarMode'), []) ?? 'demo'
   const google = useLiveQuery(() => window.api.googleStatus(), [])
+  const hideWorkLocation =
+    useLiveQuery(() => window.api.getSetting<boolean>('hideWorkLocation'), []) ?? false
   const [clientId, setClientId] = useState('')
   const [clientSecret, setClientSecret] = useState('')
   const [connecting, setConnecting] = useState(false)
@@ -86,6 +88,16 @@ export function Settings(): React.JSX.Element {
               </button>
             ))}
           </div>
+
+          <label className="row" style={{ gap: 8, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              style={{ width: 16, height: 16, padding: 0, accentColor: 'var(--accent)' }}
+              checked={hideWorkLocation}
+              onChange={(e) => mutate(() => window.api.setSetting('hideWorkLocation', e.target.checked))}
+            />
+            Hide “Home” / “Office” work-location events everywhere
+          </label>
 
           {mode === 'google' && (
             <div className="stack" style={{ marginTop: 8 }}>

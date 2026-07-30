@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import type { CalendarEvent } from '../../shared/types'
 import type { Store } from '../store'
 import { demoEvents } from './demo'
+import { withoutWorkLocationEvents } from './filter'
 import { GoogleCalendar } from './google'
 
 export type CalendarMode = 'demo' | 'google' | 'off'
@@ -24,6 +25,11 @@ export function registerCalendarIpc(store: Store): void {
         events = demoEvents(startDate, endDate)
       } else if (mode === 'google' && google.isConnected()) {
         events = await google.eventsBetween(startDate, endDate)
+      }
+      // Work-location noise ("Home"/"Office" all-day events) is filtered
+      // here at the source, so every view benefits at once.
+      if (store.getSetting<boolean>('hideWorkLocation')) {
+        events = withoutWorkLocationEvents(events)
       }
       store.refreshEventSnapshots(events)
       return events

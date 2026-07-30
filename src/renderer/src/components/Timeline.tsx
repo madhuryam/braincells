@@ -6,6 +6,7 @@ import { useLiveQuery } from '../state/data'
 import { useNav } from '../state/nav'
 import { ProgressBar } from './bits'
 import { EmptyState } from './bits'
+import { AllDayBar } from './AllDayBar'
 
 const PX_PER_MIN = 1.1
 const SLOT_MIN = 30 // drop-target granularity for time blocking
@@ -36,7 +37,6 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
   }, [])
 
   const timed = events.filter((e) => e.startTime)
-  const allDay = events.filter((e) => !e.startTime)
   const blocks = tasks.filter((t) => t.scheduledTime)
 
   // The visible window: at least 08:00–18:00, stretched to fit the day.
@@ -55,11 +55,7 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
 
   return (
     <div>
-      {allDay.map((e) => (
-        <div key={e.eventKey} className="pill" style={{ marginBottom: 8 }}>
-          🗓️ {e.title} · all day
-        </div>
-      ))}
+      <AllDayBar events={events} />
       <div className="timeline" style={{ height: (dayEnd - dayStart) * PX_PER_MIN }}>
         {/* hour gridlines */}
         {Array.from({ length: (dayEnd - dayStart) / 60 + 1 }, (_, i) => {

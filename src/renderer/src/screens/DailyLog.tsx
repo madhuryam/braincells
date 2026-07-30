@@ -4,6 +4,7 @@ import type { CalendarEvent } from '@shared/types'
 import { useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { Card } from '../components/Card'
+import { AllDayBar } from '../components/AllDayBar'
 import { DetailPanel } from '../components/DetailPanel'
 import { ItemDetail } from '../components/ItemDetail'
 import { Meeting } from './Meeting'
@@ -168,7 +169,8 @@ function DayBlock({
             <EmptyState art="🏝️">No meetings, nothing checked off this day.</EmptyState>
           )}
 
-          {events.map((ev) => (
+          <AllDayBar events={events} />
+          {events.filter((ev) => ev.startTime).map((ev) => (
             <Card
               key={ev.eventKey}
               interactive
