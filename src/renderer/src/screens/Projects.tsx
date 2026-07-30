@@ -11,6 +11,7 @@ export function Projects(): React.JSX.Element {
   const mutate = useMutate()
   const [name, setName] = useState('')
   const [color, setColor] = useState<string>(randomProjectColor())
+  const [nameError, setNameError] = useState<string | null>(null)
   // Archived projects stay reachable — a project is a bucket, not a bin.
   const allProjects = useLiveQuery(() => window.api.listProjects(true), []) ?? []
   const archived = allProjects.filter((p) => p.status === 'archived')
@@ -18,7 +19,23 @@ export function Projects(): React.JSX.Element {
   const create = async (): Promise<void> => {
     const trimmed = name.trim()
     if (!trimmed) return
-    await mutate(() => window.api.createProject(trimmed, color))
+    // Names are unique across active and archived projects (the store
+    // enforces it too) — otherwise un-archiving could collide.
+    const clash = allProjects.find((p) => p.name.toLowerCase() === trimmed.toLowerCase())
+    if (clash) {
+      setNameError(
+        clash.status === 'archived'
+          ? `“${clash.name}” already exists as an archived project — restore it below instead.`
+          : `A project named “${clash.name}” already exists.`
+      )
+      return
+    }
+    try {
+      await mutate(() => window.api.createProject(trimmed, color))
+    } catch {
+      setNameError(`A project named “${trimmed}” already exists.`)
+      return
+    }
     setName('')
     setColor(randomProjectColor())
   }
@@ -36,13 +53,17 @@ export function Projects(): React.JSX.Element {
             style={{ flex: 1 }}
             placeholder="New project name…"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value)
+              setNameError(null)
+            }}
             onKeyDown={(e) => e.key === 'Enter' && create()}
           />
           <button className="btn primary" onClick={create}>
             Create
           </button>
         </div>
+        {nameError && <p style={{ margin: 0, color: 'var(--danger)', fontSize: 13 }}>{nameError}</p>}
         <div className="row">
           {PROJECT_COLORS.map((c) => (
             <button

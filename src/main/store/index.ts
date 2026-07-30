@@ -103,7 +103,27 @@ export class Store {
 
   // ── Projects ────────────────────────────────────────────────────────
 
+  /**
+   * Project names are unique, case-insensitively, across active AND
+   * archived projects — otherwise "create, archive, create same name,
+   * un-archive" would leave two identical-looking buckets. Items link
+   * by id, so uniqueness is purely a naming rule, never a data fix-up.
+   */
+  private assertProjectNameFree(name: string, exceptId?: string): void {
+    const clash = this.db
+      .prepare('SELECT status FROM projects WHERE lower(name) = lower(?) AND id != ?')
+      .get(name.trim(), exceptId ?? '') as { status: string } | undefined
+    if (clash) {
+      throw new Error(
+        clash.status === 'archived'
+          ? `An archived project is already named “${name.trim()}” — restore or rename it instead`
+          : `A project named “${name.trim()}” already exists`
+      )
+    }
+  }
+
   createProject(name: string, color: string): Project {
+    this.assertProjectNameFree(name)
     const p: Project = {
       id: randomUUID(),
       name,
@@ -125,6 +145,7 @@ export class Store {
   }
 
   updateProject(id: string, patch: Partial<Pick<Project, 'name' | 'color' | 'status'>>): void {
+    if (patch.name !== undefined) this.assertProjectNameFree(patch.name, id)
     const sets: string[] = []
     const vals: unknown[] = []
     if (patch.name !== undefined) (sets.push('name = ?'), vals.push(patch.name))

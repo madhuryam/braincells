@@ -313,3 +313,26 @@ describe('clear database', () => {
     expect(store.getSetting('theme')).toBe('dark')
   })
 })
+
+describe('project name uniqueness', () => {
+  it('rejects duplicate names, even against archived projects', () => {
+    const p = store.createProject('Roadmap', '#339af0')
+    expect(() => store.createProject('roadmap', '#ff6b6b')).toThrow(/already exists/)
+
+    // The archive → recreate → un-archive trap: recreating while the
+    // original is archived must fail, so restoring can never collide.
+    store.updateProject(p.id, { status: 'archived' })
+    expect(() => store.createProject('Roadmap', '#ff6b6b')).toThrow(/archived/)
+    store.updateProject(p.id, { status: 'active' })
+    expect(store.listProjects()).toHaveLength(1)
+  })
+
+  it('rejects renaming onto an existing name, but allows self-rename', () => {
+    store.createProject('Roadmap', '#339af0')
+    const other = store.createProject('Launch', '#ff6b6b')
+    expect(() => store.updateProject(other.id, { name: 'ROADMAP' })).toThrow(/already exists/)
+    store.updateProject(other.id, { name: 'Launch' }) // same name on itself is fine
+    store.updateProject(other.id, { name: 'Launch v2' })
+    expect(store.listProjects().map((p) => p.name).sort()).toEqual(['Launch v2', 'Roadmap'])
+  })
+})
