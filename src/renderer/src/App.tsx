@@ -18,7 +18,8 @@ import { Search } from './screens/Search'
 
 function Screen(): React.JSX.Element {
   const { view } = useNav()
-  // A keyed wrapper makes each screen glide in with a soft spring.
+  // A keyed wrapper eases each screen in — quick and directional, no
+  // spring overshoot.
   const screenKey =
     'projectId' in view
       ? view.projectId
@@ -33,7 +34,7 @@ function Screen(): React.JSX.Element {
       className="screen-enter"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+      transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
     >
       <ScreenBody view={view} />
     </motion.div>

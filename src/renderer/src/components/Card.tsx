@@ -15,8 +15,8 @@ interface CardProps {
 
 /**
  * The card: the one tactile unit everything in the app renders as
- * (SPEC §7 "Cards everywhere"). `layout` makes cards glide with spring
- * physics when lists reorder around them.
+ * (SPEC §7 "Cards everywhere"). `layout` makes cards glide when lists
+ * reorder around them — a quick ease, no spring overshoot.
  */
 export function Card({
   children,
@@ -55,7 +55,7 @@ export function Card({
         overflow: 'hidden',
         transition: { duration: 0.22, ease: [0.4, 0, 0.2, 1] }
       }}
-      transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+      transition={{ duration: 0.16, ease: [0.25, 0.1, 0.25, 1] }}
       className={classes}
       style={accentColor ? ({ '--card-accent': accentColor } as CSSProperties) : undefined}
       onClick={onClick}
