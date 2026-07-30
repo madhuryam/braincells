@@ -21,7 +21,7 @@ export function Search(): React.JSX.Element {
   }, [query])
 
   return (
-    <div className="canvas" style={{ maxWidth: 760 }}>
+    <div className="canvas" style={{ '--canvas-max': '760px' } as React.CSSProperties}>
       <header className="canvas-header">
         <BackButton />
         <h1>Search</h1>

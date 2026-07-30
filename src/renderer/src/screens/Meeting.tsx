@@ -14,6 +14,8 @@ interface MeetingProps {
   eventKey: string
   title: string
   date: string
+  /** Compact rendering for the detail panel: no header, sections stacked. */
+  embedded?: boolean
 }
 
 /**
@@ -23,7 +25,7 @@ interface MeetingProps {
  * so this screen works identically for past meetings and survives the
  * event being deleted from the calendar.
  */
-export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Element {
+export function Meeting({ eventKey, title, date, embedded = false }: MeetingProps): React.JSX.Element {
   const preps = useLiveQuery(() => window.api.itemsForEvent(eventKey, 'prep-for'), [eventKey]) ?? []
   // undefined = still loading; the editor must not mount until we know
   // whether notes exist, or it would seed itself empty.
@@ -123,34 +125,42 @@ export function Meeting({ eventKey, title, date }: MeetingProps): React.JSX.Elem
 
   const prepDone = preps.filter((p) => p.item.status === 'done').length
 
-  return (
-    <div className="canvas">
-      <header className="canvas-header">
-        <BackButton />
-        <h1>{title}</h1>
-        <span className="date">{prettyDate(date)}</span>
-        {/* One action assigns this meeting to a project (SPEC §4.4). */}
-        <select
-          value={meeting?.projectId ?? ''}
-          onChange={(e) =>
-            mutate(() =>
-              window.api.assignMeetingProject(
-                { eventKey, title, date },
-                e.target.value || null
-              )
-            )
-          }
-        >
-          <option value="">No project</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </header>
+  // One action assigns this meeting to a project (SPEC §4.4).
+  const projectSelect = (
+    <select
+      value={meeting?.projectId ?? ''}
+      onChange={(e) =>
+        mutate(() =>
+          window.api.assignMeetingProject({ eventKey, title, date }, e.target.value || null)
+        )
+      }
+    >
+      <option value="">No project</option>
+      {projects.map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.name}
+        </option>
+      ))}
+    </select>
+  )
 
-      <div className="today-grid">
+  return (
+    <div className={embedded ? 'stack' : 'canvas'}>
+      {embedded ? (
+        <div className="row">
+          <span className="date">{prettyDate(date)}</span>
+          {projectSelect}
+        </div>
+      ) : (
+        <header className="canvas-header">
+          <BackButton />
+          <h1>{title}</h1>
+          <span className="date">{prettyDate(date)}</span>
+          {projectSelect}
+        </header>
+      )}
+
+      <div className={embedded ? 'stack' : 'today-grid'}>
         <section className="stack">
           <div className="section-label row">
             Prep

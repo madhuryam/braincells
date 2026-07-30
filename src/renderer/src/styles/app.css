@@ -131,11 +131,15 @@
 
 /* ── Main canvas ─────────────────────────────────────────────────── */
 
+/* The canvas is always the full-width scroller — so the scrollbar hugs
+   the window edge — and screens cap/center their content by setting
+   --canvas-max instead of an inline max-width. */
 .canvas {
+  --canvas-max: 100%;
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: 28px 32px 60px;
+  padding: 28px max(32px, calc((100% - var(--canvas-max)) / 2)) 60px;
 }
 
 .canvas-header {
@@ -686,6 +690,44 @@
   margin-left: auto;
   font-size: 11px;
   color: var(--text-faint);
+}
+
+/* ── Weekly log: day blocks + the right-hand detail panel ────────── */
+
+.day-content {
+  margin: 0 0 18px 6px;
+}
+
+/* Half-and-half split when something is peeked. */
+.log-split {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+.log-main {
+  flex: 1;
+  min-width: 0;
+}
+.detail-panel {
+  flex: 1;
+  min-width: 0;
+  position: sticky;
+  top: 0;
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 18px 20px;
+}
+.detail-panel-header {
+  margin-bottom: 12px;
+}
+/* Peeked meeting notes shouldn't demand the full-screen height. */
+.detail-panel .ProseMirror,
+.detail-panel .meeting-notes .ProseMirror {
+  min-height: 22vh;
 }
 
 /* Meeting notes pane: full toolbar, mid height. A soft outline and a

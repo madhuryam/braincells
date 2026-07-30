@@ -52,7 +52,7 @@ export function Page({ itemId }: { itemId: string }): React.JSX.Element {
   const project = projects.find((p) => p.id === item.projectId)
 
   return (
-    <div className="canvas" style={{ maxWidth: 860 }}>
+    <div className="canvas" style={{ '--canvas-max': '860px' } as React.CSSProperties}>
       <header className="canvas-header">
         <BackButton />
         <input
