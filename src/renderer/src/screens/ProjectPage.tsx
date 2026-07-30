@@ -18,6 +18,11 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   const [draft, setDraft] = useState('')
   const [draftKind, setDraftKind] = useState<'task' | 'note'>('task')
   const [showDone, setShowDone] = useState(false)
+  // Calendar color labels: attach one to this project and meetings
+  // wearing that label file themselves here automatically.
+  const labels = useLiveQuery(() => window.api.calendarLabels(), []) ?? []
+  const labelMap =
+    useLiveQuery(() => window.api.getSetting<Record<string, string>>('labelProjects'), []) ?? {}
 
   if (!project) return <div className="canvas">Project not found.</div>
 
@@ -54,6 +59,35 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
         <ProjectDot color={project.color} />
         <h1>{project.name}</h1>
       </header>
+
+      {labels.length > 0 && (
+        <div className="row label-row">
+          <span className="label-caption" title="Meetings wearing an attached label file into this project automatically. Rename labels in Settings.">
+            Auto-file labels
+          </span>
+          {labels.map((l) => {
+            const mine = labelMap[l.id] === projectId
+            const elsewhere = !mine && !!labelMap[l.id]
+            return (
+              <button
+                key={l.id}
+                className={`label-chip ${mine ? 'on' : ''}`}
+                title={
+                  mine
+                    ? `Meetings labeled “${l.name}” file here — click to detach`
+                    : `${elsewhere ? 'Currently attached to another project. ' : ''}Click to file “${l.name}” meetings into ${project.name}`
+                }
+                onClick={() =>
+                  mutate(() => window.api.assignLabelProject(l.id, mine ? null : projectId))
+                }
+              >
+                <span className="label-dot" style={{ background: l.color }} />
+                {l.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div className="row" style={{ marginBottom: 18 }}>
         <select value={draftKind} onChange={(e) => setDraftKind(e.target.value as 'task' | 'note')}>

@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   CalendarEvent,
+  CalendarLabel,
   Item,
   ItemKind,
   ItemStatus,
@@ -108,6 +109,12 @@ const api = {
   googleConnect: (clientId: string, clientSecret: string): Promise<{ ok: boolean; error?: string }> =>
     invoke('calendar:googleConnect', clientId, clientSecret),
   googleDisconnect: (): Promise<void> => invoke('calendar:googleDisconnect'),
+
+  // Calendar color labels + label → project auto-filing rules
+  calendarLabels: (): Promise<CalendarLabel[]> => invoke('calendar:labels'),
+  renameLabel: (id: string, name: string): Promise<void> => invoke('calendar:renameLabel', id, name),
+  assignLabelProject: (labelId: string, projectId: string | null): Promise<void> =>
+    invoke('calendar:assignLabel', labelId, projectId),
 
   // Backup / export / restore (each opens a native dialog)
   createBackup: (): Promise<string | null> => invoke('backup:create'),

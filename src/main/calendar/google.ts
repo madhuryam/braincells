@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import { createHash, randomBytes } from 'node:crypto'
 import { shell } from 'electron'
-import { eventKeyOf, type CalendarEvent } from '../../shared/types'
+import { eventKeyOf, type CalendarEvent, type CalendarLabel } from '../../shared/types'
 import { hhmm, ymd } from '../../shared/dates'
 import type { Store } from '../store'
 
@@ -36,7 +36,27 @@ interface GoogleClient {
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const EVENTS_URL = 'https://www.googleapis.com/calendar/v3/calendars/primary/events'
+const COLORS_URL = 'https://www.googleapis.com/calendar/v3/colors'
 const SCOPE = 'https://www.googleapis.com/auth/calendar.readonly'
+
+/**
+ * Google's stock names for the event color ids. The palette endpoint
+ * returns only hexes; if the user renamed a label in Google Calendar
+ * the API doesn't expose that, so these are just starting points.
+ */
+const GOOGLE_COLOR_NAMES: Record<string, string> = {
+  '1': 'Lavender',
+  '2': 'Sage',
+  '3': 'Grape',
+  '4': 'Flamingo',
+  '5': 'Banana',
+  '6': 'Tangerine',
+  '7': 'Peacock',
+  '8': 'Graphite',
+  '9': 'Blueberry',
+  '10': 'Basil',
+  '11': 'Tomato'
+}
 
 export class GoogleCalendar {
   constructor(private store: Store) {}
@@ -105,6 +125,7 @@ export class GoogleCalendar {
         id: string
         status?: string
         summary?: string
+        colorId?: string
         start?: { dateTime?: string; date?: string }
         end?: { dateTime?: string; date?: string }
       }>
@@ -123,10 +144,24 @@ export class GoogleCalendar {
         title: e.summary ?? '(untitled)',
         date,
         startTime: startsAt ? hhmm(startsAt) : null,
-        endTime: e.end?.dateTime ? hhmm(new Date(e.end.dateTime)) : null
+        endTime: e.end?.dateTime ? hhmm(new Date(e.end.dateTime)) : null,
+        colorId: e.colorId ?? null
       })
     }
     return events
+  }
+
+  /** The account's event-color palette, one label per color id. */
+  async labels(): Promise<CalendarLabel[]> {
+    const accessToken = await this.freshAccessToken()
+    const res = await fetch(COLORS_URL, { headers: { Authorization: `Bearer ${accessToken}` } })
+    if (!res.ok) throw new Error(`Google Calendar colors: ${res.status} ${await res.text()}`)
+    const body = (await res.json()) as { event?: Record<string, { background?: string }> }
+    return Object.entries(body.event ?? {}).map(([id, c]) => ({
+      id,
+      color: c.background ?? '#999999',
+      name: GOOGLE_COLOR_NAMES[id] ?? `Color ${id}`
+    }))
   }
 
   private saveTokens(t: TokenResponse, refreshToken: string): void {
