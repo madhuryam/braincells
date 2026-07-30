@@ -118,7 +118,21 @@ export function ItemCard({
           }
         }}
       >
-      <div className="row">
+      {/* The header row of an open card collapses it again on click —
+          except on its interactive parts (checkbox, title field). On
+          mousedown, like the other collapse controls, so it beats the
+          title field's on-blur re-render. */}
+      <div
+        className="row"
+        style={open ? { cursor: 'pointer' } : undefined}
+        onMouseDown={(e) => {
+          if (!open) return
+          const target = e.target as HTMLElement
+          if (target.closest('input, button, select, textarea, label')) return
+          e.preventDefault()
+          closeCard()
+        }}
+      >
         {isCheckable && (
           <Checkbox
             checked={done}
