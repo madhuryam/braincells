@@ -10,7 +10,6 @@ export function Settings(): React.JSX.Element {
   const mutate = useMutate()
   const mode = useLiveQuery(() => window.api.getSetting<CalendarMode>('calendarMode'), []) ?? 'demo'
   const google = useLiveQuery(() => window.api.googleStatus(), [])
-  const labels = useLiveQuery(() => window.api.calendarLabels(), []) ?? []
   const [clientId, setClientId] = useState('')
   const [clientSecret, setClientSecret] = useState('')
   const [connecting, setConnecting] = useState(false)
@@ -133,33 +132,6 @@ export function Settings(): React.JSX.Element {
             </div>
           )}
         </Card>
-
-        {labels.length > 0 && (
-          <Card className="stack">
-            <h2>Calendar labels</h2>
-            <p style={{ margin: 0, color: 'var(--text-soft)' }}>
-              The colors your calendar events wear. Google’s API doesn’t share custom label
-              names, so rename them here to match your calendar. Attach a label to a project
-              from the project’s page and labeled meetings file themselves there.
-            </p>
-            <div className="stack" style={{ gap: 6 }}>
-              {labels.map((l) => (
-                <div className="row" key={l.id}>
-                  <span className="label-dot" style={{ background: l.color, width: 14, height: 14 }} />
-                  <input
-                    style={{ flex: 1, maxWidth: 320 }}
-                    defaultValue={l.name}
-                    onBlur={(e) => {
-                      const name = e.target.value.trim()
-                      if (name && name !== l.name) mutate(() => window.api.renameLabel(l.id, name))
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                  />
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
 
         <Card className="stack">
           <h2>Backup</h2>

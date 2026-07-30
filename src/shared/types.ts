@@ -77,19 +77,6 @@ export interface CalendarEvent {
   date: string
   startTime: string | null // null = all-day event
   endTime: string | null
-  /** Provider color-label id (Google `colorId`); drives auto-filing into projects. */
-  colorId?: string | null
-}
-
-/**
- * A calendar color label. Google's API exposes only the color ids and
- * hexes — custom label names live solely in Google's UI — so the name
- * here is user-editable in Settings to match.
- */
-export interface CalendarLabel {
-  id: string
-  color: string // hex
-  name: string
 }
 
 /**
