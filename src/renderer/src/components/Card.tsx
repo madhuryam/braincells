@@ -15,8 +15,9 @@ interface CardProps {
 
 /**
  * The card: the one tactile unit everything in the app renders as
- * (SPEC §7 "Cards everywhere"). `layout` makes cards glide when lists
- * reorder around them — a quick ease, no spring overshoot.
+ * (SPEC §7 "Cards everywhere"). Deliberately no `layout` animation:
+ * it scale-warped an expanding card and rippled every neighbor —
+ * expand/collapse should be instant, only enter/exit animate.
  */
 export function Card({
   children,
@@ -40,7 +41,6 @@ export function Card({
 
   return (
     <motion.div
-      layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       // The satisfying exit: completing/dropping physically collapses

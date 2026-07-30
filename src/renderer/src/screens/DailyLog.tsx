@@ -57,10 +57,9 @@ export function DailyLog(): React.JSX.Element {
     })
 
   return (
-    <div
-      className="canvas"
-      style={{ '--canvas-max': detail ? '1500px' : '760px' } as React.CSSProperties}
-    >
+    // The width never changes when the panel opens — the log column
+    // always lives in the left half, so peeking shifts nothing.
+    <div className="canvas" style={{ '--canvas-max': '1500px' } as React.CSSProperties}>
       <header className="canvas-header">
         <BackButton />
         <h1>Daily Log</h1>
@@ -86,7 +85,7 @@ export function DailyLog(): React.JSX.Element {
         </span>
       </header>
 
-      <div className={detail ? 'log-split' : undefined}>
+      <div className="log-split">
         <div className="log-main">
           {days.map((d) => (
             <DayBlock
