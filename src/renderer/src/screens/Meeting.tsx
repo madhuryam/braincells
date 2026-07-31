@@ -8,7 +8,7 @@ import { Card } from '../components/Card'
 import { BackButton, CheckableInput, Checkbox, EmptyState, ProgressBar } from '../components/bits'
 import { RichEditor } from '../components/RichEditor'
 import { itemBodyHtml } from '../richtext'
-import { prettyDate } from '../format'
+import { ampm, prettyDate } from '../format'
 
 interface MeetingProps {
   eventKey: string
@@ -33,6 +33,13 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
   const followUps =
     useLiveQuery(() => window.api.itemsForEvent(eventKey, 'follow-up-from'), [eventKey]) ?? []
   const meeting = useLiveQuery(() => window.api.getMeeting(eventKey), [eventKey])
+  // Navigation only carries title/date; start–end times come from the
+  // live calendar event (absent if it was deleted — then no times).
+  const dayEvents = useLiveQuery(() => window.api.calendarEvents(date, date), [date]) ?? []
+  const liveEvent = dayEvents.find((e) => e.eventKey === eventKey)
+  const timeLabel = liveEvent?.startTime
+    ? ` · ${ampm(liveEvent.startTime)}${liveEvent.endTime ? `–${ampm(liveEvent.endTime)}` : ''}`
+    : ''
   const { projects } = useData()
   const mutate = useMutate()
   const { pushUndo } = useUndo()
@@ -148,14 +155,20 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
     <div className={embedded ? 'stack' : 'canvas'}>
       {embedded ? (
         <div className="row">
-          <span className="date">{prettyDate(date)}</span>
+          <span className="date">
+            {prettyDate(date)}
+            {timeLabel}
+          </span>
           {projectSelect}
         </div>
       ) : (
         <header className="canvas-header">
           <BackButton />
           <h1>{title}</h1>
-          <span className="date">{prettyDate(date)}</span>
+          <span className="date">
+            {prettyDate(date)}
+            {timeLabel}
+          </span>
           {projectSelect}
         </header>
       )}
