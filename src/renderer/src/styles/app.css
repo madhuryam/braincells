@@ -966,10 +966,36 @@
   color: var(--text);
 }
 
-/* Project pages: comfortable single-column sections. */
+/* Project pages: comfortable single-column sections, left-aligned. */
 .project-section {
   max-width: 720px;
   margin-bottom: 6px;
+}
+
+/* An armed ConfirmButton reads as the danger it is. */
+.confirm-armed {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* Inline project rename: an h1 that's secretly editable. */
+.project-name-input {
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  padding: 0 6px;
+  background: transparent;
+  min-width: 0;
+  flex: 1;
+}
+.project-color-btn {
+  display: flex;
+  align-items: center;
+  padding: 6px;
+  border-radius: 50%;
+}
+.project-color-btn:hover {
+  background: var(--bg-hover);
 }
 
 .stack {

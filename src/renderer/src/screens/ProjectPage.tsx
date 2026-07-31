@@ -3,10 +3,12 @@ import { AnimatePresence } from 'framer-motion'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { Card } from '../components/Card'
+import { ConfirmButton } from '../components/ConfirmButton'
 import { ItemCard } from '../components/ItemCard'
 import { DraggableCard } from '../components/dnd'
 import { MeetingRow } from '../components/MeetingRow'
 import { BackButton, CheckableInput, EmptyState, ProjectDot } from '../components/bits'
+import { PROJECT_COLORS } from '../palette'
 
 export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Element {
   const { projects } = useData()
@@ -19,7 +21,25 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   const [draftKind, setDraftKind] = useState<'task' | 'note'>('task')
   const [showDone, setShowDone] = useState(false)
 
+  // Inline header editing: click the name to rename, the dot to recolor.
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [pickingColor, setPickingColor] = useState(false)
+
   if (!project) return <div className="canvas">Project not found.</div>
+
+  const saveName = async (): Promise<void> => {
+    const trimmed = nameDraft.trim()
+    setEditingName(false)
+    if (!trimmed || trimmed === project.name) return
+    try {
+      await mutate(() => window.api.updateProject(projectId, { name: trimmed }))
+      setNameError(null)
+    } catch {
+      setNameError(`Couldn’t rename — another project is already called “${trimmed}”.`)
+    }
+  }
 
   const open = (items ?? []).filter((i) => i.status === 'active' || i.status === 'inbox')
   const pages = open.filter((i) => i.kind === 'page')
@@ -51,9 +71,66 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
     <div className="canvas">
       <header className="canvas-header">
         <BackButton />
-        <ProjectDot color={project.color} />
-        <h1>{project.name}</h1>
+        <button
+          className="project-color-btn"
+          title="Change project color"
+          onClick={() => setPickingColor(!pickingColor)}
+        >
+          <ProjectDot color={project.color} />
+        </button>
+        {editingName ? (
+          <input
+            className="project-name-input"
+            autoFocus
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={saveName}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+              if (e.key === 'Escape') {
+                setNameDraft(project.name)
+                setEditingName(false)
+              }
+            }}
+          />
+        ) : (
+          <h1
+            title="Rename project"
+            style={{ cursor: 'text' }}
+            onClick={() => {
+              setNameDraft(project.name)
+              setEditingName(true)
+            }}
+          >
+            {project.name}
+          </h1>
+        )}
       </header>
+
+      {pickingColor && (
+        <div className="row" style={{ marginBottom: 14 }}>
+          {PROJECT_COLORS.map((c) => (
+            <button
+              key={c}
+              title={c}
+              onClick={() => {
+                mutate(() => window.api.updateProject(projectId, { color: c }))
+                setPickingColor(false)
+              }}
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: c,
+                border: c === project.color ? '3px solid var(--text)' : '3px solid transparent'
+              }}
+            />
+          ))}
+        </div>
+      )}
+      {nameError && (
+        <p style={{ margin: '0 0 12px', color: 'var(--danger)', fontSize: 13 }}>{nameError}</p>
+      )}
 
       <div className="row" style={{ marginBottom: 18 }}>
         <select value={draftKind} onChange={(e) => setDraftKind(e.target.value as 'task' | 'note')}>
@@ -100,6 +177,14 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
               <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
                 open ↗
               </span>
+              {/* Deleting a document should never be one click. */}
+              <ConfirmButton
+                label="🗑"
+                confirmLabel="delete page?"
+                title="Delete this page"
+                className="btn ghost small"
+                onConfirm={() => mutate(() => window.api.deleteItem(p.id))}
+              />
             </div>
           </Card>
         ))}
