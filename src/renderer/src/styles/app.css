@@ -747,7 +747,9 @@
   animation: panel-in 0.15s ease-out;
   position: sticky;
   top: 0;
-  max-height: calc(100vh - 130px);
+  /* Always the full height of the page (minus the screen header),
+     however little content is peeked; overflow scrolls inside. */
+  height: calc(100vh - 130px);
   overflow-y: auto;
   background: var(--bg-card);
   border: 1px solid var(--border);
