@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faSquareCaretDown, faSquareCaretUp } from '@fortawesome/free-solid-svg-icons'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import type { CalendarEvent } from '@shared/types'
 import { useLiveQuery, useMutate } from '../state/data'
@@ -9,7 +11,7 @@ import { DetailPanel } from '../components/DetailPanel'
 import { ItemDetail } from '../components/ItemDetail'
 import { Meeting } from './Meeting'
 import { BackButton, EmptyState } from '../components/bits'
-import { KIND_ICON, longDate } from '../format'
+import { ampm, KIND_ICON, longDate } from '../format'
 
 /**
  * The weekly log (SPEC §4.5): an automatic answer to "what did I even
@@ -55,6 +57,7 @@ export function DailyLog(): React.JSX.Element {
       else next.add(d)
       return next
     })
+  const allOpen = days.every((d) => openDays.has(d))
 
   return (
     // The width never changes when the panel opens — the log column
@@ -62,7 +65,7 @@ export function DailyLog(): React.JSX.Element {
     <div className="canvas" style={{ '--canvas-max': '1500px' } as React.CSSProperties}>
       <header className="canvas-header">
         <BackButton />
-        <h1>Daily Log</h1>
+        <h1>Weekly Log</h1>
         <span className="date">
           {monthDay(weekStart)} – {monthDay(weekEnd)}
         </span>
@@ -81,6 +84,13 @@ export function DailyLog(): React.JSX.Element {
             onClick={() => setWeekStart(ymdAddDays(weekStart, 7))}
           >
             →
+          </button>
+          <button
+            className="btn ghost icon-btn tooltip"
+            data-tooltip={allOpen ? 'Collapse all days' : 'Expand all days'}
+            onClick={() => setOpenDays(allOpen ? new Set() : new Set(days))}
+          >
+            <FontAwesomeIcon icon={allOpen ? faSquareCaretUp : faSquareCaretDown} />
           </button>
         </span>
       </header>
@@ -179,7 +189,7 @@ function DayBlock({
             >
               <div className="row">
                 <span className="card-title">📅 {ev.title}</span>
-                {ev.startTime && <span className="pill">{ev.startTime}</span>}
+                {ev.startTime && <span className="pill">{ampm(ev.startTime)}</span>}
                 <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
                   peek →
                 </span>

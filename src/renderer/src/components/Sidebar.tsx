@@ -1,10 +1,34 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { KIND_ICON } from '../format'
 import { todayYmd } from '@shared/dates'
-import { useData } from '../state/data'
+import { useData, useLiveQuery } from '../state/data'
 import { useNav, type View } from '../state/nav'
 import { ProjectDot } from './bits'
 import { DropZone } from './dnd'
+
+export const DEFAULT_TIME_ZONE = 'America/New_York'
+
+/** A live clock in the configured time zone, always AM/PM. */
+function Clock(): React.JSX.Element {
+  const timeZone =
+    useLiveQuery(() => window.api.getSetting<string>('timeZone'), []) ?? DEFAULT_TIME_ZONE
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 10_000)
+    return () => clearInterval(id)
+  }, [])
+  let label: string
+  try {
+    label = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone })
+  } catch {
+    label = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  }
+  return (
+    <div className="sidebar-clock" title={timeZone}>
+      {label}
+    </div>
+  )
+}
 
 function NavItem({
   view,
@@ -46,6 +70,7 @@ export function Sidebar(): React.JSX.Element {
   return (
     <nav className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-brand">{collapsed ? 'b.' : 'braincells'}</div>
+      {!collapsed && <Clock />}
 
       {/* Dropping any card on "Today" schedules it for today. */}
       <DropZone id="nav-today" data={{ type: 'schedule', date: todayYmd() }}>
@@ -58,7 +83,7 @@ export function Sidebar(): React.JSX.Element {
         badge={inboxCount}
         isActive={view.name === 'inbox'}
       />
-      <NavItem view={{ name: 'log' }} icon="📓" label="Daily Log" isActive={view.name === 'log'} />
+      <NavItem view={{ name: 'log' }} icon="📓" label="Weekly Log" isActive={view.name === 'log'} />
       <NavItem
         view={{ name: 'calendar' }}
         icon="🗓️"

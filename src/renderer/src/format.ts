@@ -57,6 +57,14 @@ export function rollingDays(count = 5): RollingDay[] {
   })
 }
 
+/** '14:30' → '2:30 PM'; '09:00' → '9 AM'. All displayed times are 12-hour. */
+export function ampm(time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  const suffix = h < 12 ? 'AM' : 'PM'
+  const hour = h % 12 === 0 ? 12 : h % 12
+  return m ? `${hour}:${String(m).padStart(2, '0')} ${suffix}` : `${hour} ${suffix}`
+}
+
 export const KIND_ICON: Record<string, string> = {
   task: '✅',
   note: '📝',

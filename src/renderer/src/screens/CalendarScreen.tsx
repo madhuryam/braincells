@@ -4,6 +4,7 @@ import { todayYmd, ymd, ymdAddDays } from '@shared/dates'
 import { useLiveQuery } from '../state/data'
 import { useNav } from '../state/nav'
 import { BackButton } from '../components/bits'
+import { ampm } from '../format'
 
 /**
  * The Calendar screen: a month at a glance, past and future. Every
@@ -95,12 +96,12 @@ export function CalendarScreen(): React.JSX.Element {
                   <button
                     key={e.eventKey}
                     className="cal-event"
-                    title={`${e.title}${e.startTime ? ` · ${e.startTime}` : ''} — open notes`}
+                    title={`${e.title}${e.startTime ? ` · ${ampm(e.startTime)}` : ''} — open notes`}
                     onClick={() =>
                       navigate({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
                     }
                   >
-                    {e.startTime && <span className="cal-time">{e.startTime}</span>} {e.title}
+                    {e.startTime && <span className="cal-time">{ampm(e.startTime)}</span>} {e.title}
                   </button>
                 ))}
               </div>

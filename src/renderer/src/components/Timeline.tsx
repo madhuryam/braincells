@@ -7,6 +7,7 @@ import { useNav } from '../state/nav'
 import { ProgressBar } from './bits'
 import { EmptyState } from './bits'
 import { AllDayBar } from './AllDayBar'
+import { ampm } from '../format'
 
 const PX_PER_MIN = 1.1
 const SLOT_MIN = 30 // drop-target granularity for time blocking
@@ -15,7 +16,6 @@ function toMin(t: string): number {
   const [h, m] = t.split(':').map(Number)
   return h * 60 + m
 }
-const fmtHour = (h: number): string => `${String(h).padStart(2, '0')}:00`
 
 /**
  * The day's schedule (SPEC §4.1): calendar events as cards positioned
@@ -62,7 +62,7 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
           const mins = dayStart + i * 60
           return (
             <div key={mins} className="timeline-hour" style={{ top: y(mins) }}>
-              <span>{fmtHour(mins / 60)}</span>
+              <span>{ampm(`${mins / 60}:00`)}</span>
             </div>
           )
         })}
@@ -142,7 +142,7 @@ function TimeSlot({
       className={`timeline-slot ${isOver ? 'drop-over' : ''}`}
       style={{ top, height }}
     >
-      {isOver && <span className="pill">⏱ {time}</span>}
+      {isOver && <span className="pill">⏱ {ampm(time)}</span>}
     </div>
   )
 }
@@ -179,8 +179,8 @@ function EventBlock({
       <div className="row" style={{ gap: 6 }}>
         <b>{event.title}</b>
         <span style={{ color: 'var(--text-soft)', fontSize: 12 }}>
-          {event.startTime}
-          {event.endTime ? `–${event.endTime}` : ''}
+          {ampm(event.startTime!)}
+          {event.endTime ? `–${ampm(event.endTime)}` : ''}
         </span>
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
           notes ↗

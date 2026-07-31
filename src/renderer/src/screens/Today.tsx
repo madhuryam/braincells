@@ -85,7 +85,9 @@ export function Today(): React.JSX.Element {
               />
             </div>
             {tasks.length === 0 && (
-              <EmptyState art="🪷">Nothing planned. That’s allowed.</EmptyState>
+              <EmptyState art="🪷">
+                A clean slate. Add a task above, pull one from the inbox — or just enjoy it.
+              </EmptyState>
             )}
             {/* One block per project; drag to reprioritize within a block. */}
             <TaskGroups items={visibleTasks} date={today} sortable />

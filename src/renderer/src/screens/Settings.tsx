@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { Card } from '../components/Card'
+import { DEFAULT_TIME_ZONE } from '../components/Sidebar'
 import { BackButton } from '../components/bits'
 
 type CalendarMode = 'demo' | 'google' | 'off'
@@ -12,6 +13,8 @@ export function Settings(): React.JSX.Element {
   const google = useLiveQuery(() => window.api.googleStatus(), [])
   const hideWorkLocation =
     useLiveQuery(() => window.api.getSetting<boolean>('hideWorkLocation'), []) ?? false
+  const timeZone =
+    useLiveQuery(() => window.api.getSetting<string>('timeZone'), []) ?? DEFAULT_TIME_ZONE
   const [clientId, setClientId] = useState('')
   const [clientSecret, setClientSecret] = useState('')
   const [connecting, setConnecting] = useState(false)
@@ -63,6 +66,23 @@ export function Settings(): React.JSX.Element {
               </button>
             ))}
           </div>
+        </Card>
+
+        <Card className="stack">
+          <h2>Time zone</h2>
+          <p style={{ margin: 0, color: 'var(--text-soft)' }}>
+            Sets the sidebar clock. Times display in 12-hour AM/PM everywhere.
+          </p>
+          <select
+            value={timeZone}
+            onChange={(e) => mutate(() => window.api.setSetting('timeZone', e.target.value))}
+          >
+            {Intl.supportedValuesOf('timeZone').map((tz) => (
+              <option key={tz} value={tz}>
+                {tz}
+              </option>
+            ))}
+          </select>
         </Card>
 
         <Card className="stack">

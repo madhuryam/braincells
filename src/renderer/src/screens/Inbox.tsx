@@ -16,7 +16,8 @@ const ZERO_MESSAGES = [
   ['🔥', 'Inbox clear. You’re dangerous today.'],
   ['🫖', 'All triaged. Put the kettle on.'],
   ['🧹', 'Swept clean. The chaos fears you.'],
-  ['🌅', 'Zero. As the universe intended.']
+  ['🌅', 'Zero. As the universe intended.'],
+  ['🏖️', 'Empty. Future-you says thanks.']
 ] as const
 
 /** 1–5 schedule into the rolling window; 0 is 'someday' (backlog). */
