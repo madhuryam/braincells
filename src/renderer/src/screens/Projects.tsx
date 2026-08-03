@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { Card } from '../components/Card'
+import { ConfirmButton } from '../components/ConfirmButton'
 import { BackButton, EmptyState, ProjectDot } from '../components/bits'
 import { PROJECT_COLORS, randomProjectColor } from '../palette'
 
@@ -98,9 +99,9 @@ export function Projects(): React.JSX.Element {
               <ProjectDot color={p.color} />
               <span className="card-title">{p.name}</span>
               <button
-                className="btn ghost"
+                className="btn ghost tooltip"
                 style={{ marginLeft: 'auto' }}
-                title="Archive project"
+                data-tooltip="Archive: hides the project but keeps everything filed under it. Restore anytime."
                 onClick={(e) => {
                   e.stopPropagation()
                   mutate(() => window.api.updateProject(p.id, { status: 'archived' }))
@@ -108,6 +109,13 @@ export function Projects(): React.JSX.Element {
               >
                 Archive
               </button>
+              <ConfirmButton
+                label="🗑"
+                confirmLabel="delete? items will unfile"
+                tooltip="Delete: its tasks, notes, and meetings still exist, but float under 'No project'. Archive instead to keep them associated."
+                className="btn ghost"
+                onConfirm={() => mutate(() => window.api.deleteProject(p.id))}
+              />
             </div>
           </Card>
         ))}
@@ -129,9 +137,9 @@ export function Projects(): React.JSX.Element {
                   <ProjectDot color={p.color} />
                   <span className="card-title">{p.name}</span>
                   <button
-                    className="btn ghost"
+                    className="btn ghost tooltip"
                     style={{ marginLeft: 'auto' }}
-                    title="Restore project"
+                    data-tooltip="Bring it back to the sidebar — everything is still filed under it."
                     onClick={(e) => {
                       e.stopPropagation()
                       mutate(() => window.api.updateProject(p.id, { status: 'active' }))
@@ -139,6 +147,13 @@ export function Projects(): React.JSX.Element {
                   >
                     Restore
                   </button>
+                  <ConfirmButton
+                    label="🗑"
+                    confirmLabel="delete? items will unfile"
+                    tooltip="Delete: its tasks, notes, and meetings still exist, but float under 'No project'."
+                    className="btn ghost"
+                    onConfirm={() => mutate(() => window.api.deleteProject(p.id))}
+                  />
                 </div>
               </Card>
             ))}

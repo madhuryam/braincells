@@ -56,6 +56,12 @@
 .tooltip {
   position: relative;
 }
+/* A hovered card rises above its later siblings, which otherwise
+   paint over tooltips that hang below the card's edge. */
+.card:hover {
+  z-index: 30;
+}
+
 .tooltip:hover::after {
   content: attr(data-tooltip);
   position: absolute;
@@ -67,7 +73,10 @@
   font-weight: 600;
   padding: 4px 9px;
   border-radius: 6px;
-  white-space: nowrap;
+  width: max-content;
+  max-width: 280px;
+  white-space: normal;
+  text-align: left;
   z-index: 40;
   pointer-events: none;
 }

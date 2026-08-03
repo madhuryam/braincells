@@ -10,12 +10,15 @@ export function ConfirmButton({
   label,
   confirmLabel = 'sure?',
   title,
+  tooltip,
   className = 'btn ghost',
   onConfirm
 }: {
   label: string
   confirmLabel?: string
   title?: string
+  /** Rich hover text via the CSS .tooltip mechanism (faster than title). */
+  tooltip?: string
   className?: string
   onConfirm: () => void
 }): React.JSX.Element {
@@ -28,7 +31,8 @@ export function ConfirmButton({
 
   return (
     <button
-      className={`${className} ${armed ? 'confirm-armed' : ''}`}
+      className={`${className} ${tooltip ? 'tooltip' : ''} ${armed ? 'confirm-armed' : ''}`}
+      data-tooltip={tooltip}
       title={title}
       onBlur={() => setArmed(false)}
       onClick={(e) => {
