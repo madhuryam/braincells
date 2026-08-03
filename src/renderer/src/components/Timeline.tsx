@@ -82,9 +82,9 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
   }, [])
 
   const [editingId, setEditingId] = useState<string | null>(null)
-  // The block created by the current click/drag: Escape before naming
-  // it cancels the whole thing instead of leaving an untitled block.
-  const [newId, setNewId] = useState<string | null>(null)
+  // A click/drag opens the editor on this in-memory draft; nothing is
+  // written to the database until the block is given a name.
+  const [pending, setPending] = useState<{ start: number; end: number } | null>(null)
   const [draft, setDraft] = useState<{ start: number; end: number } | null>(null)
   // A block mid-resize renders from this instead of its saved times.
   const [resizing, setResizing] = useState<{ id: string; start: number; end: number } | null>(null)
@@ -158,28 +158,15 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
       range = { start, end: Math.max(end, start + SLOT_MIN) }
       setDraft({ ...range })
     }
-    const onUp = async (ue: MouseEvent): Promise<void> => {
+    const onUp = (ue: MouseEvent): void => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
       setDraft(null)
       const dragged = Math.abs(ue.clientY - e.clientY) > 4
       const end = dragged ? range.end : Math.min(start + 30, dayEnd) // plain click: a 30-minute block
       if (end <= start) return
-      try {
-        const ev = await window.api.createLocalEvent({
-          title: '',
-          date,
-          startTime: toHHMM(start),
-          endTime: toHHMM(end)
-        })
-        await mutate(() => Promise.resolve())
-        setEditingId(ev.id)
-        setNewId(ev.id)
-      } catch (err) {
-        // Almost always a stale main process in dev (missing IPC handler).
-        console.error('Could not create the time block:', err)
-        window.alert('Could not create the time block — restart the app and try again.')
-      }
+      setEditingId(null)
+      setPending({ start, end })
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
@@ -285,13 +272,10 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
               return editingId === l.id ? (
                 <LocalEventEditor
                   key={l.id}
+                  date={date}
                   ev={l}
-                  isNew={newId === l.id}
                   top={Math.max(0, Math.min(y(start), totalHeight - 150))}
-                  onClose={() => {
-                    setEditingId(null)
-                    setNewId(null)
-                  }}
+                  onClose={() => setEditingId(null)}
                 />
               ) : (
                 <div
@@ -332,6 +316,18 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
               )
             })}
 
+            {/* a just-drawn block being named — not yet in the database */}
+            {pending && (
+              <LocalEventEditor
+                key={`pending-${pending.start}-${pending.end}`}
+                date={date}
+                initialStart={toHHMM(pending.start)}
+                initialEnd={toHHMM(pending.end)}
+                top={Math.max(0, Math.min(y(pending.start), totalHeight - 150))}
+                onClose={() => setPending(null)}
+              />
+            )}
+
             {/* the range being dragged out right now */}
             {draft && (
               <div
@@ -354,35 +350,67 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
 }
 
 /**
- * Inline editor for a local block. Fields keep local React state,
- * reseeded only when a *different* event opens — each change saves,
- * but the round-tripped save can never revert in-flight keystrokes.
+ * Inline editor for a local block. Fields keep local React state —
+ * each change saves, but the round-tripped save can never revert
+ * in-flight keystrokes. Call sites key this component by event id, so
+ * opening a different block remounts it with freshly seeded state.
+ *
+ * Without `ev` it edits an unsaved draft: the database row is created
+ * on the first keystroke that gives it a name, and closing while
+ * still unnamed simply discards the draft — no name, no event.
  */
 function LocalEventEditor({
+  date,
   ev,
+  initialStart,
+  initialEnd,
   top,
-  isNew = false,
   onClose
 }: {
-  ev: LocalEvent
+  date: string
+  ev?: LocalEvent
+  initialStart?: string
+  initialEnd?: string
   top: number
-  /** Created by the current gesture — Escape before naming it cancels it. */
-  isNew?: boolean
   onClose: () => void
 }): React.JSX.Element {
   const mutate = useMutate()
-  const [title, setTitle] = useState(ev.title)
-  const [start, setStart] = useState(ev.startTime)
-  const [end, setEnd] = useState(ev.endTime)
-  useEffect(() => {
-    setTitle(ev.title)
-    setStart(ev.startTime)
-    setEnd(ev.endTime)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ev.id])
+  const [title, setTitle] = useState(ev?.title ?? '')
+  const [start, setStart] = useState(ev?.startTime ?? initialStart ?? '09:00')
+  const [end, setEnd] = useState(ev?.endTime ?? initialEnd ?? '09:30')
+
+  // The id, once the block is real. For drafts, creation happens at
+  // most once (guarded by a promise so rapid keystrokes can't race).
+  const idRef = useRef<string | null>(ev?.id ?? null)
+  const creating = useRef<Promise<void> | null>(null)
 
   const save = (patch: { title?: string; startTime?: string; endTime?: string }): void => {
-    void mutate(() => window.api.updateLocalEvent(ev.id, patch))
+    const fields = {
+      title: patch.title ?? title,
+      startTime: patch.startTime ?? start,
+      endTime: patch.endTime ?? end
+    }
+    void mutate(async () => {
+      if (creating.current) await creating.current
+      if (idRef.current) {
+        await window.api.updateLocalEvent(idRef.current, patch)
+      } else if (fields.title.trim() !== '') {
+        creating.current = window.api
+          .createLocalEvent({ date, ...fields })
+          .then((created) => {
+            idRef.current = created.id
+          })
+        await creating.current
+      }
+    })
+  }
+
+  const remove = (): void => {
+    void mutate(async () => {
+      if (creating.current) await creating.current // don't leak an in-flight create
+      if (idRef.current) await window.api.deleteLocalEvent(idRef.current)
+    })
+    onClose()
   }
 
   return (
@@ -390,16 +418,10 @@ function LocalEventEditor({
       className="local-event-editor"
       style={{ top }}
       onMouseDown={(e) => e.stopPropagation()}
-      // Enter anywhere in the editor = Done. Escape closes it — and on
-      // a brand-new still-unnamed block it cancels the creation.
+      // Enter anywhere in the editor = Done; Escape closes. Either way
+      // the unmount hook above discards a still-unnamed new block.
       onKeyDown={(e) => {
-        if (e.key === 'Enter') onClose()
-        if (e.key === 'Escape') {
-          if (isNew && title.trim() === '') {
-            void mutate(() => window.api.deleteLocalEvent(ev.id))
-          }
-          onClose()
-        }
+        if (e.key === 'Enter' || e.key === 'Escape') onClose()
       }}
     >
       <input
@@ -433,13 +455,7 @@ function LocalEventEditor({
         />
       </div>
       <div className="row">
-        <button
-          className="btn ghost small"
-          onClick={() => {
-            mutate(() => window.api.deleteLocalEvent(ev.id))
-            onClose()
-          }}
-        >
+        <button className="btn ghost small" onClick={remove}>
           🗑 delete
         </button>
         <button className="btn small primary" style={{ marginLeft: 'auto' }} onClick={onClose}>
