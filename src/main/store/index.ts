@@ -9,6 +9,7 @@ import type {
   ItemStatus,
   Link,
   LinkRole,
+  LocalEvent,
   Meeting,
   PrepProgress,
   Project
@@ -626,6 +627,58 @@ export class Store {
       )
       .all(ftsQuery, limit)
       .map(rowToItem)
+  }
+
+  // ── Local time blocks (never synced to any calendar provider) ──────
+
+  createLocalEvent(e: { title: string; date: string; startTime: string; endTime: string }): LocalEvent {
+    const ev: LocalEvent = { id: randomUUID(), ...e }
+    this.db
+      .prepare(
+        'INSERT INTO local_events (id, title, date, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      .run(ev.id, ev.title, ev.date, ev.startTime, ev.endTime, nowStamp())
+    return ev
+  }
+
+  updateLocalEvent(id: string, patch: Partial<Omit<LocalEvent, 'id'>>): LocalEvent | null {
+    const colOf: Record<string, string> = {
+      title: 'title',
+      date: 'date',
+      startTime: 'start_time',
+      endTime: 'end_time'
+    }
+    const sets: string[] = []
+    const vals: unknown[] = []
+    for (const [field, col] of Object.entries(colOf)) {
+      const v = (patch as Record<string, unknown>)[field]
+      if (v !== undefined) {
+        sets.push(`${col} = ?`)
+        vals.push(v)
+      }
+    }
+    if (sets.length > 0) {
+      this.db.prepare(`UPDATE local_events SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id)
+    }
+    const r = this.db
+      .prepare(
+        'SELECT id, title, date, start_time AS startTime, end_time AS endTime FROM local_events WHERE id = ?'
+      )
+      .get(id)
+    return (r as LocalEvent) ?? null
+  }
+
+  deleteLocalEvent(id: string): void {
+    this.db.prepare('DELETE FROM local_events WHERE id = ?').run(id)
+  }
+
+  localEventsFor(date: string): LocalEvent[] {
+    return this.db
+      .prepare(
+        `SELECT id, title, date, start_time AS startTime, end_time AS endTime
+         FROM local_events WHERE date = ? ORDER BY start_time`
+      )
+      .all(date) as LocalEvent[]
   }
 
   // ── Danger zone ─────────────────────────────────────────────────────

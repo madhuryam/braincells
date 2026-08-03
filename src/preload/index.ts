@@ -6,6 +6,7 @@ import type {
   ItemStatus,
   Link,
   LinkRole,
+  LocalEvent,
   Meeting,
   PrepProgress,
   Project,
@@ -93,6 +94,20 @@ const api = {
   ): Promise<void> => invoke('meetings:assignProject', event, projectId),
   meetingsForProject: (projectId: string): Promise<Meeting[]> =>
     invoke('meetings:forProject', projectId),
+
+  // Local time blocks (never synced to any calendar provider)
+  createLocalEvent: (ev: {
+    title: string
+    date: string
+    startTime: string
+    endTime: string
+  }): Promise<LocalEvent> => invoke('localEvents:create', ev),
+  updateLocalEvent: (
+    id: string,
+    patch: { title?: string; date?: string; startTime?: string; endTime?: string }
+  ): Promise<LocalEvent | null> => invoke('localEvents:update', id, patch),
+  deleteLocalEvent: (id: string): Promise<void> => invoke('localEvents:delete', id),
+  localEventsFor: (date: string): Promise<LocalEvent[]> => invoke('localEvents:for', date),
 
   // Search
   search: (query: string): Promise<Item[]> => invoke('search:query', query),

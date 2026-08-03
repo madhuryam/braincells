@@ -63,6 +63,20 @@ export function registerStoreIpc(store: Store): void {
   )
   ipcMain.handle('meetings:forProject', (_e, projectId: string) => store.meetingsForProject(projectId))
 
+  // Local time blocks (timeblocking on the Today timeline)
+  ipcMain.handle(
+    'localEvents:create',
+    (_e, ev: { title: string; date: string; startTime: string; endTime: string }) =>
+      store.createLocalEvent(ev)
+  )
+  ipcMain.handle(
+    'localEvents:update',
+    (_e, id: string, patch: { title?: string; date?: string; startTime?: string; endTime?: string }) =>
+      store.updateLocalEvent(id, patch)
+  )
+  ipcMain.handle('localEvents:delete', (_e, id: string) => store.deleteLocalEvent(id))
+  ipcMain.handle('localEvents:for', (_e, date: string) => store.localEventsFor(date))
+
   // Search
   ipcMain.handle('search:query', (_e, query: string) => store.search(query))
 

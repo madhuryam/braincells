@@ -80,6 +80,19 @@ export interface CalendarEvent {
 }
 
 /**
+ * A local time block on the day's schedule — lives only in the local
+ * database, never synced to Google (or any provider). Blocking out
+ * time shouldn't pollute the real calendar.
+ */
+export interface LocalEvent {
+  id: string
+  title: string
+  date: string
+  startTime: string
+  endTime: string
+}
+
+/**
  * Per-meeting app data (currently: which project the meeting belongs
  * to), keyed by eventKey, with the same survive-deletion snapshot.
  */

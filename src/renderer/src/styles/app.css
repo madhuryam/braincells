@@ -30,7 +30,7 @@
 }
 
 .sidebar-brand {
-  font-size: 17px;
+  font-size: 21px;
   font-weight: 800;
   letter-spacing: -0.02em;
   padding: 2px 10px 12px;
@@ -549,9 +549,32 @@
 
 /* ── The Today timeline ──────────────────────────────────────────── */
 
+/* The schedule scrolls inside its pane instead of stretching the page. */
+.timeline-scroll {
+  overflow-y: auto;
+  max-height: calc(100vh - 170px);
+}
+
 .timeline {
   position: relative;
   margin-left: 8px;
+  user-select: none; /* dragging out a block shouldn't select text */
+  cursor: crosshair; /* empty space is a create-a-block surface */
+}
+
+/* The band right of the hour gutter where everything timed lives;
+   children position in % so overlap columns are easy. */
+.timeline-items {
+  position: absolute;
+  left: 44px;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+.timeline-items > * {
+  pointer-events: auto;
+  cursor: default;
 }
 .timeline-hour {
   position: absolute;
@@ -578,8 +601,6 @@
 }
 .timeline-event {
   position: absolute;
-  left: 44px;
-  right: 0;
   overflow: hidden;
   background: var(--bg-card);
   border-left: 3.5px solid var(--accent);
@@ -594,13 +615,14 @@
   transform: translateY(-1px);
   z-index: 2;
 }
+.timeline-items .timeline-event {
+  cursor: pointer;
+}
 .timeline-event.past {
   opacity: 0.55;
 }
 .timeline-task {
   position: absolute;
-  left: 56px;
-  right: 12px;
   overflow: hidden;
   font-size: 12px;
   font-weight: 600;
@@ -617,6 +639,57 @@
 .timeline-task.missed {
   opacity: 0.45; /* missed ≠ shamed: it quietly fades, stays on the list */
 }
+/* Local time blocks: distinct color, clearly not calendar events. */
+.local-event {
+  position: absolute;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--local-event) 14%, var(--bg-card));
+  border-left: 3.5px solid var(--local-event);
+  border-radius: 8px;
+  padding: 3px 8px;
+}
+.timeline-items .local-event {
+  cursor: pointer;
+}
+.local-event .le-time {
+  color: var(--text-soft);
+  font-weight: 500;
+  font-size: 11px;
+}
+.local-event-editor {
+  position: absolute;
+  left: 0;
+  z-index: 6;
+  width: min(280px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lift);
+  padding: 10px;
+  cursor: default;
+  user-select: text;
+}
+
+/* The range being dragged out before it becomes a block. */
+.timeline-draft {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--accent-soft);
+  border: 1.5px dashed var(--accent);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  pointer-events: none;
+  z-index: 5;
+}
+
 .timeline-now {
   position: absolute;
   left: 36px;

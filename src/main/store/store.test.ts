@@ -336,3 +336,22 @@ describe('project name uniqueness', () => {
     expect(store.listProjects().map((p) => p.name).sort()).toEqual(['Launch v2', 'Roadmap'])
   })
 })
+
+describe('local time blocks', () => {
+  it('creates, lists, edits and deletes local events per day', () => {
+    const ev = store.createLocalEvent({
+      title: 'deep work', date: today, startTime: '09:00', endTime: '10:30'
+    })
+    store.createLocalEvent({
+      title: 'other day', date: ymdAddDays(today, 1), startTime: '09:00', endTime: '09:30'
+    })
+
+    expect(store.localEventsFor(today).map((e) => e.title)).toEqual(['deep work'])
+
+    const edited = store.updateLocalEvent(ev.id, { title: 'writing', endTime: '11:00' })
+    expect(edited).toMatchObject({ title: 'writing', startTime: '09:00', endTime: '11:00' })
+
+    store.deleteLocalEvent(ev.id)
+    expect(store.localEventsFor(today)).toHaveLength(0)
+  })
+})

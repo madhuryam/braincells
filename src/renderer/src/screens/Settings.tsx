@@ -3,6 +3,7 @@ import { useData, useLiveQuery, useMutate } from '../state/data'
 import { Card } from '../components/Card'
 import { DEFAULT_TIME_ZONE } from '../components/Sidebar'
 import { BackButton } from '../components/bits'
+import { ampm } from '../format'
 
 type CalendarMode = 'demo' | 'google' | 'off'
 
@@ -15,6 +16,10 @@ export function Settings(): React.JSX.Element {
     useLiveQuery(() => window.api.getSetting<boolean>('hideWorkLocation'), []) ?? false
   const timeZone =
     useLiveQuery(() => window.api.getSetting<string>('timeZone'), []) ?? DEFAULT_TIME_ZONE
+  const timelineBounds = useLiveQuery(
+    () => window.api.getSetting<{ start: number; end: number }>('timelineBounds'),
+    []
+  ) ?? { start: 7, end: 20 }
   const [clientId, setClientId] = useState('')
   const [clientSecret, setClientSecret] = useState('')
   const [connecting, setConnecting] = useState(false)
@@ -83,6 +88,53 @@ export function Settings(): React.JSX.Element {
               </option>
             ))}
           </select>
+        </Card>
+
+        <Card className="stack">
+          <h2>Timeline window</h2>
+          <p style={{ margin: 0, color: 'var(--text-soft)' }}>
+            The hours the Today schedule shows (it stretches automatically if something falls
+            outside). Click or drag on empty schedule space to block out time — those blocks stay
+            local and are never written to your calendar.
+          </p>
+          <div className="row">
+            from
+            <select
+              value={timelineBounds.start}
+              onChange={(e) =>
+                mutate(() =>
+                  window.api.setSetting('timelineBounds', {
+                    ...timelineBounds,
+                    start: Number(e.target.value)
+                  })
+                )
+              }
+            >
+              {Array.from({ length: 8 }, (_, i) => i + 5).map((h) => (
+                <option key={h} value={h}>
+                  {ampm(`${h}:00`)}
+                </option>
+              ))}
+            </select>
+            to
+            <select
+              value={timelineBounds.end}
+              onChange={(e) =>
+                mutate(() =>
+                  window.api.setSetting('timelineBounds', {
+                    ...timelineBounds,
+                    end: Number(e.target.value)
+                  })
+                )
+              }
+            >
+              {Array.from({ length: 10 }, (_, i) => i + 14).map((h) => (
+                <option key={h} value={h}>
+                  {ampm(`${h}:00`)}
+                </option>
+              ))}
+            </select>
+          </div>
         </Card>
 
         <Card className="stack">

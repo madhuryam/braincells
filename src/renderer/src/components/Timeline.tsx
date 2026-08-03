@@ -1,33 +1,78 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useDroppable } from '@dnd-kit/core'
-import type { CalendarEvent } from '@shared/types'
+import type { CalendarEvent, LocalEvent } from '@shared/types'
 import { hhmm, todayYmd } from '@shared/dates'
-import { useLiveQuery } from '../state/data'
+import { useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { ProgressBar } from './bits'
-import { EmptyState } from './bits'
 import { AllDayBar } from './AllDayBar'
 import { ampm } from '../format'
 
 const PX_PER_MIN = 1.1
-const SLOT_MIN = 30 // drop-target granularity for time blocking
+const SLOT_MIN = 15 // grid granularity: drops, drags, and new blocks
 
 function toMin(t: string): number {
   const [h, m] = t.split(':').map(Number)
   return h * 60 + m
 }
+const toHHMM = (m: number): string =>
+  `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 
 /**
- * The day's schedule (SPEC §4.1): calendar events as cards positioned
- * by time, each with its prep progress and one tap to its notes.
- * Dragging a task card onto an empty slot time-blocks it (§4.6);
- * dragging onto an event attaches it as prep.
+ * Overlapping entries lay out side-by-side: a greedy column assignment
+ * within each cluster of transitively-overlapping items.
+ */
+function layoutColumns(
+  items: Array<{ key: string; start: number; end: number }>
+): Map<string, { col: number; cols: number }> {
+  const sorted = [...items].sort((a, b) => a.start - b.start || a.end - b.end)
+  const result = new Map<string, { col: number; cols: number }>()
+  let cluster: typeof sorted = []
+  let clusterEnd = 0
+
+  const flush = (): void => {
+    const colEnd: number[] = []
+    const colOf = new Map<string, number>()
+    for (const it of cluster) {
+      let col = colEnd.findIndex((e) => e <= it.start)
+      if (col === -1) {
+        col = colEnd.length
+        colEnd.push(0)
+      }
+      colEnd[col] = it.end
+      colOf.set(it.key, col)
+    }
+    for (const it of cluster) result.set(it.key, { col: colOf.get(it.key)!, cols: colEnd.length })
+    cluster = []
+  }
+
+  for (const it of sorted) {
+    if (cluster.length > 0 && it.start >= clusterEnd) flush()
+    clusterEnd = cluster.length === 0 ? it.end : Math.max(clusterEnd, it.end)
+    cluster.push(it)
+  }
+  if (cluster.length > 0) flush()
+  return result
+}
+
+/**
+ * The day's schedule (SPEC §4.1): calendar events, time-blocked tasks,
+ * and local time blocks, positioned by time. The window defaults to
+ * 7am–8pm (configurable in Settings) and scrolls. Click or drag out a
+ * range on empty space to create a local block — stored only in the
+ * local database, never written to Google.
  */
 export function Timeline({ date }: { date: string }): React.JSX.Element {
   const events = useLiveQuery(() => window.api.calendarEvents(date, date), [date]) ?? []
   const tasks = useLiveQuery(() => window.api.tasksFor(date), [date]) ?? []
+  const locals = useLiveQuery(() => window.api.localEventsFor(date), [date]) ?? []
   const eventKeys = events.map((e) => e.eventKey).join(',')
   const prep = useLiveQuery(() => window.api.prepProgress(events.map((e) => e.eventKey)), [eventKeys]) ?? []
+  const bounds = useLiveQuery(
+    () => window.api.getSetting<{ start: number; end: number }>('timelineBounds'),
+    []
+  )
+  const mutate = useMutate()
 
   // Re-render every minute so the "now" line crawls.
   const [now, setNow] = useState(() => new Date())
@@ -36,12 +81,29 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
     return () => clearInterval(id)
   }, [])
 
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<{ start: number; end: number } | null>(null)
+  const timelineRef = useRef<HTMLDivElement>(null)
+
   const timed = events.filter((e) => e.startTime)
   const blocks = tasks.filter((t) => t.scheduledTime)
 
-  // The visible window: at least 08:00–18:00, stretched to fit the day.
-  const startMins = [...timed.map((e) => toMin(e.startTime!)), ...blocks.map((b) => toMin(b.scheduledTime!)), 8 * 60]
-  const endMins = [...timed.map((e) => toMin(e.endTime ?? e.startTime!) + 15), ...blocks.map((b) => toMin(b.scheduledTime!) + 30), 18 * 60]
+  // The visible window: the configured bounds (default 7am–8pm),
+  // stretched if anything falls outside them.
+  const winStart = (bounds?.start ?? 7) * 60
+  const winEnd = (bounds?.end ?? 20) * 60
+  const startMins = [
+    winStart,
+    ...timed.map((e) => toMin(e.startTime!)),
+    ...blocks.map((b) => toMin(b.scheduledTime!)),
+    ...locals.map((l) => toMin(l.startTime))
+  ]
+  const endMins = [
+    winEnd,
+    ...timed.map((e) => toMin(e.endTime ?? e.startTime!) + SLOT_MIN),
+    ...blocks.map((b) => toMin(b.scheduledTime!) + (b.timeEstimateMinutes ?? 30)),
+    ...locals.map((l) => toMin(l.endTime))
+  ]
   const dayStart = Math.floor(Math.min(...startMins) / 60) * 60
   const dayEnd = Math.ceil(Math.max(...endMins) / 60) * 60
   const y = (mins: number): number => (mins - dayStart) * PX_PER_MIN
@@ -49,73 +111,262 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
   const nowMins = toMin(hhmm(now))
   const isToday = date === todayYmd()
 
-  if (events.length === 0 && blocks.length === 0) {
-    return <EmptyState art="🏝️">No meetings today. A whole day of unbroken time.</EmptyState>
+  // Side-by-side columns for everything that occupies time.
+  const laid = layoutColumns([
+    ...timed.map((e) => ({
+      key: `e-${e.eventKey}`,
+      start: toMin(e.startTime!),
+      end: Math.max(toMin(e.endTime ?? e.startTime!), toMin(e.startTime!) + SLOT_MIN)
+    })),
+    ...locals.map((l) => ({
+      key: `l-${l.id}`,
+      start: toMin(l.startTime),
+      end: Math.max(toMin(l.endTime), toMin(l.startTime) + SLOT_MIN)
+    })),
+    ...blocks.map((t) => ({
+      key: `t-${t.id}`,
+      start: toMin(t.scheduledTime!),
+      end: toMin(t.scheduledTime!) + (t.timeEstimateMinutes ?? 30)
+    }))
+  ])
+  const colStyle = (key: string): CSSProperties => {
+    const p = laid.get(key)
+    if (!p || p.cols === 1) return { left: 0, right: 0 }
+    return { left: `${(p.col / p.cols) * 100}%`, width: `calc(${100 / p.cols}% - 4px)` }
   }
+
+  // Click or drag out a range on empty timeline → a new local block.
+  const onMouseDown = (e: React.MouseEvent): void => {
+    if (e.button !== 0) return
+    const target = e.target as HTMLElement
+    if (target.closest('.timeline-event, .timeline-task, .local-event, .local-event-editor')) return
+    const rect = timelineRef.current!.getBoundingClientRect()
+    const rawAt = (clientY: number): number => dayStart + (clientY - rect.top) / PX_PER_MIN
+    const clamp = (m: number): number => Math.max(dayStart, Math.min(dayEnd, m))
+    const start = clamp(Math.floor(rawAt(e.clientY) / SLOT_MIN) * SLOT_MIN)
+    let range = { start, end: Math.min(start + SLOT_MIN, dayEnd) }
+    setDraft(range)
+
+    const onMove = (me: MouseEvent): void => {
+      const end = clamp(Math.ceil(rawAt(me.clientY) / SLOT_MIN) * SLOT_MIN)
+      range = { start, end: Math.max(end, start + SLOT_MIN) }
+      setDraft({ ...range })
+    }
+    const onUp = async (ue: MouseEvent): Promise<void> => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      setDraft(null)
+      const dragged = Math.abs(ue.clientY - e.clientY) > 4
+      const end = dragged ? range.end : Math.min(start + 30, dayEnd) // plain click: a 30-minute block
+      if (end <= start) return
+      try {
+        const ev = await window.api.createLocalEvent({
+          title: '',
+          date,
+          startTime: toHHMM(start),
+          endTime: toHHMM(end)
+        })
+        await mutate(() => Promise.resolve())
+        setEditingId(ev.id)
+      } catch (err) {
+        // Almost always a stale main process in dev (missing IPC handler).
+        console.error('Could not create the time block:', err)
+        window.alert('Could not create the time block — restart the app and try again.')
+      }
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  const totalHeight = (dayEnd - dayStart) * PX_PER_MIN
 
   return (
     <div>
       <AllDayBar events={events} />
-      <div className="timeline" style={{ height: (dayEnd - dayStart) * PX_PER_MIN }}>
-        {/* hour gridlines */}
-        {Array.from({ length: (dayEnd - dayStart) / 60 + 1 }, (_, i) => {
-          const mins = dayStart + i * 60
-          return (
-            <div key={mins} className="timeline-hour" style={{ top: y(mins) }}>
-              <span>{ampm(`${mins / 60}:00`)}</span>
-            </div>
-          )
-        })}
+      <div className="timeline-scroll">
+        <div
+          ref={timelineRef}
+          className="timeline"
+          style={{ height: totalHeight }}
+          onMouseDown={onMouseDown}
+        >
+          {/* hour gridlines */}
+          {Array.from({ length: (dayEnd - dayStart) / 60 + 1 }, (_, i) => {
+            const mins = dayStart + i * 60
+            return (
+              <div key={mins} className="timeline-hour" style={{ top: y(mins) }}>
+                <span>{ampm(`${mins / 60}:00`)}</span>
+              </div>
+            )
+          })}
 
-        {/* invisible 30-minute drop slots for time blocking */}
-        {Array.from({ length: (dayEnd - dayStart) / SLOT_MIN }, (_, i) => {
-          const mins = dayStart + i * SLOT_MIN
-          const time = `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`
-          return <TimeSlot key={time} date={date} time={time} top={y(mins)} height={SLOT_MIN * PX_PER_MIN} />
-        })}
+          {/* invisible 15-minute drop slots for dragging tasks in */}
+          {Array.from({ length: (dayEnd - dayStart) / SLOT_MIN }, (_, i) => {
+            const mins = dayStart + i * SLOT_MIN
+            const time = toHHMM(mins)
+            return <TimeSlot key={time} date={date} time={time} top={y(mins)} height={SLOT_MIN * PX_PER_MIN} />
+          })}
 
-        {/* meeting cards */}
-        {timed.map((e) => {
-          const start = toMin(e.startTime!)
-          const end = e.endTime ? toMin(e.endTime) : start + 30
-          const p = prep.find((x) => x.eventKey === e.eventKey)
-          const past = isToday && end < nowMins
-          return (
-            <EventBlock
-              key={e.eventKey}
-              event={e}
-              top={y(start)}
-              height={Math.max((end - start) * PX_PER_MIN, 34)}
-              prepDone={p?.done ?? 0}
-              prepTotal={p?.total ?? 0}
-              past={past}
-            />
-          )
-        })}
+          {/* everything that occupies time, in overlap-aware columns */}
+          <div className="timeline-items">
+            {timed.map((e) => {
+              const start = toMin(e.startTime!)
+              const end = e.endTime ? toMin(e.endTime) : start + 30
+              const p = prep.find((x) => x.eventKey === e.eventKey)
+              const past = isToday && end < nowMins
+              return (
+                <EventBlock
+                  key={e.eventKey}
+                  event={e}
+                  top={y(start)}
+                  height={Math.max((end - start) * PX_PER_MIN, 34)}
+                  colStyle={colStyle(`e-${e.eventKey}`)}
+                  prepDone={p?.done ?? 0}
+                  prepTotal={p?.total ?? 0}
+                  past={past}
+                />
+              )
+            })}
 
-        {/* time-blocked tasks */}
-        {blocks.map((t) => {
-          const start = toMin(t.scheduledTime!)
-          const dur = t.timeEstimateMinutes ?? 30
-          // A missed block just fades — the task is still in the list.
-          const missed = isToday && start + dur < nowMins && t.status === 'active'
-          return (
-            <div
-              key={t.id}
-              className={`timeline-task ${t.status === 'done' ? 'done' : ''} ${missed ? 'missed' : ''}`}
-              style={{ top: y(start), height: Math.max(dur * PX_PER_MIN, 26) }}
-              title={missed ? 'Missed the block — no big deal, it’s still on your list' : t.title}
-            >
-              {t.status === 'done' ? '✓ ' : ''}
-              {t.title}
-            </div>
-          )
-        })}
+            {locals.map((l) => {
+              const start = toMin(l.startTime)
+              const end = Math.max(toMin(l.endTime), start + SLOT_MIN)
+              return editingId === l.id ? (
+                <LocalEventEditor
+                  key={l.id}
+                  ev={l}
+                  top={Math.max(0, Math.min(y(start), totalHeight - 150))}
+                  onClose={() => setEditingId(null)}
+                />
+              ) : (
+                <div
+                  key={l.id}
+                  className="local-event"
+                  style={{ top: y(start), height: Math.max((end - start) * PX_PER_MIN, 24), ...colStyle(`l-${l.id}`) }}
+                  title="Local time block — click to edit (never synced to your calendar)"
+                  onClick={() => setEditingId(l.id)}
+                >
+                  <span>{l.title || 'Untitled block'}</span>{' '}
+                  <span className="le-time">
+                    {ampm(l.startTime)}–{ampm(l.endTime)}
+                  </span>
+                </div>
+              )
+            })}
 
-        {/* the "now" line */}
-        {isToday && nowMins >= dayStart && nowMins <= dayEnd && (
-          <div className="timeline-now" style={{ top: y(nowMins) }} />
-        )}
+            {/* time-blocked tasks */}
+            {blocks.map((t) => {
+              const start = toMin(t.scheduledTime!)
+              const dur = t.timeEstimateMinutes ?? 30
+              const missed = isToday && start + dur < nowMins && t.status === 'active'
+              return (
+                <div
+                  key={t.id}
+                  className={`timeline-task ${t.status === 'done' ? 'done' : ''} ${missed ? 'missed' : ''}`}
+                  style={{ top: y(start), height: Math.max(dur * PX_PER_MIN, 26), ...colStyle(`t-${t.id}`) }}
+                  title={missed ? 'Missed the block — no big deal, it’s still on your list' : t.title}
+                >
+                  {t.status === 'done' ? '✓ ' : ''}
+                  {t.title}
+                </div>
+              )
+            })}
+
+            {/* the range being dragged out right now */}
+            {draft && (
+              <div
+                className="timeline-draft"
+                style={{ top: y(draft.start), height: Math.max((draft.end - draft.start) * PX_PER_MIN, 12) }}
+              >
+                {ampm(toHHMM(draft.start))}–{ampm(toHHMM(draft.end))}
+              </div>
+            )}
+          </div>
+
+          {/* the "now" line */}
+          {isToday && nowMins >= dayStart && nowMins <= dayEnd && (
+            <div className="timeline-now" style={{ top: y(nowMins) }} />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Inline editor for a local block. Fields keep local React state,
+ * reseeded only when a *different* event opens — each change saves,
+ * but the round-tripped save can never revert in-flight keystrokes.
+ */
+function LocalEventEditor({
+  ev,
+  top,
+  onClose
+}: {
+  ev: LocalEvent
+  top: number
+  onClose: () => void
+}): React.JSX.Element {
+  const mutate = useMutate()
+  const [title, setTitle] = useState(ev.title)
+  const [start, setStart] = useState(ev.startTime)
+  const [end, setEnd] = useState(ev.endTime)
+  useEffect(() => {
+    setTitle(ev.title)
+    setStart(ev.startTime)
+    setEnd(ev.endTime)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ev.id])
+
+  const save = (patch: { title?: string; startTime?: string; endTime?: string }): void => {
+    void mutate(() => window.api.updateLocalEvent(ev.id, patch))
+  }
+
+  return (
+    <div className="local-event-editor" style={{ top }} onMouseDown={(e) => e.stopPropagation()}>
+      <input
+        autoFocus
+        placeholder="What’s this time for?"
+        value={title}
+        onChange={(e) => {
+          setTitle(e.target.value)
+          save({ title: e.target.value })
+        }}
+      />
+      <div className="row">
+        <input
+          type="time"
+          step={SLOT_MIN * 60}
+          value={start}
+          onChange={(e) => {
+            setStart(e.target.value)
+            if (e.target.value) save({ startTime: e.target.value })
+          }}
+        />
+        <span>–</span>
+        <input
+          type="time"
+          step={SLOT_MIN * 60}
+          value={end}
+          onChange={(e) => {
+            setEnd(e.target.value)
+            if (e.target.value) save({ endTime: e.target.value })
+          }}
+        />
+      </div>
+      <div className="row">
+        <button
+          className="btn ghost small"
+          onClick={() => {
+            mutate(() => window.api.deleteLocalEvent(ev.id))
+            onClose()
+          }}
+        >
+          🗑 delete
+        </button>
+        <button className="btn small primary" style={{ marginLeft: 'auto' }} onClick={onClose}>
+          Done
+        </button>
       </div>
     </div>
   )
@@ -151,6 +402,7 @@ function EventBlock({
   event,
   top,
   height,
+  colStyle,
   prepDone,
   prepTotal,
   past
@@ -158,6 +410,7 @@ function EventBlock({
   event: CalendarEvent
   top: number
   height: number
+  colStyle: CSSProperties
   prepDone: number
   prepTotal: number
   past: boolean
@@ -171,7 +424,7 @@ function EventBlock({
     <div
       ref={setNodeRef}
       className={`timeline-event ${past ? 'past' : ''} ${isOver ? 'drop-over' : ''}`}
-      style={{ top, height }}
+      style={{ top, height, ...colStyle }}
       onClick={() =>
         navigate({ name: 'meeting', eventKey: event.eventKey, title: event.title, date: event.date })
       }

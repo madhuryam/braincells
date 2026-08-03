@@ -187,6 +187,20 @@ const MIGRATIONS: string[] = [
 
   CREATE INDEX idx_links_from  ON links(from_item_id);
   CREATE INDEX idx_links_event ON links(to_event_key);
+  `,
+
+  // 6: timeblocking. Local calendar events drawn on the Today
+  // timeline — purely local, never synced to any calendar provider.
+  `
+  CREATE TABLE local_events (
+    id         TEXT PRIMARY KEY,
+    title      TEXT NOT NULL DEFAULT '',
+    date       TEXT NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time   TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX idx_local_events_date ON local_events(date);
   `
 ]
 
