@@ -510,6 +510,24 @@
   }
 }
 
+/* The viewed day's sections (top tasks, done, carried over) sit on a
+   soft accent wash so they read apart from the upcoming days below. */
+.today-scope {
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+  border-radius: var(--radius-card);
+  padding: 2px 14px 14px;
+  margin-bottom: 8px;
+}
+.today-scope > :first-child .section-label {
+  margin-top: 14px;
+}
+.section-label.coming-up {
+  margin-top: 26px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
 /* Project blocks inside a day's task list. */
 .task-group {
   margin-bottom: 14px;

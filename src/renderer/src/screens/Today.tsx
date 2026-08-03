@@ -86,6 +86,9 @@ export function Today(): React.JSX.Element {
             "Capture anything" input is gone — the task quick-add below
             and ⌥Space capture cover both cases.) */}
         <section>
+          {/* The viewed day's own sections sit on a soft accent wash;
+              the rest of the week stays plain below. */}
+          <div className="today-scope">
           <DropZone id="list-today" data={{ type: 'schedule', date }}>
             <div className="section-label">Top tasks</div>
             <div style={{ marginBottom: 10 }}>
@@ -178,7 +181,10 @@ export function Today(): React.JSX.Element {
             </>
           )}
 
+          </div>
+
           {/* The rest of the 5-day window, one collapsible group per day. */}
+          <div className="section-label coming-up">Coming up</div>
           {rollingDays()
             .slice(1)
             .map((day) => (
