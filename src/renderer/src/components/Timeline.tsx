@@ -8,7 +8,7 @@ import { ProgressBar } from './bits'
 import { AllDayBar } from './AllDayBar'
 import { ampm } from '../format'
 
-const PX_PER_MIN = 1.1
+const PX_PER_MIN = 2.4 // tall enough that a 15-minute block fits its text
 const SLOT_MIN = 15 // grid granularity: drops, drags, and new blocks
 
 function toMin(t: string): number {

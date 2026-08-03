@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { todayYmd } from '@shared/dates'
+import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { useUndo } from '../state/undo'
@@ -9,14 +9,17 @@ import { TaskGroups } from '../components/TaskGroups'
 import { DraggableCard, DropZone } from '../components/dnd'
 import { Timeline } from '../components/Timeline'
 import { CheckableInput, EmptyState } from '../components/bits'
-import { longDate, rollingDays, type RollingDay } from '../format'
+import { longDate, rollingDays, weekdayName, type RollingDay } from '../format'
 
 const TOP_TASK_CAP = 5 // soft cap — never a hard limit (SPEC §4.1)
 
 export function Today(): React.JSX.Element {
   const today = todayYmd()
-  const tasks = useLiveQuery(() => window.api.tasksFor(today), [today]) ?? []
-  const doneToday = useLiveQuery(() => window.api.completedOn(today), [today]) ?? []
+  // ‹ › page the schedule/tasks/done to another day; sections about
+  // *now* (carried over, the rolling week, triage) stay on real today.
+  const [date, setDate] = useState(today)
+  const tasks = useLiveQuery(() => window.api.tasksFor(date), [date]) ?? []
+  const doneToday = useLiveQuery(() => window.api.completedOn(date), [date]) ?? []
   const carried = useLiveQuery(() => window.api.carriedOver(today), [today]) ?? []
   const [showDone, setShowDone] = useState(true)
   const inboxCount = useLiveQuery(() => window.api.inboxCount(), []) ?? 0
@@ -34,7 +37,7 @@ export function Today(): React.JSX.Element {
     const title = taskDraft.trim()
     if (!title) return
     await mutate(() =>
-      window.api.createItem({ kind: 'task', title, status: 'active', scheduledDate: today })
+      window.api.createItem({ kind: 'task', title, status: 'active', scheduledDate: date })
     )
     setTaskDraft('')
   }
@@ -42,8 +45,22 @@ export function Today(): React.JSX.Element {
   return (
     <div className="canvas">
       <header className="canvas-header">
-        <h1>Today</h1>
-        <span className="date">{longDate(today)}</span>
+        {/* Fixed widths: the ‹ › buttons stay put as the text changes. */}
+        <h1 style={{ minWidth: 150 }}>{date === today ? 'Today' : weekdayName(date)}</h1>
+        <span className="date" style={{ minWidth: 230 }}>
+          {longDate(date)}
+        </span>
+        <span className="row">
+          <button className="btn ghost icon-btn" title="Previous day" onClick={() => setDate(ymdAddDays(date, -1))}>
+            ‹
+          </button>
+          <button className="btn ghost" disabled={date === today} onClick={() => setDate(today)}>
+            today
+          </button>
+          <button className="btn ghost icon-btn" title="Next day" onClick={() => setDate(ymdAddDays(date, 1))}>
+            ›
+          </button>
+        </span>
         {inboxCount > 0 && (
           <button className="btn" onClick={() => navigate({ name: 'inbox' })}>
             📥 {inboxCount} to triage
@@ -56,7 +73,7 @@ export function Today(): React.JSX.Element {
             "Capture anything" input is gone — the task quick-add below
             and ⌥Space capture cover both cases.) */}
         <section>
-          <DropZone id="list-today" data={{ type: 'schedule', date: today }}>
+          <DropZone id="list-today" data={{ type: 'schedule', date }}>
             <div className="section-label">Top tasks</div>
             <div style={{ marginBottom: 10 }}>
               <CheckableInput
@@ -73,7 +90,7 @@ export function Today(): React.JSX.Element {
               </EmptyState>
             )}
             {/* One block per project; drag to reprioritize within a block. */}
-            <TaskGroups items={visibleTasks} date={today} sortable />
+            <TaskGroups items={visibleTasks} date={date} sortable />
           </DropZone>
           {tasks.length > TOP_TASK_CAP && (
             <button className="btn ghost" style={{ marginTop: 8 }} onClick={() => setShowAll(!showAll)}>
@@ -86,7 +103,7 @@ export function Today(): React.JSX.Element {
           {doneToday.length > 0 && (
             <>
               <button className="section-label day-toggle" onClick={() => setShowDone(!showDone)}>
-                {showDone ? '▾' : '▸'} Done today
+                {showDone ? '▾' : '▸'} {date === today ? 'Done today' : 'Done'}
                 <span className="pill">{doneToday.length}</span>
               </button>
               {showDone && (
@@ -151,10 +168,10 @@ export function Today(): React.JSX.Element {
             ))}
         </section>
 
-        {/* Right column: the day's schedule (events + time blocks). */}
+        {/* Right column: the chosen day's schedule (events + time blocks). */}
         <section className="timeline-pane">
           <div className="section-label">Schedule</div>
-          <Timeline date={today} />
+          <Timeline date={date} />
         </section>
       </div>
     </div>

@@ -56,6 +56,12 @@
 .tooltip {
   position: relative;
 }
+.btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
 /* A hovered card rises above its later siblings, which otherwise
    paint over tooltips that hang below the card's edge. */
 .card:hover {
