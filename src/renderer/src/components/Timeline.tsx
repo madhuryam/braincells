@@ -83,6 +83,9 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<{ start: number; end: number } | null>(null)
+  // A block mid-resize renders from this instead of its saved times.
+  const [resizing, setResizing] = useState<{ id: string; start: number; end: number } | null>(null)
+  const suppressClick = useRef(false) // a resize's mouseup must not open the editor
   const timelineRef = useRef<HTMLDivElement>(null)
 
   const timed = events.filter((e) => e.startTime)
@@ -178,6 +181,49 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
     window.addEventListener('mouseup', onUp)
   }
 
+  // Grab a block's top or bottom edge to retime it in place — no
+  // editor needed. Snaps to the 15-minute grid, saves on release.
+  const startResize = (e: React.MouseEvent, l: LocalEvent, edge: 'start' | 'end'): void => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    e.preventDefault()
+    const rect = timelineRef.current!.getBoundingClientRect()
+    const rawAt = (clientY: number): number => dayStart + (clientY - rect.top) / PX_PER_MIN
+    const clamp = (m: number): number => Math.max(dayStart, Math.min(dayEnd, m))
+    const origStart = toMin(l.startTime)
+    const origEnd = toMin(l.endTime)
+    let next = { start: origStart, end: origEnd }
+    let moved = false
+
+    const onMove = (me: MouseEvent): void => {
+      const m = clamp(Math.round(rawAt(me.clientY) / SLOT_MIN) * SLOT_MIN)
+      next =
+        edge === 'start'
+          ? { start: Math.min(m, origEnd - SLOT_MIN), end: origEnd }
+          : { start: origStart, end: Math.max(m, origStart + SLOT_MIN) }
+      moved = true
+      setResizing({ id: l.id, ...next })
+    }
+    const onUp = (): void => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      setResizing(null)
+      if (!moved) return
+      suppressClick.current = true
+      window.setTimeout(() => (suppressClick.current = false), 150)
+      if (next.start !== origStart || next.end !== origEnd) {
+        mutate(() =>
+          window.api.updateLocalEvent(l.id, {
+            startTime: toHHMM(next.start),
+            endTime: toHHMM(next.end)
+          })
+        )
+      }
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
   const totalHeight = (dayEnd - dayStart) * PX_PER_MIN
 
   return (
@@ -229,8 +275,9 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
             })}
 
             {locals.map((l) => {
-              const start = toMin(l.startTime)
-              const end = Math.max(toMin(l.endTime), start + SLOT_MIN)
+              const rs = resizing?.id === l.id ? resizing : null
+              const start = rs ? rs.start : toMin(l.startTime)
+              const end = rs ? rs.end : Math.max(toMin(l.endTime), toMin(l.startTime) + SLOT_MIN)
               return editingId === l.id ? (
                 <LocalEventEditor
                   key={l.id}
@@ -243,13 +290,18 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
                   key={l.id}
                   className="local-event"
                   style={{ top: y(start), height: Math.max((end - start) * PX_PER_MIN, 24), ...colStyle(`l-${l.id}`) }}
-                  title="Local time block — click to edit (never synced to your calendar)"
-                  onClick={() => setEditingId(l.id)}
+                  title="Local time block — click to edit, drag the edges to retime"
+                  onClick={() => {
+                    if (suppressClick.current) return
+                    setEditingId(l.id)
+                  }}
                 >
+                  <div className="le-handle top" onMouseDown={(e) => startResize(e, l, 'start')} />
                   <span>{l.title || 'Untitled block'}</span>{' '}
                   <span className="le-time">
-                    {ampm(l.startTime)}–{ampm(l.endTime)}
+                    {ampm(toHHMM(start))}–{ampm(toHHMM(end))}
                   </span>
+                  <div className="le-handle bottom" onMouseDown={(e) => startResize(e, l, 'end')} />
                 </div>
               )
             })}
@@ -323,7 +375,15 @@ function LocalEventEditor({
   }
 
   return (
-    <div className="local-event-editor" style={{ top }} onMouseDown={(e) => e.stopPropagation()}>
+    <div
+      className="local-event-editor"
+      style={{ top }}
+      onMouseDown={(e) => e.stopPropagation()}
+      // Enter anywhere in the editor = Done; Escape = close the box.
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === 'Escape') onClose()
+      }}
+    >
       <input
         autoFocus
         placeholder="What’s this time for?"

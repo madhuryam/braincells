@@ -662,7 +662,7 @@
   position: absolute;
   left: 0;
   z-index: 6;
-  width: min(280px, 100%);
+  width: min(320px, 100%);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -673,6 +673,30 @@
   padding: 10px;
   cursor: default;
   user-select: text;
+}
+.local-event-editor .row {
+  flex-wrap: nowrap;
+}
+/* The time fields split the row instead of overflowing the box. */
+.local-event-editor input[type='time'] {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+}
+
+/* Grabbable top/bottom edges: retime a block without opening it. */
+.le-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 7px;
+  cursor: ns-resize;
+}
+.le-handle.top {
+  top: -2px;
+}
+.le-handle.bottom {
+  bottom: -2px;
 }
 
 /* The range being dragged out before it becomes a block. */
