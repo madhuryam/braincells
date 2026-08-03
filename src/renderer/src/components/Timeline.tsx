@@ -171,7 +171,8 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
       window.removeEventListener('mouseup', onUp)
       setDraft(null)
       const dragged = Math.abs(ue.clientY - e.clientY) > 4
-      const end = dragged ? range.end : Math.min(start + 30, dayEnd) // plain click: a 30-minute block
+      // A plain click makes one grid slot (15 min); drag out for more.
+      const end = dragged ? range.end : Math.min(start + SLOT_MIN, dayEnd)
       if (end <= start) return
       setEditingId(null)
       setPending({ start, end })
@@ -278,6 +279,7 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
               const rs = resizing?.id === l.id ? resizing : null
               const start = rs ? rs.start : toMin(l.startTime)
               const end = rs ? rs.end : Math.max(toMin(l.endTime), toMin(l.startTime) + SLOT_MIN)
+              const proj = projects.find((p) => p.id === l.projectId)
               return editingId === l.id ? (
                 <LocalEventEditor
                   key={l.id}
@@ -290,7 +292,18 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
                 <div
                   key={l.id}
                   className="local-event"
-                  style={{ top: y(start), height: Math.max((end - start) * PX_PER_MIN, 24), ...colStyle(`l-${l.id}`) }}
+                  style={{
+                    top: y(start),
+                    height: Math.max((end - start) * PX_PER_MIN, 24),
+                    ...colStyle(`l-${l.id}`),
+                    // An assigned block wears its project's color.
+                    ...(proj
+                      ? {
+                          borderLeftColor: proj.color,
+                          background: `color-mix(in srgb, ${proj.color} 12%, var(--bg-card))`
+                        }
+                      : {})
+                  }}
                   title="Local time block — click to edit, drag the edges to retime"
                   onClick={() => {
                     if (suppressClick.current) return
@@ -384,20 +397,28 @@ function LocalEventEditor({
   onClose: () => void
 }): React.JSX.Element {
   const mutate = useMutate()
+  const { projects } = useData()
   const [title, setTitle] = useState(ev?.title ?? '')
   const [start, setStart] = useState(ev?.startTime ?? initialStart ?? '09:00')
   const [end, setEnd] = useState(ev?.endTime ?? initialEnd ?? '09:30')
+  const [projectId, setProjectId] = useState<string | null>(ev?.projectId ?? null)
 
   // The id, once the block is real. For drafts, creation happens at
   // most once (guarded by a promise so rapid keystrokes can't race).
   const idRef = useRef<string | null>(ev?.id ?? null)
   const creating = useRef<Promise<void> | null>(null)
 
-  const save = (patch: { title?: string; startTime?: string; endTime?: string }): void => {
+  const save = (patch: {
+    title?: string
+    startTime?: string
+    endTime?: string
+    projectId?: string | null
+  }): void => {
     const fields = {
       title: patch.title ?? title,
       startTime: patch.startTime ?? start,
-      endTime: patch.endTime ?? end
+      endTime: patch.endTime ?? end,
+      projectId: patch.projectId !== undefined ? patch.projectId : projectId
     }
     void mutate(async () => {
       if (creating.current) await creating.current
@@ -463,6 +484,21 @@ function LocalEventEditor({
           }}
         />
       </div>
+      <select
+        value={projectId ?? ''}
+        onChange={(e) => {
+          const v = e.target.value || null
+          setProjectId(v)
+          save({ projectId: v })
+        }}
+      >
+        <option value="">No project</option>
+        {projects.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
       <div className="row">
         <button className="btn ghost small" onClick={remove}>
           🗑 delete

@@ -371,3 +371,19 @@ describe('project deletion', () => {
     expect(store.getMeeting(demoEvent.eventKey)!.projectId).toBeNull()
   })
 })
+
+describe('project-assigned time blocks', () => {
+  it('keeps the block, unassigned, when its project is deleted', () => {
+    const p = store.createProject('Focus', '#20c997')
+    const ev = store.createLocalEvent({
+      title: 'deep work', date: today, startTime: '09:00', endTime: '10:00', projectId: p.id
+    })
+    expect(store.localEventsFor(today)[0].projectId).toBe(p.id)
+
+    store.deleteProject(p.id)
+
+    const survived = store.localEventsFor(today)
+    expect(survived).toHaveLength(1)
+    expect(survived[0]).toMatchObject({ id: ev.id, title: 'deep work', projectId: null })
+  })
+})

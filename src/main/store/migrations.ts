@@ -201,6 +201,12 @@ const MIGRATIONS: string[] = [
     created_at TEXT NOT NULL
   );
   CREATE INDEX idx_local_events_date ON local_events(date);
+  `,
+
+  // 7: project-assignable time blocks. Deleting a project just
+  // unassigns its blocks (same SET NULL convention as items/meetings).
+  `
+  ALTER TABLE local_events ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL;
   `
 ]
 

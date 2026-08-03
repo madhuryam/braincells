@@ -33,8 +33,9 @@
   --sidebar-bg: #f3eee6;
   --danger: #e8590c; /* warm, not alarm-red — the app never shames */
   --ok: #2f9e44;
-  /* Local time blocks: sage-teal, distinct from violet calendar events. */
-  --local-event: #4ca887;
+  /* Unassigned local time blocks: neutral gray, so assigned blocks'
+     project colors (and violet calendar events) stand out. */
+  --local-event: #adb5bd;
 }
 
 [data-theme='dark'] {
@@ -50,7 +51,7 @@
   --shadow-lift: 0 2px 6px rgb(0 0 0 / 0.35), 0 12px 28px rgb(0 0 0 / 0.5);
   --sidebar-bg: #161325;
   --accent-soft: #845ef736;
-  --local-event: #3f8e72;
+  --local-event: #6c7689;
 }
 
 /* The fixed palette projects pick their accent color from. */

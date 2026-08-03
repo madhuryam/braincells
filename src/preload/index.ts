@@ -104,10 +104,17 @@ const api = {
     date: string
     startTime: string
     endTime: string
+    projectId?: string | null
   }): Promise<LocalEvent> => invoke('localEvents:create', ev),
   updateLocalEvent: (
     id: string,
-    patch: { title?: string; date?: string; startTime?: string; endTime?: string }
+    patch: {
+      title?: string
+      date?: string
+      startTime?: string
+      endTime?: string
+      projectId?: string | null
+    }
   ): Promise<LocalEvent | null> => invoke('localEvents:update', id, patch),
   deleteLocalEvent: (id: string): Promise<void> => invoke('localEvents:delete', id),
   localEventsFor: (date: string): Promise<LocalEvent[]> => invoke('localEvents:for', date),

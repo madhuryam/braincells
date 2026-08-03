@@ -651,13 +651,27 @@ export class Store {
 
   // ── Local time blocks (never synced to any calendar provider) ──────
 
-  createLocalEvent(e: { title: string; date: string; startTime: string; endTime: string }): LocalEvent {
-    const ev: LocalEvent = { id: randomUUID(), ...e }
+  createLocalEvent(e: {
+    title: string
+    date: string
+    startTime: string
+    endTime: string
+    projectId?: string | null
+  }): LocalEvent {
+    const ev: LocalEvent = {
+      id: randomUUID(),
+      title: e.title,
+      date: e.date,
+      startTime: e.startTime,
+      endTime: e.endTime,
+      projectId: e.projectId ?? null
+    }
     this.db
       .prepare(
-        'INSERT INTO local_events (id, title, date, start_time, end_time, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+        `INSERT INTO local_events (id, title, date, start_time, end_time, project_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(ev.id, ev.title, ev.date, ev.startTime, ev.endTime, nowStamp())
+      .run(ev.id, ev.title, ev.date, ev.startTime, ev.endTime, ev.projectId, nowStamp())
     return ev
   }
 
@@ -666,7 +680,8 @@ export class Store {
       title: 'title',
       date: 'date',
       startTime: 'start_time',
-      endTime: 'end_time'
+      endTime: 'end_time',
+      projectId: 'project_id'
     }
     const sets: string[] = []
     const vals: unknown[] = []
@@ -682,7 +697,9 @@ export class Store {
     }
     const r = this.db
       .prepare(
-        'SELECT id, title, date, start_time AS startTime, end_time AS endTime FROM local_events WHERE id = ?'
+        `SELECT id, title, date, start_time AS startTime, end_time AS endTime,
+                project_id AS projectId
+         FROM local_events WHERE id = ?`
       )
       .get(id)
     return (r as LocalEvent) ?? null
@@ -695,7 +712,8 @@ export class Store {
   localEventsFor(date: string): LocalEvent[] {
     return this.db
       .prepare(
-        `SELECT id, title, date, start_time AS startTime, end_time AS endTime
+        `SELECT id, title, date, start_time AS startTime, end_time AS endTime,
+                project_id AS projectId
          FROM local_events WHERE date = ? ORDER BY start_time`
       )
       .all(date) as LocalEvent[]

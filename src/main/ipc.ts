@@ -68,13 +68,24 @@ export function registerStoreIpc(store: Store): void {
   // Local time blocks (timeblocking on the Today timeline)
   ipcMain.handle(
     'localEvents:create',
-    (_e, ev: { title: string; date: string; startTime: string; endTime: string }) =>
-      store.createLocalEvent(ev)
+    (
+      _e,
+      ev: { title: string; date: string; startTime: string; endTime: string; projectId?: string | null }
+    ) => store.createLocalEvent(ev)
   )
   ipcMain.handle(
     'localEvents:update',
-    (_e, id: string, patch: { title?: string; date?: string; startTime?: string; endTime?: string }) =>
-      store.updateLocalEvent(id, patch)
+    (
+      _e,
+      id: string,
+      patch: {
+        title?: string
+        date?: string
+        startTime?: string
+        endTime?: string
+        projectId?: string | null
+      }
+    ) => store.updateLocalEvent(id, patch)
   )
   ipcMain.handle('localEvents:delete', (_e, id: string) => store.deleteLocalEvent(id))
   ipcMain.handle('localEvents:for', (_e, date: string) => store.localEventsFor(date))

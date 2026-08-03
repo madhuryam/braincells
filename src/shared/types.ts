@@ -90,6 +90,8 @@ export interface LocalEvent {
   date: string
   startTime: string
   endTime: string
+  /** Optional project — the block tints with its color on the timeline. */
+  projectId: string | null
 }
 
 /**
