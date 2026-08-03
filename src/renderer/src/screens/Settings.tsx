@@ -253,8 +253,8 @@ export function Settings(): React.JSX.Element {
         <Card className="stack">
           <h2>Start over</h2>
           <p style={{ margin: 0, color: 'var(--text-soft)' }}>
-            Clear Database wipes every item, note, project, and meeting and relaunches the app
-            empty. A full backup is saved automatically first, and your settings are kept.
+            Clear Database wipes every item, note, project, meeting, and timeblock and relaunches
+            the app empty. A full backup is saved automatically first, and your settings are kept.
           </p>
           <div className="row">
             <button

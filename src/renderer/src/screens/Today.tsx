@@ -9,7 +9,13 @@ import { TaskGroups } from '../components/TaskGroups'
 import { DraggableCard, DropZone } from '../components/dnd'
 import { Timeline } from '../components/Timeline'
 import { CheckableInput, EmptyState } from '../components/bits'
-import { longDate, rollingDays, weekdayName, type RollingDay } from '../format'
+import { longDate, rollingDays, type RollingDay } from '../format'
+
+/** 'August 5' — the weekday already leads the header, so no repeat. */
+function monthDay(date: string): string {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })
+}
 
 const TOP_TASK_CAP = 5 // soft cap — never a hard limit (SPEC §4.1)
 
@@ -45,11 +51,11 @@ export function Today(): React.JSX.Element {
   return (
     <div className="canvas">
       <header className="canvas-header">
-        {/* Fixed widths: the ‹ › buttons stay put as the text changes. */}
-        <h1 style={{ minWidth: 150 }}>{date === today ? 'Today' : weekdayName(date)}</h1>
-        <span className="date" style={{ minWidth: 230 }}>
-          {longDate(date)}
-        </span>
+        {/* One continuous phrase in header type. Its min-width fits the
+            longest date, so the nav buttons beside it never move. */}
+        <h1 style={{ minWidth: 330 }}>
+          {date === today ? `Today · ${monthDay(date)}` : longDate(date)}
+        </h1>
         <span className="row">
           <button className="btn ghost icon-btn" title="Previous day" onClick={() => setDate(ymdAddDays(date, -1))}>
             ‹
@@ -62,7 +68,7 @@ export function Today(): React.JSX.Element {
           </button>
         </span>
         {inboxCount > 0 && (
-          <button className="btn" onClick={() => navigate({ name: 'inbox' })}>
+          <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => navigate({ name: 'inbox' })}>
             📥 {inboxCount} to triage
           </button>
         )}

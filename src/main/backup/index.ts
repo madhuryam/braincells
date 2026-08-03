@@ -1,9 +1,10 @@
 import { app, dialog, ipcMain, type BrowserWindow } from 'electron'
-import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { todayYmd } from '../../shared/dates'
 import type { Store } from '../store'
 import { buildExport } from './export'
+import { replaceDatabase } from './restore'
 
 /**
  * Local backups, on demand, no cloud (SPEC §2 goal 6, §8):
@@ -62,7 +63,7 @@ export async function restoreBackup(store: Store, win: BrowserWindow): Promise<v
 
   const dbPath = store.path
   store.close()
-  copyFileSync(filePaths[0], dbPath)
+  replaceDatabase(dbPath, filePaths[0])
   app.relaunch()
   app.exit(0)
 }

@@ -301,6 +301,7 @@ describe('clear database', () => {
     const item = store.createItem({ kind: 'task', title: 'call dentist', projectId: p.id })
     store.linkToEvent(item.id, demoEvent, 'prep-for')
     store.assignMeetingProject(demoEvent, p.id)
+    store.createLocalEvent({ title: 'block', date: today, startTime: '09:00', endTime: '10:00' })
     store.setSetting('theme', 'dark')
 
     store.clearContent()
@@ -309,6 +310,7 @@ describe('clear database', () => {
     expect(store.allItems()).toHaveLength(0)
     expect(store.allLinks()).toHaveLength(0)
     expect(store.allMeetings()).toHaveLength(0)
+    expect(store.localEventsFor(today)).toHaveLength(0)
     expect(store.search('dentist')).toHaveLength(0) // FTS emptied too
     expect(store.getSetting('theme')).toBe('dark')
   })
