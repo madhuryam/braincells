@@ -82,6 +82,9 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
   }, [])
 
   const [editingId, setEditingId] = useState<string | null>(null)
+  // The block created by the current click/drag: Escape before naming
+  // it cancels the whole thing instead of leaving an untitled block.
+  const [newId, setNewId] = useState<string | null>(null)
   const [draft, setDraft] = useState<{ start: number; end: number } | null>(null)
   // A block mid-resize renders from this instead of its saved times.
   const [resizing, setResizing] = useState<{ id: string; start: number; end: number } | null>(null)
@@ -171,6 +174,7 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
         })
         await mutate(() => Promise.resolve())
         setEditingId(ev.id)
+        setNewId(ev.id)
       } catch (err) {
         // Almost always a stale main process in dev (missing IPC handler).
         console.error('Could not create the time block:', err)
@@ -282,8 +286,12 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
                 <LocalEventEditor
                   key={l.id}
                   ev={l}
+                  isNew={newId === l.id}
                   top={Math.max(0, Math.min(y(start), totalHeight - 150))}
-                  onClose={() => setEditingId(null)}
+                  onClose={() => {
+                    setEditingId(null)
+                    setNewId(null)
+                  }}
                 />
               ) : (
                 <div
@@ -353,10 +361,13 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
 function LocalEventEditor({
   ev,
   top,
+  isNew = false,
   onClose
 }: {
   ev: LocalEvent
   top: number
+  /** Created by the current gesture — Escape before naming it cancels it. */
+  isNew?: boolean
   onClose: () => void
 }): React.JSX.Element {
   const mutate = useMutate()
@@ -379,9 +390,16 @@ function LocalEventEditor({
       className="local-event-editor"
       style={{ top }}
       onMouseDown={(e) => e.stopPropagation()}
-      // Enter anywhere in the editor = Done; Escape = close the box.
+      // Enter anywhere in the editor = Done. Escape closes it — and on
+      // a brand-new still-unnamed block it cancels the creation.
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === 'Escape') onClose()
+        if (e.key === 'Enter') onClose()
+        if (e.key === 'Escape') {
+          if (isNew && title.trim() === '') {
+            void mutate(() => window.api.deleteLocalEvent(ev.id))
+          }
+          onClose()
+        }
       }}
     >
       <input
