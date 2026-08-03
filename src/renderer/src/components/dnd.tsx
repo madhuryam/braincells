@@ -115,15 +115,20 @@ export function DropZone({
 }
 
 /**
- * PointerSensor, but it never starts a drag from a form control —
+ * PointerSensor, but text-entry surfaces never start a drag —
  * otherwise selecting text in an expanded card would drag the card.
+ * Buttons are deliberately NOT excluded: a card is mostly buttons
+ * (title, checkbox), and the 6px activation distance already lets
+ * plain clicks through — so the whole card is grabbable.
  */
 class CardPointerSensor extends PointerSensor {
   static activators = [
     {
       eventName: 'onPointerDown' as const,
       handler: ({ nativeEvent }: { nativeEvent: PointerEvent }): boolean =>
-        !(nativeEvent.target as HTMLElement).closest('input, textarea, select, button, a')
+        !(nativeEvent.target as HTMLElement).closest(
+          'input, textarea, select, [contenteditable], .rich-editor'
+        )
     }
   ]
 }

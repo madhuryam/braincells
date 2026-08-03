@@ -8,7 +8,7 @@ import { ItemCard } from '../components/ItemCard'
 import { TaskGroups } from '../components/TaskGroups'
 import { DraggableCard, DropZone } from '../components/dnd'
 import { Timeline } from '../components/Timeline'
-import { CheckableInput, EmptyState, IconInput } from '../components/bits'
+import { CheckableInput, EmptyState } from '../components/bits'
 import { longDate, rollingDays, type RollingDay } from '../format'
 
 const TOP_TASK_CAP = 5 // soft cap — never a hard limit (SPEC §4.1)
@@ -23,18 +23,10 @@ export function Today(): React.JSX.Element {
   const mutate = useMutate()
   const { navigate } = useNav()
   const { pushUndo } = useUndo()
-  const [draft, setDraft] = useState('')
   const [taskDraft, setTaskDraft] = useState('')
   const [showAll, setShowAll] = useState(false)
 
   const visibleTasks = showAll ? tasks : tasks.slice(0, TOP_TASK_CAP)
-
-  const capture = async (): Promise<void> => {
-    const title = draft.trim()
-    if (!title) return
-    await mutate(() => window.api.createItem({ kind: 'note', title }))
-    setDraft('')
-  }
 
   // Straight onto today's list — no inbox detour for things you
   // already know are tasks for today.
@@ -60,25 +52,16 @@ export function Today(): React.JSX.Element {
       </header>
 
       <div className="today-grid">
-        {/* Left column: capture + tasks for the rolling 5-day window. */}
+        {/* Left column: tasks for the rolling 5-day window. (The old
+            "Capture anything" input is gone — the task quick-add below
+            and ⌥Space capture cover both cases.) */}
         <section>
-          <div style={{ marginBottom: 16 }}>
-            <IconInput
-              icon="📝"
-              iconTitle="Lands in the Inbox as a note — triage it later"
-              id="quick-capture"
-              placeholder="Capture anything (⌘N)…"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && capture()}
-            />
-          </div>
-
           <DropZone id="list-today" data={{ type: 'schedule', date: today }}>
             <div className="section-label">Top tasks</div>
             <div style={{ marginBottom: 10 }}>
               <CheckableInput
-                placeholder="Add a task for today…"
+                id="quick-capture"
+                placeholder="Add a task for today (⌘N)…"
                 value={taskDraft}
                 onChange={(e) => setTaskDraft(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addTask()}
