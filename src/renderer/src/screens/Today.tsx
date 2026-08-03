@@ -4,11 +4,12 @@ import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { useUndo } from '../state/undo'
+import { Card } from '../components/Card'
 import { ItemCard } from '../components/ItemCard'
 import { TaskGroups } from '../components/TaskGroups'
 import { DraggableCard, DropZone } from '../components/dnd'
 import { Timeline } from '../components/Timeline'
-import { CheckableInput, EmptyState } from '../components/bits'
+import { CheckableInput, Checkbox, EmptyState } from '../components/bits'
 import { longDate, rollingDays, type RollingDay } from '../format'
 
 /** 'August 5' — the weekday already leads the header, so no repeat. */
@@ -26,6 +27,12 @@ export function Today(): React.JSX.Element {
   const [date, setDate] = useState(today)
   const tasks = useLiveQuery(() => window.api.tasksFor(date), [date]) ?? []
   const doneToday = useLiveQuery(() => window.api.completedOn(date), [date]) ?? []
+  // Subtasks finished this day show grouped under their parent's name,
+  // not as orphan cards.
+  const doneSubs = useLiveQuery(() => window.api.completedSubtasksOn(date), [date]) ?? []
+  const doneSubIds = new Set(doneSubs.map((d) => d.item.id))
+  const doneStandalone = doneToday.filter((i) => !doneSubIds.has(i.id))
+  const doneGroups = [...new Map(doneSubs.map((d) => [d.rootId, d.rootTitle])).entries()]
   const carried = useLiveQuery(() => window.api.carriedOver(today), [today]) ?? []
   const [showDone, setShowDone] = useState(true)
   const inboxCount = useLiveQuery(() => window.api.inboxCount(), []) ?? 0
@@ -115,10 +122,15 @@ export function Today(): React.JSX.Element {
               {showDone && (
                 <div className="stack">
                   <AnimatePresence initial={false}>
-                    {doneToday.map((item) => (
+                    {doneStandalone.map((item) => (
                       <ItemCard key={item.id} item={item} showDate={false} />
                     ))}
                   </AnimatePresence>
+                  {/* Subtasks finished this day, under their parent's
+                      name — uncheckable in place if one was a misclick. */}
+                  {doneGroups.map(([rootId, rootTitle]) => (
+                    <DoneSubtaskGroup key={rootId} rootId={rootId} rootTitle={rootTitle} date={date} />
+                  ))}
                 </div>
               )}
             </>
@@ -181,6 +193,62 @@ export function Today(): React.JSX.Element {
         </section>
       </div>
     </div>
+  )
+}
+
+/**
+ * One parent task's subtasks finished on `date`, in true tree order.
+ * Unfinished intermediate levels are skipped, so each row indents
+ * under its nearest *shown* ancestor — a lone grandchild sits at the
+ * first level rather than appearing to belong to an unrelated sibling.
+ */
+function DoneSubtaskGroup({
+  rootId,
+  rootTitle,
+  date
+}: {
+  rootId: string
+  rootTitle: string
+  date: string
+}): React.JSX.Element {
+  const tree = useLiveQuery(() => window.api.subtaskTreeOf(rootId), [rootId]) ?? []
+  const mutate = useMutate()
+
+  const shown = tree.filter(
+    ({ item }) => item.status === 'done' && (item.completedAt ?? '').slice(0, 10) === date
+  )
+  const shownIds = new Set(shown.map((s) => s.item.id))
+  const parentOf = new Map(tree.map((t) => [t.item.id, t.parentId]))
+  const depthOf = (id: string): number => {
+    let p = parentOf.get(id)
+    while (p && p !== rootId) {
+      if (shownIds.has(p)) return depthOf(p) + 1
+      p = parentOf.get(p)
+    }
+    return 1
+  }
+
+  return (
+    <Card>
+      <div className="row">
+        <span aria-hidden>✅</span>
+        <span className="card-title">{rootTitle}</span>
+        <span className="pill" style={{ marginLeft: 'auto' }}>
+          subtasks
+        </span>
+      </div>
+      <div className="subtasks" style={{ marginTop: 8 }}>
+        {shown.map(({ item: sub }) => (
+          <div key={sub.id} className="subtask-row" style={{ marginLeft: (depthOf(sub.id) - 1) * 22 }}>
+            <Checkbox
+              checked
+              onToggle={() => mutate(() => window.api.updateItem(sub.id, { status: 'active' }))}
+            />
+            <span className="subtask-title done">{sub.title}</span>
+          </div>
+        ))}
+      </div>
+    </Card>
   )
 }
 

@@ -387,3 +387,47 @@ describe('project-assigned time blocks', () => {
     expect(survived[0]).toMatchObject({ id: ev.id, title: 'deep work', projectId: null })
   })
 })
+
+describe('nested subtasks', () => {
+  it('returns the whole tree depth-first with depths', () => {
+    const parent = store.createItem({ kind: 'task', title: 'ship v2', status: 'active' })
+    const a = store.createItem({ kind: 'task', title: 'a', status: 'active' })
+    const b = store.createItem({ kind: 'task', title: 'b', status: 'active' })
+    const a1 = store.createItem({ kind: 'task', title: 'a1', status: 'active' })
+    store.linkItems(a.id, parent.id, 'subtask-of')
+    store.linkItems(b.id, parent.id, 'subtask-of')
+    store.linkItems(a1.id, a.id, 'subtask-of')
+
+    const tree = store.subtaskTreeOf(parent.id)
+    expect(tree.map((t) => [t.item.title, t.depth])).toEqual([
+      ['a', 1],
+      ['a1', 2],
+      ['b', 1]
+    ])
+
+    // Dropping a mid-level subtask hides its whole branch.
+    store.updateItem(a.id, { status: 'dropped' })
+    expect(store.subtaskTreeOf(parent.id).map((t) => t.item.title)).toEqual(['b'])
+  })
+})
+
+describe('completed subtasks grouping', () => {
+  it('walks each done subtask up to its root task with depth', () => {
+    const root = store.createItem({ kind: 'task', title: 'ship v2', status: 'active' })
+    const a = store.createItem({ kind: 'task', title: 'a', status: 'active' })
+    const a1 = store.createItem({ kind: 'task', title: 'a1', status: 'active' })
+    store.linkItems(a.id, root.id, 'subtask-of')
+    store.linkItems(a1.id, a.id, 'subtask-of')
+    store.updateItem(a.id, { status: 'done' })
+    store.updateItem(a1.id, { status: 'done' })
+    // A completed top-level task is not a subtask of anything.
+    const solo = store.createItem({ kind: 'task', title: 'solo', status: 'active' })
+    store.updateItem(solo.id, { status: 'done' })
+
+    const grouped = store.completedSubtasksOn(today)
+    expect(grouped.map((g) => [g.item.title, g.rootTitle, g.depth])).toEqual([
+      ['a', 'ship v2', 1],
+      ['a1', 'ship v2', 2]
+    ])
+  })
+})

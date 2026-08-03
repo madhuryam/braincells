@@ -46,11 +46,11 @@ export function TaskGroups({ items, date, sortable = false }: TaskGroupsProps): 
               {group.items.map((item) =>
                 sortable ? (
                   <SortableCard key={item.id} item={item} sortableIds={ids}>
-                    <ItemCard item={item} showProject={false} showDate={false} />
+                    <ItemCard item={item} showProject={false} showDate={false} contextDate={date} />
                   </SortableCard>
                 ) : (
                   <DraggableCard key={item.id} item={item}>
-                    <ItemCard item={item} showProject={false} showDate={false} />
+                    <ItemCard item={item} showProject={false} showDate={false} contextDate={date} />
                   </DraggableCard>
                 )
               )}

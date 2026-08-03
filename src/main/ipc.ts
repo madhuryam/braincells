@@ -27,6 +27,7 @@ export function registerStoreIpc(store: Store): void {
   ipcMain.handle('items:drop', (_e, ids: string[]) => store.dropItems(ids))
   ipcMain.handle('items:starred', () => store.starredItems())
   ipcMain.handle('items:subtasks', (_e, parentId: string) => store.subtasksOf(parentId))
+  ipcMain.handle('items:subtaskTree', (_e, rootId: string) => store.subtaskTreeOf(rootId))
 
   // Screen queries
   ipcMain.handle('inbox:items', () => store.inboxItems())
@@ -39,6 +40,7 @@ export function registerStoreIpc(store: Store): void {
   ipcMain.handle('today:carriedOver', (_e, date: string) => store.carriedOver(date))
   ipcMain.handle('project:items', (_e, projectId: string) => store.projectItems(projectId))
   ipcMain.handle('log:completedOn', (_e, date: string) => store.completedOn(date))
+  ipcMain.handle('log:completedSubtasksOn', (_e, date: string) => store.completedSubtasksOn(date))
   ipcMain.handle('log:journal', (_e, date: string) => store.journalFor(date))
 
   // Links / meeting loop

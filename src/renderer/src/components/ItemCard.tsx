@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { todayYmd } from '@shared/dates'
 import type { Item, ItemStatus } from '@shared/types'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
@@ -17,6 +18,108 @@ interface ItemCardProps {
   showDate?: boolean
   /** Carried-over styling: quiet, faded, never red. */
   faded?: boolean
+  /**
+   * The day of the list this card sits in. Finished subtasks show
+   * (struck through) only when they were completed on this day — a
+   * task moved to another day presents just its remaining work.
+   */
+  contextDate?: string
+}
+
+/**
+ * One row of the subtask tree: indented by depth, checkable in place,
+ * with hover actions to add a nested subtask (＋) or drop it (✕).
+ */
+function SubtaskRow({
+  sub,
+  depth,
+  onToggle,
+  onDrop,
+  onRename,
+  onAddChild
+}: {
+  sub: Item
+  depth: number
+  onToggle: (sub: Item) => void
+  onDrop: (sub: Item) => void
+  onRename: (sub: Item, title: string) => void
+  onAddChild: (parentId: string, title: string) => Promise<void>
+}): React.JSX.Element {
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
+  const indent = (depth - 1) * 22
+  return (
+    <>
+      <div className="subtask-row" style={{ marginLeft: indent }}>
+        <Checkbox checked={sub.status === 'done'} onToggle={() => onToggle(sub)} />
+        {editing ? (
+          <input
+            autoFocus
+            style={{ flex: 1, minWidth: 0, fontSize: 13.5, padding: '3px 8px' }}
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={() => {
+              setEditing(false)
+              const t = titleDraft.trim()
+              if (t && t !== sub.title) onRename(sub, t)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+              if (e.key === 'Escape') {
+                e.stopPropagation() // don't also collapse the card
+                setTitleDraft(sub.title)
+                setEditing(false)
+              }
+            }}
+          />
+        ) : (
+          <button
+            className={`subtask-title ${sub.status === 'done' ? 'done' : ''}`}
+            style={{ textAlign: 'left', cursor: 'text' }}
+            title="Click to edit"
+            onClick={() => {
+              setTitleDraft(sub.title)
+              setEditing(true)
+            }}
+          >
+            {sub.title}
+          </button>
+        )}
+        <button
+          className="btn ghost small"
+          title="Add a subtask under this one"
+          onClick={() => setAdding(!adding)}
+        >
+          ＋
+        </button>
+        <button className="btn ghost small" title="Drop this subtask" onClick={() => onDrop(sub)}>
+          ✕
+        </button>
+      </div>
+      {adding && (
+        <div style={{ marginLeft: indent + 22 }}>
+          <CheckableInput
+            autoFocus
+            placeholder={`Add a subtask under “${shortTitle(sub.title)}”…`}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={async (e) => {
+              if (e.key === 'Escape') {
+                setAdding(false)
+                setDraft('')
+              }
+              if (e.key === 'Enter' && draft.trim()) {
+                await onAddChild(sub.id, draft.trim())
+                setDraft('')
+              }
+            }}
+          />
+        </div>
+      )}
+    </>
+  )
 }
 
 /**
@@ -28,7 +131,8 @@ export function ItemCard({
   item,
   showProject = true,
   showDate = true,
-  faded
+  faded,
+  contextDate
 }: ItemCardProps): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState(item.title)
@@ -73,27 +177,46 @@ export function ItemCard({
   const isCheckable = item.kind === 'task' || item.kind === 'prep'
   const done = item.status === 'done'
 
-  // Checkbox subtasks: ordinary task items linked 'subtask-of' this one.
-  const subtasks =
-    useLiveQuery(() => (isCheckable ? window.api.subtasksOf(item.id) : Promise.resolve([])), [
-      item.id,
-      isCheckable
-    ]) ?? []
-  const subtasksDone = subtasks.filter((s) => s.status === 'done').length
+  // Checkbox subtasks: ordinary task items linked 'subtask-of', to any
+  // depth — the whole tree shows on the card, collapsed or not.
+  const subtaskTree =
+    useLiveQuery(
+      () => (isCheckable ? window.api.subtaskTreeOf(item.id) : Promise.resolve([])),
+      [item.id, isCheckable]
+    ) ?? []
+  const subtasksDone = subtaskTree.filter(({ item: s }) => s.status === 'done').length
+  // A finished subtask stays (struck through) only in the list of the
+  // day it was completed; everywhere else the card shows what's left.
+  const dayContext = contextDate ?? todayYmd()
+  const visibleTree = subtaskTree.filter(
+    ({ item: s }) => s.status !== 'done' || (s.completedAt ?? '').slice(0, 10) === dayContext
+  )
   const [subDraft, setSubDraft] = useState('')
-  const addSubtask = async (): Promise<void> => {
-    const t = subDraft.trim()
-    if (!t) return
+  const addSubtask = async (parentId: string, title: string): Promise<void> => {
     await mutate(async () => {
       const sub = await window.api.createItem({
         kind: 'task',
-        title: t,
+        title,
         status: 'active',
         projectId: item.projectId
       })
-      await window.api.linkItems(sub.id, item.id, 'subtask-of')
+      await window.api.linkItems(sub.id, parentId, 'subtask-of')
     })
-    setSubDraft('')
+  }
+  const toggleSubtask = (sub: Item): void => {
+    const wasDone = sub.status === 'done'
+    mutate(() => window.api.updateItem(sub.id, { status: wasDone ? 'active' : 'done' }))
+    if (!wasDone) {
+      pushUndo(`Completed “${shortTitle(sub.title)}”`, async () => {
+        await window.api.updateItem(sub.id, { status: 'active' })
+      })
+    }
+  }
+  const dropSubtask = (sub: Item): void => {
+    mutate(() => window.api.updateItem(sub.id, { status: 'dropped' }))
+    pushUndo(`Dropped “${shortTitle(sub.title)}”`, async () => {
+      await window.api.updateItem(sub.id, { status: 'active' })
+    })
   }
 
   /**
@@ -198,15 +321,33 @@ export function ItemCard({
             {item.timeEstimateMinutes != null && (
               <span className="pill">~{item.timeEstimateMinutes}m</span>
             )}
-            {subtasks.length > 0 && (
+            {subtaskTree.length > 0 && (
               <span className="pill" title="subtasks">
-                ☑ {subtasksDone}/{subtasks.length}
+                ☑ {subtasksDone}/{subtaskTree.length}
               </span>
             )}
             {!open && item.content && <span title="has notes">📄</span>}
           </div>
         </div>
       </div>
+
+      {/* The subtask tree is always visible — check things off right
+          from the list, no need to open the card. */}
+      {isCheckable && visibleTree.length > 0 && (
+        <div className="subtasks" style={{ marginTop: 8 }}>
+          {visibleTree.map(({ item: sub, depth }) => (
+            <SubtaskRow
+              key={sub.id}
+              sub={sub}
+              depth={depth}
+              onToggle={toggleSubtask}
+              onDrop={dropSubtask}
+              onRename={(s, title) => mutate(() => window.api.updateItem(s.id, { title }))}
+              onAddChild={addSubtask}
+            />
+          ))}
+        </div>
+      )}
 
       {open && (
         <div className="stack" style={{ marginTop: 12 }}>
@@ -219,47 +360,18 @@ export function ItemCard({
             placeholder="Notes — type **bold**, # headings, - lists…"
             onChange={onBodyChange}
           />
-          {/* Checkbox subtasks. */}
           {isCheckable && (
-            <div className="subtasks">
-              {subtasks.map((sub) => (
-                <div key={sub.id} className="subtask-row">
-                  <Checkbox
-                    checked={sub.status === 'done'}
-                    onToggle={() =>
-                      mutate(() =>
-                        window.api.updateItem(sub.id, {
-                          status: sub.status === 'done' ? 'active' : 'done'
-                        })
-                      )
-                    }
-                  />
-                  <span className={`subtask-title ${sub.status === 'done' ? 'done' : ''}`}>
-                    {sub.title}
-                  </span>
-                  <button
-                    className="btn ghost small"
-                    title="Drop this subtask"
-                    onClick={() => {
-                      mutate(() => window.api.updateItem(sub.id, { status: 'dropped' }))
-                      pushUndo(`Dropped “${shortTitle(sub.title)}”`, async () => {
-                        await window.api.updateItem(sub.id, { status: 'active' })
-                      })
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-              <CheckableInput
-                placeholder="Add a subtask…"
-                value={subDraft}
-                onChange={(e) => setSubDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') addSubtask()
-                }}
-              />
-            </div>
+            <CheckableInput
+              placeholder="Add a subtask…"
+              value={subDraft}
+              onChange={(e) => setSubDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && subDraft.trim()) {
+                  addSubtask(item.id, subDraft.trim())
+                  setSubDraft('')
+                }
+              }}
+            />
           )}
           {/* When to do it: the 5-day rolling window, or someday. */}
           {(item.kind === 'task' || item.kind === 'prep') && (

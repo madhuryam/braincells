@@ -384,6 +384,33 @@ export class Store {
       .map(rowToItem)
   }
 
+  /**
+   * The whole subtask tree under an item, depth-first in creation
+   * order — subtasks can themselves have subtasks, to any depth.
+   */
+  subtaskTreeOf(rootId: string): Array<{ parentId: string; depth: number; item: Item }> {
+    // The path orders depth-first; rowid (monotonic) breaks sibling
+    // ties in creation order — created_at only has second precision.
+    const rows = this.db
+      .prepare(
+        `WITH RECURSIVE tree(id, parent_id, depth, path) AS (
+           SELECT l.from_item_id, l.to_item_id, 1, printf('%012d', i.rowid)
+           FROM links l JOIN items i ON i.id = l.from_item_id
+           WHERE l.to_item_id = ? AND l.role = 'subtask-of' AND i.status != 'dropped'
+           UNION ALL
+           SELECT l.from_item_id, l.to_item_id, t.depth + 1, t.path || '/' || printf('%012d', i.rowid)
+           FROM links l
+           JOIN tree t ON l.to_item_id = t.id
+           JOIN items i ON i.id = l.from_item_id
+           WHERE l.role = 'subtask-of' AND i.status != 'dropped'
+         )
+         SELECT t.parent_id, t.depth, i.* FROM tree t JOIN items i ON i.id = t.id
+         ORDER BY t.path`
+      )
+      .all(rootId) as any[]
+    return rows.map((r) => ({ parentId: r.parent_id, depth: r.depth, item: rowToItem(r) }))
+  }
+
   /** Quick-access favorites for the sidebar. */
   starredItems(): Item[] {
     return this.db
@@ -404,6 +431,45 @@ export class Store {
       )
       .all(limit)
       .map(rowToItem)
+  }
+
+  /**
+   * Subtasks completed on a date, each with its root (top-level) task
+   * and its depth below it — so the Done group can show them under
+   * their parent's name instead of as orphan cards.
+   */
+  completedSubtasksOn(
+    date: string
+  ): Array<{ rootId: string; rootTitle: string; depth: number; item: Item }> {
+    const rows = this.db
+      .prepare(
+        `WITH RECURSIVE up(start_id, ancestor_id, depth) AS (
+           SELECT l.from_item_id, l.to_item_id, 1
+           FROM links l WHERE l.role = 'subtask-of'
+           UNION ALL
+           SELECT up.start_id, l.to_item_id, up.depth + 1
+           FROM links l JOIN up ON l.from_item_id = up.ancestor_id
+           WHERE l.role = 'subtask-of'
+         ),
+         roots AS (
+           SELECT start_id, ancestor_id AS root_id, depth
+           FROM up u
+           WHERE depth = (SELECT MAX(depth) FROM up WHERE start_id = u.start_id)
+         )
+         SELECT r.root_id, p.title AS root_title, r.depth, i.*
+         FROM roots r
+         JOIN items i ON i.id = r.start_id
+         JOIN items p ON p.id = r.root_id
+         WHERE i.status = 'done' AND date(i.completed_at) = ?
+         ORDER BY r.root_id, r.depth, i.completed_at`
+      )
+      .all(date) as any[]
+    return rows.map((r) => ({
+      rootId: r.root_id,
+      rootTitle: r.root_title,
+      depth: r.depth,
+      item: rowToItem(r)
+    }))
   }
 
   /** Tasks completed on a given local date — feeds the daily log. */

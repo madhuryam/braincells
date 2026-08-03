@@ -61,6 +61,10 @@ const api = {
   dropItems: (ids: string[]): Promise<void> => invoke('items:drop', ids),
   starredItems: (): Promise<Item[]> => invoke('items:starred'),
   subtasksOf: (parentId: string): Promise<Item[]> => invoke('items:subtasks', parentId),
+  subtaskTreeOf: (
+    rootId: string
+  ): Promise<Array<{ parentId: string; depth: number; item: Item }>> =>
+    invoke('items:subtaskTree', rootId),
 
   // Screen queries
   inboxItems: (): Promise<Item[]> => invoke('inbox:items'),
@@ -73,6 +77,10 @@ const api = {
   carriedOver: (date: string): Promise<Item[]> => invoke('today:carriedOver', date),
   projectItems: (projectId: string): Promise<Item[]> => invoke('project:items', projectId),
   completedOn: (date: string): Promise<Item[]> => invoke('log:completedOn', date),
+  completedSubtasksOn: (
+    date: string
+  ): Promise<Array<{ rootId: string; rootTitle: string; depth: number; item: Item }>> =>
+    invoke('log:completedSubtasksOn', date),
   journalFor: (date: string): Promise<Item> => invoke('log:journal', date),
 
   // Links / meeting loop
