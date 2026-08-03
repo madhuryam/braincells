@@ -78,7 +78,7 @@
   font-size: 11.5px;
   font-weight: 600;
   padding: 4px 9px;
-  border-radius: 6px;
+  border-radius: 4px;
   width: max-content;
   max-width: 280px;
   white-space: normal;
@@ -93,7 +93,7 @@
   gap: 9px;
   width: 100%;
   padding: 7px 10px;
-  border-radius: 9px;
+  border-radius: 7px;
   color: var(--text-soft);
   font-weight: 550;
   white-space: nowrap;
@@ -184,7 +184,7 @@
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: 28px max(32px, calc((100% - var(--canvas-max)) / 2)) 60px;
+  padding: 24px max(20px, calc((100% - var(--canvas-max)) / 2)) 60px;
 }
 
 .canvas-header {
@@ -209,7 +209,7 @@
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  padding: 12px 14px;
+  padding: 8px 13px; /* trim: more cards fit on screen */
   transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 
@@ -240,9 +240,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 5px;
+  margin-top: 3px;
   font-size: 12px;
   color: var(--text-soft);
+}
+.card-meta:empty {
+  display: none; /* metaless cards don't reserve the row's space */
 }
 
 .card.done .card-title {
@@ -273,7 +276,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border-radius: 9px;
+  border-radius: 7px;
   padding: 7px 13px;
   font-weight: 600;
   font-size: 13px;
@@ -308,7 +311,7 @@
 .checkbox {
   width: 19px;
   height: 19px;
-  border-radius: 7px;
+  border-radius: 6px;
   border: 2px solid var(--text-faint);
   flex-shrink: 0;
   display: inline-flex;
@@ -400,13 +403,13 @@
 
 .progress {
   height: 5px;
-  border-radius: 3px;
+  border-radius: 4px;
   background: var(--bg-sunken);
   overflow: hidden;
 }
 .progress > div {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 4px;
   background: var(--gradient-accent);
   transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1); /* satisfying fill */
 }
@@ -473,7 +476,7 @@
 .capture-window {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow: var(--shadow-lift);
   padding: 14px;
   margin: 8px; /* breathing room inside the transparent window */
@@ -500,7 +503,7 @@
 .today-grid {
   display: grid;
   grid-template-columns: minmax(320px, 6fr) minmax(280px, 5fr);
-  gap: 28px;
+  gap: 18px;
   align-items: start;
 }
 /* Narrow or non-landscape (split-screen) windows: stack vertically. */
@@ -516,7 +519,7 @@
   background: color-mix(in srgb, var(--accent) 5%, var(--bg));
   border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
   border-radius: var(--radius-card);
-  padding: 2px 14px 14px;
+  padding: 2px 10px 10px;
   margin-bottom: 8px;
 }
 .today-scope > :first-child .section-label {
@@ -530,19 +533,26 @@
 
 /* Project blocks inside a day's task list. */
 .task-group {
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
+/* A clickable fold header: caret column keeps names aligned. */
 .task-group-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   font-size: 14px;
   font-weight: 700;
   color: var(--text);
-  margin: 2px 0 8px;
+  margin: 0 0 6px;
+  padding: 3px 6px 3px 2px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.task-group-header:hover {
+  background: var(--bg-hover);
 }
 .task-group-indent {
-  padding-left: 18px;
+  padding-left: 8px;
 }
 
 /* Subtask rows inside an expanded card. */
@@ -643,7 +653,7 @@
   overflow: hidden;
   background: var(--bg-card);
   border-left: 3.5px solid var(--accent);
-  border-radius: 10px;
+  border-radius: 7px;
   box-shadow: var(--shadow-card);
   padding: 6px 10px;
   cursor: pointer;
@@ -667,7 +677,7 @@
   font-weight: 600;
   background: var(--accent-soft);
   border: 1px dashed var(--accent);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 3px 8px;
   pointer-events: none; /* blocks are suggestions; manage them in the list */
 }
@@ -686,7 +696,7 @@
   font-weight: 600;
   background: color-mix(in srgb, var(--local-event) 14%, var(--bg-card));
   border-left: 3.5px solid var(--local-event);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 3px 8px;
 }
 .timeline-items .local-event {
@@ -707,7 +717,7 @@
   gap: 8px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 7px;
   box-shadow: var(--shadow-lift);
   padding: 10px;
   cursor: default;
@@ -745,7 +755,7 @@
   right: 0;
   background: var(--accent-soft);
   border: 1.5px dashed var(--accent);
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
   padding: 1px 8px;
@@ -799,13 +809,13 @@
   margin-bottom: 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 9px;
   box-shadow: var(--shadow-card);
 }
 .rt-btn {
   min-width: 30px;
   padding: 5px 8px;
-  border-radius: 7px;
+  border-radius: 6px;
   font-size: 13px;
   font-weight: 650;
   color: var(--text-soft);
@@ -841,7 +851,7 @@
   min-height: 88px;
   font-size: 14px;
   background: var(--bg-sunken);
-  border-radius: 10px;
+  border-radius: 7px;
   padding: 10px 12px;
 }
 .rich-editor.compact .rich-toolbar {
@@ -940,7 +950,7 @@
 }
 .rich-editor .ProseMirror pre {
   background: var(--bg-sunken);
-  border-radius: 10px;
+  border-radius: 7px;
   padding: 12px;
   font-size: 13px;
   overflow-x: auto;
@@ -1027,7 +1037,7 @@
 }
 .cal-cell {
   background: var(--bg-card);
-  border-radius: 10px;
+  border-radius: 7px;
   box-shadow: var(--shadow-card);
   padding: 6px;
   display: flex;
@@ -1064,7 +1074,7 @@
   font-weight: 600;
   line-height: 1.3;
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--accent-soft);
   white-space: nowrap;
   overflow: hidden;

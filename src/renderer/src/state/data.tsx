@@ -77,6 +77,7 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
     window.api.setSetting('theme', t)
   }, [])
 
+
   return (
     <DataContext.Provider value={{ version, bump, projects, inboxCount, starred, theme, dark, setTheme }}>
       {children}

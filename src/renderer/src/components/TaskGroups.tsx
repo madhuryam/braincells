@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { Item, Project } from '@shared/types'
@@ -12,6 +13,8 @@ interface TaskGroupsProps {
   date: string
   /** Per-group drag-to-reorder (used by Top tasks). */
   sortable?: boolean
+  /** Rendered inside the last group (e.g. 'Show all'), folding with it. */
+  footer?: React.ReactNode
 }
 
 /**
@@ -22,8 +25,17 @@ interface TaskGroupsProps {
  * names the day and the block names the project, so cards hide both
  * pills. If nothing has a project, the list renders flat.
  */
-export function TaskGroups({ items, date, sortable = false }: TaskGroupsProps): React.JSX.Element {
+export function TaskGroups({ items, date, sortable = false, footer }: TaskGroupsProps): React.JSX.Element {
   const { projects } = useData()
+  // A busy project can fold away so the rest of the day is scannable.
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const toggle = (key: string): void =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
 
   const groups: Array<{ key: string; project: Project | null; items: Item[] }> = []
   for (const p of projects) {
@@ -38,7 +50,7 @@ export function TaskGroups({ items, date, sortable = false }: TaskGroupsProps): 
 
   return (
     <>
-      {groups.map((group) => {
+      {groups.map((group, gi) => {
         const ids = group.items.map((i) => i.id)
         const cards = (
           <div className={`stack ${showHeaders ? 'task-group-indent' : ''}`}>
@@ -72,7 +84,10 @@ export function TaskGroups({ items, date, sortable = false }: TaskGroupsProps): 
             className="task-group"
           >
             {showHeaders && (
-              <div className="task-group-header">
+              <button className="task-group-header" onClick={() => toggle(group.key)}>
+                {/* The caret gets its own element: two adjacent text
+                    nodes merge into one flex item and lose the gap. */}
+                <span aria-hidden>{collapsed.has(group.key) ? '▸' : '▾'}</span>
                 {group.project ? (
                   <>
                     <ProjectDot color={group.project.color} /> {group.project.name}
@@ -80,9 +95,15 @@ export function TaskGroups({ items, date, sortable = false }: TaskGroupsProps): 
                 ) : (
                   'No project'
                 )}
-              </div>
+                {collapsed.has(group.key) && <span className="pill">{group.items.length}</span>}
+              </button>
             )}
-            {body}
+            {(!showHeaders || !collapsed.has(group.key)) && (
+              <>
+                {body}
+                {gi === groups.length - 1 && footer}
+              </>
+            )}
           </DropZone>
         )
       })}

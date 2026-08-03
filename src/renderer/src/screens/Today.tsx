@@ -90,8 +90,7 @@ export function Today(): React.JSX.Element {
               the rest of the week stays plain below. */}
           <div className="today-scope">
           <DropZone id="list-today" data={{ type: 'schedule', date }}>
-            <div className="section-label">Top tasks</div>
-            <div style={{ marginBottom: 10 }}>
+            <div style={{ margin: '14px 0 10px' }}>
               <CheckableInput
                 id="quick-capture"
                 placeholder="Add a task for today (⌘N)…"
@@ -105,14 +104,22 @@ export function Today(): React.JSX.Element {
                 A clean slate. Add a task above, pull one from the inbox — or just enjoy it.
               </EmptyState>
             )}
-            {/* One block per project; drag to reprioritize within a block. */}
-            <TaskGroups items={visibleTasks} date={date} sortable />
+            {/* One block per project; drag to reprioritize within a block.
+                The show-all control lives inside the last block so it
+                folds away with it. */}
+            <TaskGroups
+              items={visibleTasks}
+              date={date}
+              sortable
+              footer={
+                tasks.length > TOP_TASK_CAP ? (
+                  <button className="btn ghost" style={{ marginTop: 4 }} onClick={() => setShowAll(!showAll)}>
+                    {showAll ? 'Show fewer' : `Show all ${tasks.length}`}
+                  </button>
+                ) : undefined
+              }
+            />
           </DropZone>
-          {tasks.length > TOP_TASK_CAP && (
-            <button className="btn ghost" style={{ marginTop: 8 }} onClick={() => setShowAll(!showAll)}>
-              {showAll ? 'Show fewer' : `Show all ${tasks.length}`}
-            </button>
-          )}
 
           {/* Checked-off things don't vanish — they move down here,
               still uncheckable if it was an accident. */}

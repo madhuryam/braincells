@@ -8,10 +8,10 @@
   /* Type */
   --font-sans: 'Open Sans Variable', -apple-system, 'Helvetica Neue', sans-serif;
 
-  /* Shape */
-  --radius-card: 14px;
+  /* Shape — gently rounded, not bubbly */
+  --radius-card: 10px;
   --radius-pill: 999px;
-  --radius-input: 10px;
+  --radius-input: 8px;
 
   /* The app accent (violet → periwinkle) used for primary actions,
      focus rings, progress bars, and the Today header. */
