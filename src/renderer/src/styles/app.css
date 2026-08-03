@@ -488,6 +488,12 @@
   gap: 28px;
   align-items: start;
 }
+/* Narrow or non-landscape (split-screen) windows: stack vertically. */
+@media (max-width: 980px), (orientation: portrait) {
+  .today-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 /* Project blocks inside a day's task list. */
 .task-group {

@@ -355,3 +355,17 @@ describe('local time blocks', () => {
     expect(store.localEventsFor(today)).toHaveLength(0)
   })
 })
+
+describe('project deletion', () => {
+  it('unfiles items and meeting assignments instead of deleting them', () => {
+    const p = store.createProject('Doomed', '#ff6b6b')
+    const item = store.createItem({ kind: 'task', title: 'survives', projectId: p.id })
+    store.assignMeetingProject(demoEvent, p.id)
+
+    store.deleteProject(p.id)
+
+    expect(store.listProjects(true)).toHaveLength(0)
+    expect(store.getItem(item.id)!.projectId).toBeNull()
+    expect(store.getMeeting(demoEvent.eventKey)!.projectId).toBeNull()
+  })
+})

@@ -156,6 +156,14 @@ export class Store {
     this.db.prepare(`UPDATE projects SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id)
   }
 
+  /**
+   * Deleting a project never deletes content: items and meeting
+   * assignments fall back to "No project" via ON DELETE SET NULL.
+   */
+  deleteProject(id: string): void {
+    this.db.prepare('DELETE FROM projects WHERE id = ?').run(id)
+  }
+
   // ── Items ───────────────────────────────────────────────────────────
 
   createItem(n: NewItem): Item {
@@ -580,6 +588,18 @@ export class Store {
            title = excluded.title, date = excluded.date`
       )
       .run(event.eventKey, projectId, event.title, event.date)
+  }
+
+  /** Batched lookup for the timeline's project tinting — one query, not per-event. */
+  meetingsByKeys(eventKeys: string[]): Meeting[] {
+    if (eventKeys.length === 0) return []
+    const placeholders = eventKeys.map(() => '?').join(', ')
+    return this.db
+      .prepare(
+        `SELECT event_key AS eventKey, project_id AS projectId, title, date
+         FROM meetings WHERE event_key IN (${placeholders})`
+      )
+      .all(...eventKeys) as Meeting[]
   }
 
   meetingsForProject(projectId: string): Meeting[] {

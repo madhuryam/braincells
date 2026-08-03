@@ -105,6 +105,16 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
             {project.name}
           </h1>
         )}
+        <ConfirmButton
+          label="🗑 delete project"
+          confirmLabel="sure? items unfile, nothing is lost"
+          title="Delete this project — its items fall back to No project"
+          className="btn ghost"
+          onConfirm={async () => {
+            await mutate(() => window.api.deleteProject(projectId))
+            navigate({ name: 'projects' })
+          }}
+        />
       </header>
 
       {pickingColor && (

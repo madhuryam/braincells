@@ -49,6 +49,7 @@ const api = {
     id: string,
     patch: { name?: string; color?: string; status?: ProjectStatus }
   ): Promise<void> => invoke('projects:update', id, patch),
+  deleteProject: (id: string): Promise<void> => invoke('projects:delete', id),
 
   // Items
   createItem: (item: NewItem): Promise<Item> => invoke('items:create', item),
@@ -94,6 +95,8 @@ const api = {
   ): Promise<void> => invoke('meetings:assignProject', event, projectId),
   meetingsForProject: (projectId: string): Promise<Meeting[]> =>
     invoke('meetings:forProject', projectId),
+  meetingsByKeys: (eventKeys: string[]): Promise<Meeting[]> =>
+    invoke('meetings:byKeys', eventKeys),
 
   // Local time blocks (never synced to any calendar provider)
   createLocalEvent: (ev: {

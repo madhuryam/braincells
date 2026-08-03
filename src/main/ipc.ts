@@ -16,6 +16,7 @@ export function registerStoreIpc(store: Store): void {
     (_e, id: string, patch: { name?: string; color?: string; status?: ProjectStatus }) =>
       store.updateProject(id, patch)
   )
+  ipcMain.handle('projects:delete', (_e, id: string) => store.deleteProject(id))
 
   // Items
   ipcMain.handle('items:create', (_e, item: NewItem) => store.createItem(item))
@@ -62,6 +63,7 @@ export function registerStoreIpc(store: Store): void {
       store.assignMeetingProject(event, projectId)
   )
   ipcMain.handle('meetings:forProject', (_e, projectId: string) => store.meetingsForProject(projectId))
+  ipcMain.handle('meetings:byKeys', (_e, eventKeys: string[]) => store.meetingsByKeys(eventKeys))
 
   // Local time blocks (timeblocking on the Today timeline)
   ipcMain.handle(
