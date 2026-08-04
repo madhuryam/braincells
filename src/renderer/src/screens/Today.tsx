@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { useUndo } from '../state/undo'
 import { Card } from '../components/Card'
+import { DetailPanel } from '../components/DetailPanel'
+import { Meeting } from './Meeting'
 import { ItemCard } from '../components/ItemCard'
 import { TaskGroups } from '../components/TaskGroups'
 import { DraggableCard, DropZone } from '../components/dnd'
@@ -41,6 +43,24 @@ export function Today(): React.JSX.Element {
   const { pushUndo } = useUndo()
   const [taskDraft, setTaskDraft] = useState('')
   const [showAll, setShowAll] = useState(false)
+  // A clicked calendar event peeks in a panel over the schedule —
+  // no page navigation just to glance at a meeting.
+  const [peek, setPeek] = useState<{ eventKey: string; title: string; date: string } | null>(null)
+  useEffect(() => {
+    if (!peek) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setPeek(null)
+    }
+    const onDown = (e: MouseEvent): void => {
+      if (!(e.target as HTMLElement).closest('.timeline-peek')) setPeek(null)
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('mousedown', onDown)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('mousedown', onDown)
+    }
+  }, [peek])
 
   const visibleTasks = showAll ? tasks : tasks.slice(0, TOP_TASK_CAP)
 
@@ -202,7 +222,26 @@ export function Today(): React.JSX.Element {
         {/* Right column: the chosen day's schedule (events + time blocks). */}
         <section className="timeline-pane">
           <div className="section-label">Schedule</div>
-          <Timeline date={date} />
+          <Timeline date={date} onPeekEvent={setPeek} />
+          {peek && (
+            <div className="timeline-peek">
+              <DetailPanel
+                title={peek.title}
+                onOpenFull={() =>
+                  navigate({ name: 'meeting', eventKey: peek.eventKey, title: peek.title, date: peek.date })
+                }
+                onClose={() => setPeek(null)}
+              >
+                <Meeting
+                  key={peek.eventKey}
+                  embedded
+                  eventKey={peek.eventKey}
+                  title={peek.title}
+                  date={peek.date}
+                />
+              </DetailPanel>
+            </div>
+          )}
         </section>
       </div>
     </div>

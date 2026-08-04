@@ -62,7 +62,14 @@ function layoutColumns(
  * range on empty space to create a local block — stored only in the
  * local database, never written to Google.
  */
-export function Timeline({ date }: { date: string }): React.JSX.Element {
+export function Timeline({
+  date,
+  onPeekEvent
+}: {
+  date: string
+  /** When given, clicking a meeting peeks it instead of navigating. */
+  onPeekEvent?: (ev: { eventKey: string; title: string; date: string }) => void
+}): React.JSX.Element {
   const events = useLiveQuery(() => window.api.calendarEvents(date, date), [date]) ?? []
   const tasks = useLiveQuery(() => window.api.tasksFor(date), [date]) ?? []
   const locals = useLiveQuery(() => window.api.localEventsFor(date), [date]) ?? []
@@ -81,6 +88,7 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
     []
   )
   const mutate = useMutate()
+  const { navigate } = useNav()
 
   // Re-render every minute so the "now" line crawls.
   const [now, setNow] = useState(() => new Date())
@@ -271,6 +279,11 @@ export function Timeline({ date }: { date: string }): React.JSX.Element {
                   prepDone={p?.done ?? 0}
                   prepTotal={p?.total ?? 0}
                   past={past}
+                  onOpen={() =>
+                    onPeekEvent
+                      ? onPeekEvent({ eventKey: e.eventKey, title: e.title, date: e.date })
+                      : navigate({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
+                  }
                 />
               )
             })}
@@ -545,7 +558,8 @@ function EventBlock({
   accentColor,
   prepDone,
   prepTotal,
-  past
+  past,
+  onOpen
 }: {
   event: CalendarEvent
   top: number
@@ -556,8 +570,8 @@ function EventBlock({
   prepDone: number
   prepTotal: number
   past: boolean
+  onOpen: () => void
 }): React.JSX.Element {
-  const { navigate } = useNav()
   const { setNodeRef, isOver } = useDroppable({
     id: `event-${event.eventKey}`,
     data: { type: 'event-prep', event }
@@ -567,9 +581,7 @@ function EventBlock({
       ref={setNodeRef}
       className={`timeline-event ${past ? 'past' : ''} ${isOver ? 'drop-over' : ''}`}
       style={{ top, height, ...colStyle, ...(accentColor ? { borderLeftColor: accentColor } : {}) }}
-      onClick={() =>
-        navigate({ name: 'meeting', eventKey: event.eventKey, title: event.title, date: event.date })
-      }
+      onClick={onOpen}
     >
       <div className="row" style={{ gap: 6 }}>
         <b>{event.title}</b>

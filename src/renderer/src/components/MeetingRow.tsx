@@ -45,26 +45,29 @@ export function MeetingRow({
             {done}/{followUps.length} follow-ups
           </span>
         )}
-        {onPeek && (
+        {/* Peekable rows keep one action: peek. Opening the full page
+            lives in the peek panel's header. */}
+        {onPeek ? (
           <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
             peek →
           </span>
+        ) : (
+          <button
+            className="btn ghost"
+            style={{ marginLeft: 'auto' }}
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate({
+                name: 'meeting',
+                eventKey: meeting.eventKey,
+                title: meeting.title,
+                date: meeting.date
+              })
+            }}
+          >
+            Open ↗
+          </button>
         )}
-        <button
-          className="btn ghost"
-          style={onPeek ? undefined : { marginLeft: 'auto' }}
-          onClick={(e) => {
-            e.stopPropagation()
-            navigate({
-              name: 'meeting',
-              eventKey: meeting.eventKey,
-              title: meeting.title,
-              date: meeting.date
-            })
-          }}
-        >
-          Open ↗
-        </button>
       </div>
 
       {open && (

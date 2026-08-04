@@ -188,16 +188,6 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
               <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
                 peek →
               </span>
-              <button
-                className="btn ghost small"
-                title="Open as a full page"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  navigate({ name: 'page', itemId: p.id })
-                }}
-              >
-                ↗
-              </button>
               {/* Deleting a document should never be one click. */}
               <ConfirmButton
                 label="🗑"
