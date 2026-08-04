@@ -30,7 +30,7 @@
 }
 
 .sidebar-brand {
-  font-size: 21px;
+  font-size: 25px;
   font-weight: 800;
   letter-spacing: -0.02em;
   padding: 2px 10px 12px;
@@ -43,13 +43,28 @@
 }
 
 .sidebar-clock {
-  padding: 0 10px 10px;
-  font-size: 13px;
-  font-weight: 650;
-  color: var(--text-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 10px 12px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
+}
+.sidebar-time {
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.sidebar-date {
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--text-soft);
 }
 
 /* CSS-only tooltip via data-tooltip (native title is slow to appear). */

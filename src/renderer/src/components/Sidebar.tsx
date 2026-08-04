@@ -8,24 +8,34 @@ import { DropZone } from './dnd'
 
 export const DEFAULT_TIME_ZONE = 'America/New_York'
 
-/** A live clock in the configured time zone, always AM/PM. */
+/** A live clock with date in the configured time zone, always AM/PM. */
 function Clock(): React.JSX.Element {
   const timeZone =
     useLiveQuery(() => window.api.getSetting<string>('timeZone'), []) ?? DEFAULT_TIME_ZONE
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 10_000)
+    const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
   }, [])
-  let label: string
-  try {
-    label = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone })
-  } catch {
-    label = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+
+  // An invalid/unknown zone would throw; fall back to the system zone.
+  const fmt = (opts: Intl.DateTimeFormatOptions): string => {
+    try {
+      return now.toLocaleString(undefined, { timeZone, ...opts })
+    } catch {
+      return now.toLocaleString(undefined, opts)
+    }
   }
+  const abbr = fmt({ timeZoneName: 'short' }).split(' ').pop()
+
   return (
     <div className="sidebar-clock" title={timeZone}>
-      {label}
+      <span className="sidebar-time">
+        {fmt({ hour: 'numeric', minute: '2-digit', hour12: true })}
+      </span>
+      <span className="sidebar-date">
+        {fmt({ weekday: 'short', month: 'short', day: 'numeric' })} · {abbr}
+      </span>
     </div>
   )
 }
