@@ -109,104 +109,103 @@ export function Today(): React.JSX.Element {
           {/* The viewed day's own sections sit on a soft accent wash;
               the rest of the week stays plain below. */}
           <div className="today-scope">
-          <DropZone id="list-today" data={{ type: 'schedule', date }}>
-            <div style={{ margin: '14px 0 10px' }}>
-              <CheckableInput
-                id="quick-capture"
-                placeholder="Add a task for today (⌘N)…"
-                value={taskDraft}
-                onChange={(e) => setTaskDraft(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addTask()}
-              />
-            </div>
-            {tasks.length === 0 && (
-              <EmptyState art="🪷">
-                A clean slate. Add a task above, pull one from the inbox — or just enjoy it.
-              </EmptyState>
-            )}
-            {/* One block per project; drag to reprioritize within a block.
+            <DropZone id="list-today" data={{ type: 'schedule', date }}>
+              <div style={{ margin: '14px 0 10px' }}>
+                <CheckableInput
+                  id="quick-capture"
+                  placeholder="Add a task for today (⌘N)…"
+                  value={taskDraft}
+                  onChange={(e) => setTaskDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addTask()}
+                />
+              </div>
+              {tasks.length === 0 && (
+                <EmptyState art="🪷"> a clean slate, no scheduled tasks
+                </EmptyState>
+              )}
+              {/* One block per project; drag to reprioritize within a block.
                 The show-all control lives inside the last block so it
                 folds away with it. */}
-            <TaskGroups
-              items={visibleTasks}
-              date={date}
-              sortable
-              footer={
-                tasks.length > TOP_TASK_CAP ? (
-                  <button className="btn ghost" style={{ marginTop: 4 }} onClick={() => setShowAll(!showAll)}>
-                    {showAll ? 'Show fewer' : `Show all ${tasks.length}`}
-                  </button>
-                ) : undefined
-              }
-            />
-          </DropZone>
+              <TaskGroups
+                items={visibleTasks}
+                date={date}
+                sortable
+                footer={
+                  tasks.length > TOP_TASK_CAP ? (
+                    <button className="btn ghost" style={{ marginTop: 4 }} onClick={() => setShowAll(!showAll)}>
+                      {showAll ? 'Show fewer' : `Show all ${tasks.length}`}
+                    </button>
+                  ) : undefined
+                }
+              />
+            </DropZone>
 
-          {/* Checked-off things don't vanish — they move down here,
+            {/* Checked-off things don't vanish — they move down here,
               still uncheckable if it was an accident. */}
-          {doneToday.length > 0 && (
-            <>
-              <button className="section-label day-toggle" onClick={() => setShowDone(!showDone)}>
-                {showDone ? '▾' : '▸'} {date === today ? 'Done today' : 'Done'}
-                <span className="pill">{doneToday.length}</span>
-              </button>
-              {showDone && (
+            {doneToday.length > 0 && (
+              <>
+                <button className="section-label day-toggle" onClick={() => setShowDone(!showDone)}>
+                  {showDone ? '▾' : '▸'} {date === today ? 'Done today' : 'Done'}
+                  <span className="pill">{doneToday.length}</span>
+                </button>
+                {showDone && (
+                  <div className="stack">
+                    <AnimatePresence initial={false}>
+                      {doneStandalone.map((item) => (
+                        <ItemCard key={item.id} item={item} showDate={false} />
+                      ))}
+                    </AnimatePresence>
+                    {/* Subtasks finished this day, under their parent's
+                      name — uncheckable in place if one was a misclick. */}
+                    {doneGroups.map(([rootId, rootTitle]) => (
+                      <DoneSubtaskGroup key={rootId} rootId={rootId} rootTitle={rootTitle} date={date} />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {carried.length > 0 && (
+              <>
+                <div className="section-label row">
+                  Carried over
+                  <button
+                    className="btn ghost"
+                    title="Bring them all to today"
+                    onClick={() =>
+                      mutate(async () => {
+                        for (const i of carried)
+                          await window.api.updateItem(i.id, { scheduledDate: today })
+                      })
+                    }
+                  >
+                    ↻ do today
+                  </button>
+                  <button
+                    className="btn ghost"
+                    title="Let them go, guilt-free"
+                    onClick={() => {
+                      const ids = carried.map((i) => i.id)
+                      mutate(() => window.api.dropItems(ids))
+                      pushUndo(`Let go of ${ids.length} carried-over tasks`, async () => {
+                        for (const id of ids) await window.api.updateItem(id, { status: 'active' })
+                      })
+                    }}
+                  >
+                    🧹 let go
+                  </button>
+                </div>
                 <div className="stack">
-                  <AnimatePresence initial={false}>
-                    {doneStandalone.map((item) => (
-                      <ItemCard key={item.id} item={item} showDate={false} />
+                  <AnimatePresence>
+                    {carried.map((item) => (
+                      <DraggableCard key={item.id} item={item}>
+                        <ItemCard item={item} faded showDate={false} />
+                      </DraggableCard>
                     ))}
                   </AnimatePresence>
-                  {/* Subtasks finished this day, under their parent's
-                      name — uncheckable in place if one was a misclick. */}
-                  {doneGroups.map(([rootId, rootTitle]) => (
-                    <DoneSubtaskGroup key={rootId} rootId={rootId} rootTitle={rootTitle} date={date} />
-                  ))}
                 </div>
-              )}
-            </>
-          )}
-
-          {carried.length > 0 && (
-            <>
-              <div className="section-label row">
-                Carried over
-                <button
-                  className="btn ghost"
-                  title="Bring them all to today"
-                  onClick={() =>
-                    mutate(async () => {
-                      for (const i of carried)
-                        await window.api.updateItem(i.id, { scheduledDate: today })
-                    })
-                  }
-                >
-                  ↻ do today
-                </button>
-                <button
-                  className="btn ghost"
-                  title="Let them go, guilt-free"
-                  onClick={() => {
-                    const ids = carried.map((i) => i.id)
-                    mutate(() => window.api.dropItems(ids))
-                    pushUndo(`Let go of ${ids.length} carried-over tasks`, async () => {
-                      for (const id of ids) await window.api.updateItem(id, { status: 'active' })
-                    })
-                  }}
-                >
-                  🧹 let go
-                </button>
-              </div>
-              <div className="stack">
-                <AnimatePresence>
-                  {carried.map((item) => (
-                    <DraggableCard key={item.id} item={item}>
-                      <ItemCard item={item} faded showDate={false} />
-                    </DraggableCard>
-                  ))}
-                </AnimatePresence>
-              </div>
-            </>
-          )}
+              </>
+            )}
 
           </div>
 

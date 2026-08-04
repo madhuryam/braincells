@@ -230,7 +230,7 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
             </AnimatePresence>
           </div>
           {followUps.length === 0 && preps.length === 0 && (
-            <EmptyState art="🧘">No prep, no follow-ups. Some meetings are like that.</EmptyState>
+            <EmptyState art="📝">no todos here</EmptyState>
           )}
         </section>
 

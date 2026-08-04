@@ -74,16 +74,16 @@ export function Sidebar(): React.JSX.Element {
 
       {/* Dropping any card on "Today" schedules it for today. */}
       <DropZone id="nav-today" data={{ type: 'schedule', date: todayYmd() }}>
-        <NavItem view={{ name: 'today' }} icon="☀️" label="Today" isActive={view.name === 'today'} />
+        <NavItem view={{ name: 'today' }} icon="📅" label="Today" isActive={view.name === 'today'} />
       </DropZone>
       <NavItem
         view={{ name: 'inbox' }}
-        icon="📥"
+        icon="📨"
         label="Inbox"
         badge={inboxCount}
         isActive={view.name === 'inbox'}
       />
-      <NavItem view={{ name: 'log' }} icon="📓" label="Weekly Log" isActive={view.name === 'log'} />
+      <NavItem view={{ name: 'log' }} icon="📑" label="Weekly Log" isActive={view.name === 'log'} />
       <NavItem
         view={{ name: 'calendar' }}
         icon="🗓️"

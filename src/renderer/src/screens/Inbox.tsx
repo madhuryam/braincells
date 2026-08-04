@@ -12,12 +12,9 @@ import { BackButton, EmptyState, IconInput } from '../components/bits'
 
 // Empty inbox is the app's only "win state" (SPEC §4.2) — celebrate it.
 const ZERO_MESSAGES = [
-  ['🌿', 'Nothing here. Go touch grass.'],
-  ['🔥', 'Inbox clear. You’re dangerous today.'],
-  ['🫖', 'All triaged. Put the kettle on.'],
-  ['🧹', 'Swept clean. The chaos fears you.'],
-  ['🌅', 'Zero. As the universe intended.'],
-  ['🏖️', 'Empty. Future-you says thanks.']
+  ['🌲', 'nothing to do here, go hug a tree'],
+  ['🪴', 'embrace the calm, and breathe'],
+  ['🥂', 'cheers, you\'re on top of things here']
 ] as const
 
 /** 1–5 schedule into the rolling window; 0 is 'someday' (backlog). */
