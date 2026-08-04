@@ -14,7 +14,14 @@ import { prettyDate } from '../format'
  * meeting screen shows, not a copy; there is exactly one source of
  * truth.
  */
-export function MeetingRow({ meeting }: { meeting: Meeting }): React.JSX.Element {
+export function MeetingRow({
+  meeting,
+  onPeek
+}: {
+  meeting: Meeting
+  /** When given, clicking the row peeks it (in a detail panel) instead of expanding inline. */
+  onPeek?: (meeting: Meeting) => void
+}): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const { navigate } = useNav()
   const followUps =
@@ -25,8 +32,12 @@ export function MeetingRow({ meeting }: { meeting: Meeting }): React.JSX.Element
 
   return (
     <Card>
-      <div className="row" style={{ cursor: 'pointer' }} onClick={() => setOpen(!open)}>
-        <span aria-hidden>{open ? '▾' : '▸'}</span>
+      <div
+        className="row"
+        style={{ cursor: 'pointer' }}
+        onClick={() => (onPeek ? onPeek(meeting) : setOpen(!open))}
+      >
+        {!onPeek && <span aria-hidden>{open ? '▾' : '▸'}</span>}
         <span className="card-title">📅 {meeting.title}</span>
         <span className="pill">{prettyDate(meeting.date)}</span>
         {followUps.length > 0 && (
@@ -34,9 +45,14 @@ export function MeetingRow({ meeting }: { meeting: Meeting }): React.JSX.Element
             {done}/{followUps.length} follow-ups
           </span>
         )}
+        {onPeek && (
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
+            peek →
+          </span>
+        )}
         <button
           className="btn ghost"
-          style={{ marginLeft: 'auto' }}
+          style={onPeek ? undefined : { marginLeft: 'auto' }}
           onClick={(e) => {
             e.stopPropagation()
             navigate({

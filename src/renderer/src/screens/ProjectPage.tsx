@@ -4,11 +4,19 @@ import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { Card } from '../components/Card'
 import { ConfirmButton } from '../components/ConfirmButton'
+import { DetailPanel } from '../components/DetailPanel'
 import { ItemCard } from '../components/ItemCard'
+import { ItemDetail } from '../components/ItemDetail'
 import { DraggableCard } from '../components/dnd'
 import { MeetingRow } from '../components/MeetingRow'
+import { Meeting } from './Meeting'
 import { BackButton, CheckableInput, EmptyState, ProjectDot } from '../components/bits'
 import { PROJECT_COLORS } from '../palette'
+
+/** What the right-hand peek panel is showing. */
+type Detail =
+  | { kind: 'meeting'; eventKey: string; title: string; date: string }
+  | { kind: 'item'; itemId: string }
 
 export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Element {
   const { projects } = useData()
@@ -26,6 +34,7 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   const [nameDraft, setNameDraft] = useState('')
   const [nameError, setNameError] = useState<string | null>(null)
   const [pickingColor, setPickingColor] = useState(false)
+  const [detail, setDetail] = useState<Detail | null>(null)
 
   if (!project) return <div className="canvas">Project not found.</div>
 
@@ -68,7 +77,7 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   }
 
   return (
-    <div className="canvas">
+    <div className="canvas" style={{ '--canvas-max': '1500px' } as React.CSSProperties}>
       <header className="canvas-header">
         <BackButton />
         <button
@@ -132,6 +141,8 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
         <p style={{ margin: '0 0 12px', color: 'var(--danger)', fontSize: 13 }}>{nameError}</p>
       )}
 
+      <div className="log-split">
+      <div className="log-main">
       <div className="row" style={{ marginBottom: 18 }}>
         <select value={draftKind} onChange={(e) => setDraftKind(e.target.value as 'task' | 'note')}>
           <option value="task">Task</option>
@@ -170,13 +181,23 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
       </div>
       <div className="stack project-section">
         {pages.map((p) => (
-          <Card key={p.id} interactive onClick={() => navigate({ name: 'page', itemId: p.id })}>
+          <Card key={p.id} interactive onClick={() => setDetail({ kind: 'item', itemId: p.id })}>
             <div className="row">
               <span aria-hidden>📄</span>
               <span className="card-title">{p.title || 'Untitled page'}</span>
               <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
-                open ↗
+                peek →
               </span>
+              <button
+                className="btn ghost small"
+                title="Open as a full page"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate({ name: 'page', itemId: p.id })
+                }}
+              >
+                ↗
+              </button>
               {/* Deleting a document should never be one click. */}
               <ConfirmButton
                 label="🗑"
@@ -231,7 +252,13 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
           <div className="section-label">Meetings</div>
           <div className="stack project-section">
             {meetings.map((m) => (
-              <MeetingRow key={m.eventKey} meeting={m} />
+              <MeetingRow
+                key={m.eventKey}
+                meeting={m}
+                onPeek={(mtg) =>
+                  setDetail({ kind: 'meeting', eventKey: mtg.eventKey, title: mtg.title, date: mtg.date })
+                }
+              />
             ))}
           </div>
         </>
@@ -251,6 +278,38 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
           )}
         </>
       )}
+      </div>
+
+      {detail && (
+        <DetailPanel
+          title={detail.kind === 'meeting' ? detail.title : undefined}
+          onOpenFull={
+            detail.kind === 'meeting'
+              ? () =>
+                  navigate({
+                    name: 'meeting',
+                    eventKey: detail.eventKey,
+                    title: detail.title,
+                    date: detail.date
+                  })
+              : undefined
+          }
+          onClose={() => setDetail(null)}
+        >
+          {detail.kind === 'meeting' ? (
+            <Meeting
+              key={detail.eventKey}
+              embedded
+              eventKey={detail.eventKey}
+              title={detail.title}
+              date={detail.date}
+            />
+          ) : (
+            <ItemDetail key={detail.itemId} itemId={detail.itemId} />
+          )}
+        </DetailPanel>
+      )}
+      </div>
     </div>
   )
 }
