@@ -741,8 +741,8 @@
 .local-event-editor {
   position: absolute;
   left: 0;
+  right: 0;
   z-index: 6;
-  width: min(320px, 100%);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -754,14 +754,18 @@
   cursor: default;
   user-select: text;
 }
+/* One wide row: times · project · (spacer) · delete · done. When the
+   timeline column is narrow the controls wrap instead of overflowing. */
 .local-event-editor .row {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
-/* The time fields split the row instead of overflowing the box. */
 .local-event-editor input[type='time'] {
-  flex: 1;
   min-width: 0;
   padding: 6px 8px;
+}
+.local-event-editor select {
+  min-width: 0;
+  max-width: 180px;
 }
 
 /* Grabbable top/bottom edges: retime a block without opening it. */

@@ -496,27 +496,25 @@ function LocalEventEditor({
             if (e.target.value) save({ endTime: e.target.value })
           }}
         />
-      </div>
-      <select
-        value={projectId ?? ''}
-        onChange={(e) => {
-          const v = e.target.value || null
-          setProjectId(v)
-          save({ projectId: v })
-        }}
-      >
-        <option value="">No project</option>
-        {projects.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
-      <div className="row">
-        <button className="btn ghost small" onClick={remove}>
+        <select
+          value={projectId ?? ''}
+          onChange={(e) => {
+            const v = e.target.value || null
+            setProjectId(v)
+            save({ projectId: v })
+          }}
+        >
+          <option value="">No project</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <button className="btn ghost small" style={{ marginLeft: 'auto' }} onClick={remove}>
           🗑 delete
         </button>
-        <button className="btn small primary" style={{ marginLeft: 'auto' }} onClick={onClose}>
+        <button className="btn small primary" onClick={onClose}>
           Done
         </button>
       </div>
