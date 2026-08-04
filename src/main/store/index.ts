@@ -619,19 +619,33 @@ export class Store {
     })()
   }
 
-  /** "2 of 3 prep items done" for each event, in one query. */
+  /**
+   * "2 of 3 prep items done" for each event, in one query. Counts the
+   * prep items and every subtask beneath them (any depth) — checking
+   * off a subtask moves the meeting's progress bar.
+   */
   prepProgress(eventKeys: string[]): PrepProgress[] {
     if (eventKeys.length === 0) return []
     const placeholders = eventKeys.map(() => '?').join(', ')
     return this.db
       .prepare(
-        `SELECT l.to_event_key AS eventKey,
+        `WITH RECURSIVE prep(event_key, item_id) AS (
+           SELECT l.to_event_key, l.from_item_id
+           FROM links l JOIN items i ON i.id = l.from_item_id
+           WHERE l.role = 'prep-for' AND i.status != 'dropped'
+             AND l.to_event_key IN (${placeholders})
+           UNION ALL
+           SELECT p.event_key, l.from_item_id
+           FROM links l
+           JOIN prep p ON l.to_item_id = p.item_id
+           JOIN items i ON i.id = l.from_item_id
+           WHERE l.role = 'subtask-of' AND i.status != 'dropped'
+         )
+         SELECT p.event_key AS eventKey,
                 SUM(CASE WHEN i.status = 'done' THEN 1 ELSE 0 END) AS done,
                 COUNT(*) AS total
-         FROM links l JOIN items i ON i.id = l.from_item_id
-         WHERE l.role = 'prep-for' AND i.status != 'dropped'
-           AND l.to_event_key IN (${placeholders})
-         GROUP BY l.to_event_key`
+         FROM prep p JOIN items i ON i.id = p.item_id
+         GROUP BY p.event_key`
       )
       .all(...eventKeys) as PrepProgress[]
   }

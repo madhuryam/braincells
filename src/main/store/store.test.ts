@@ -115,6 +115,21 @@ describe('links and the meeting loop', () => {
     expect(preps.map((li) => li.item.title)).toEqual(['read doc', 'prepare questions'])
   })
 
+  it('prep progress counts subtasks at any depth', () => {
+    const prep = store.createItem({ kind: 'prep', title: 'prep deck', status: 'active' })
+    store.linkToEvent(prep.id, demoEvent, 'prep-for')
+    const sub = store.createItem({ kind: 'task', title: 'collect numbers', status: 'active' })
+    store.linkItems(sub.id, prep.id, 'subtask-of')
+    const subsub = store.createItem({ kind: 'task', title: 'ask finance', status: 'done' })
+    store.linkItems(subsub.id, sub.id, 'subtask-of')
+    const dropped = store.createItem({ kind: 'task', title: 'nope', status: 'dropped' })
+    store.linkItems(dropped.id, prep.id, 'subtask-of')
+
+    // prep + sub + subsub (dropped excluded); only subsub is done.
+    const [progress] = store.prepProgress([demoEvent.eventKey])
+    expect(progress).toMatchObject({ eventKey: demoEvent.eventKey, done: 1, total: 3 })
+  })
+
   it('keeps the snapshot so notes survive event deletion', () => {
     const note = store.createItem({ kind: 'note', title: 'meeting notes', status: 'active' })
     const link = store.linkToEvent(note.id, demoEvent, 'notes-for')
