@@ -26,7 +26,6 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   const items = useLiveQuery(() => window.api.projectItems(projectId), [projectId])
   const meetings = useLiveQuery(() => window.api.meetingsForProject(projectId), [projectId]) ?? []
   const [draft, setDraft] = useState('')
-  const [draftKind, setDraftKind] = useState<'task' | 'note'>('task')
   const [showDone, setShowDone] = useState(false)
 
   // Inline header editing: click the name to rename, the dot to recolor.
@@ -56,12 +55,12 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   const notes = open.filter((i) => i.kind === 'note' || i.kind === 'journal')
   const done = (items ?? []).filter((i) => i.status === 'done' && i.kind !== 'page')
 
+  // Projects hold tasks and pages — a longer thought belongs on a
+  // page, so the quick-add only makes tasks.
   const add = async (): Promise<void> => {
     const title = draft.trim()
     if (!title) return
-    await mutate(() =>
-      window.api.createItem({ kind: draftKind, title, status: 'active', projectId })
-    )
+    await mutate(() => window.api.createItem({ kind: 'task', title, status: 'active', projectId }))
     setDraft('')
   }
 
@@ -144,28 +143,12 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
       <div className="log-split">
       <div className="log-main">
       <div className="row" style={{ marginBottom: 18 }}>
-        <select value={draftKind} onChange={(e) => setDraftKind(e.target.value as 'task' | 'note')}>
-          <option value="task">Task</option>
-          <option value="note">Note</option>
-        </select>
-        {/* Tasks get the checkbox-flavored input so it's obvious the
-            line becomes a checkable card, not a plain note. */}
-        {draftKind === 'task' ? (
-          <CheckableInput
-            placeholder={`Add a task to ${project.name}…`}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && add()}
-          />
-        ) : (
-          <input
-            style={{ flex: 1 }}
-            placeholder={`Add a note to ${project.name}…`}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && add()}
-          />
-        )}
+        <CheckableInput
+          placeholder={`Add a task to ${project.name}…`}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+        />
       </div>
 
       {open.length === 0 && done.length === 0 && meetings.length === 0 && (
