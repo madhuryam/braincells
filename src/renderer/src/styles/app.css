@@ -1157,6 +1157,40 @@
   vertical-align: baseline;
 }
 
+/* ── "Open full page" overlay: a screen floated over the shell ───── */
+.overlay-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  padding: 28px;
+  background: color-mix(in srgb, #000 45%, transparent);
+}
+.overlay-modal {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lift);
+  overflow: hidden; /* the .canvas inside scrolls */
+}
+.overlay-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 5;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+}
+/* Inside the overlay, "back" is meaningless — closing is the exit. */
+.overlay-modal .back-btn {
+  display: none;
+}
+
 /* Settings → Calendar labels: one compact row per Google color. */
 .label-row {
   display: grid;

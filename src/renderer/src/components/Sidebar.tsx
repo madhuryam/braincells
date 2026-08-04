@@ -73,7 +73,7 @@ export function Sidebar(): React.JSX.Element {
   // `dark` comes from context state (not the DOM attribute) so the
   // toggle button always re-renders in step with the actual theme.
   const { projects, inboxCount, starred, dark, toggleDark } = useData()
-  const { view, navigate } = useNav()
+  const { view, navigate, openOverlay } = useNav()
   const [collapsed, setCollapsed] = useState(false)
   const [starredOpen, setStarredOpen] = useState(true)
 
@@ -115,7 +115,7 @@ export function Sidebar(): React.JSX.Element {
             key={item.id}
             className={`nav-item ${view.name === 'page' && view.itemId === item.id ? 'active' : ''}`}
             title={item.title}
-            onClick={() => navigate({ name: 'page', itemId: item.id })}
+            onClick={() => openOverlay({ name: 'page', itemId: item.id })}
           >
             <span className="nav-icon" aria-hidden>
               {KIND_ICON[item.kind]}

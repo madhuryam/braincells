@@ -66,6 +66,53 @@ function ScreenBody({ view }: { view: ReturnType<typeof useNav>['view'] }): Reac
   }
 }
 
+/**
+ * "Open full page" lands here: the target screen floats over whatever
+ * you were looking at, modal-style, so closing it (✕, Escape, or a
+ * click on the scrim) drops you exactly where you left off. Navigating
+ * anywhere from inside it closes the overlay and takes over the shell.
+ */
+function Overlay(): React.JSX.Element | null {
+  const { overlay, closeOverlay } = useNav()
+  useEffect(() => {
+    if (!overlay) return
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') closeOverlay()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [overlay, closeOverlay])
+  if (!overlay) return null
+
+  return (
+    <motion.div
+      className="overlay-scrim"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) closeOverlay()
+      }}
+    >
+      <motion.div
+        className="overlay-modal"
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
+      >
+        <button
+          className="btn ghost icon-btn overlay-close"
+          title="Close (Esc)"
+          onClick={closeOverlay}
+        >
+          ✕
+        </button>
+        <ScreenBody view={overlay} />
+      </motion.div>
+    </motion.div>
+  )
+}
+
 /** App-wide shortcuts. ⌘N: jump to Today and focus quick capture. */
 function Shortcuts(): null {
   const { navigate } = useNav()
@@ -100,6 +147,7 @@ export default function App(): React.JSX.Element {
               <Sidebar />
               <Screen />
             </div>
+            <Overlay />
           </AppDnd>
         </NavProvider>
       </UndoProvider>

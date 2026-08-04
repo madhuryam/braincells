@@ -9,7 +9,7 @@ export function BackButton(): React.JSX.Element | null {
   const { back, canGoBack } = useNav()
   if (!canGoBack) return null
   return (
-    <button className="btn ghost icon-btn" title="Back" onClick={back}>
+    <button className="btn ghost icon-btn back-btn" title="Back" onClick={back}>
       ←
     </button>
   )

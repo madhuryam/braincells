@@ -12,7 +12,7 @@ import { KIND_ICON, prettyDate } from '../format'
 export function ItemDetail({ itemId }: { itemId: string }): React.JSX.Element | null {
   const item = useLiveQuery(() => window.api.getItem(itemId), [itemId])
   const { projects } = useData()
-  const { navigate } = useNav()
+  const { openOverlay } = useNav()
   const mutate = useMutate()
   if (!item) return null
 
@@ -37,7 +37,7 @@ export function ItemDetail({ itemId }: { itemId: string }): React.JSX.Element | 
           {item.title || <span style={{ color: 'var(--text-faint)' }}>Untitled</span>}
         </h2>
         {item.kind === 'page' && (
-          <button className="btn ghost" onClick={() => navigate({ name: 'page', itemId: item.id })}>
+          <button className="btn ghost" onClick={() => openOverlay({ name: 'page', itemId: item.id })}>
             open full page ↗
           </button>
         )}

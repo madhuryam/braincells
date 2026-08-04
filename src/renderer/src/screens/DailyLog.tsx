@@ -48,7 +48,7 @@ export function DailyLog(): React.JSX.Element {
   // Today starts open; every other day is a header until clicked.
   const [openDays, setOpenDays] = useState<Set<string>>(new Set([today]))
   const [detail, setDetail] = useState<Detail | null>(null)
-  const { navigate } = useNav()
+  const { openOverlay } = useNav()
 
   const toggleDay = (d: string): void =>
     setOpenDays((prev) => {
@@ -116,7 +116,7 @@ export function DailyLog(): React.JSX.Element {
             onOpenFull={
               detail.kind === 'meeting'
                 ? () =>
-                  navigate({
+                  openOverlay({
                     name: 'meeting',
                     eventKey: detail.eventKey,
                     title: detail.title,

@@ -138,7 +138,7 @@ export function ItemCard({
   const [title, setTitle] = useState(item.title)
   const mutate = useMutate()
   const { projects } = useData()
-  const { navigate } = useNav()
+  const { openOverlay } = useNav()
   const { pushUndo } = useUndo()
   const project = projects.find((p) => p.id === item.projectId)
 
@@ -298,9 +298,10 @@ export function ItemCard({
               className="card-title"
               style={{ display: 'block', width: '100%', textAlign: 'left' }}
               onClick={() =>
-                // Pages open as a full document, not an inline editor.
+                // Pages open as a full document (floated overlay),
+                // not an inline editor.
                 item.kind === 'page'
-                  ? navigate({ name: 'page', itemId: item.id })
+                  ? openOverlay({ name: 'page', itemId: item.id })
                   : setOpen(true)
               }
             >

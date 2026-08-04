@@ -39,7 +39,7 @@ export function Today(): React.JSX.Element {
   const [showDone, setShowDone] = useState(true)
   const inboxCount = useLiveQuery(() => window.api.inboxCount(), []) ?? 0
   const mutate = useMutate()
-  const { navigate } = useNav()
+  const { navigate, openOverlay } = useNav()
   const { pushUndo } = useUndo()
   const [taskDraft, setTaskDraft] = useState('')
   const [showAll, setShowAll] = useState(false)
@@ -227,7 +227,7 @@ export function Today(): React.JSX.Element {
               <DetailPanel
                 title={peek.title}
                 onOpenFull={() =>
-                  navigate({ name: 'meeting', eventKey: peek.eventKey, title: peek.title, date: peek.date })
+                  openOverlay({ name: 'meeting', eventKey: peek.eventKey, title: peek.title, date: peek.date })
                 }
                 onClose={() => setPeek(null)}
               >
