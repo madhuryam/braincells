@@ -53,7 +53,7 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
       {groups.map((group, gi) => {
         const ids = group.items.map((i) => i.id)
         const cards = (
-          <div className={`stack ${showHeaders ? 'task-group-indent' : ''}`}>
+          <div className={`item-list ${showHeaders ? 'task-group-indent' : ''}`}>
             <AnimatePresence initial={false}>
               {group.items.map((item) =>
                 sortable ? (

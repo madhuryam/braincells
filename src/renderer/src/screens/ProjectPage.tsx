@@ -192,7 +192,7 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
       {todos.length > 0 && (
         <>
           <div className="section-label">To-dos</div>
-          <div className="stack project-section">
+          <div className="item-list project-section">
             <AnimatePresence initial={false}>
               {todos.map((item) => (
                 <DraggableCard key={item.id} item={item}>
@@ -227,7 +227,7 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
             {showDone ? '▾' : '▸'} Done <span className="pill">{done.length}</span>
           </button>
           {showDone && (
-            <div className="stack project-section">
+            <div className="item-list project-section">
               {done.map((item) => (
                 <ItemCard key={item.id} item={item} showProject={false} />
               ))}

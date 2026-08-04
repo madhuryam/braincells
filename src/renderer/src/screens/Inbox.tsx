@@ -199,7 +199,7 @@ export function Inbox(): React.JSX.Element {
       {items.length === 0 ? (
         <EmptyState art={zero[0]}>{zero[1]}</EmptyState>
       ) : (
-        <div className="stack">
+        <div className="item-list">
           <AnimatePresence initial={false}>
             {items.map((item, i) => (
               <div
@@ -260,7 +260,7 @@ function ItemSection({
       {open && (
         <>
           <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--text-faint)' }}>{hint}</p>
-          <div className="stack">
+          <div className="item-list">
             <AnimatePresence initial={false}>
               {items.map((item) => (
                 <DraggableCard key={item.id} item={item}>

@@ -37,7 +37,7 @@ export function Search(): React.JSX.Element {
       {query.trim() !== '' && results.length === 0 && (
         <EmptyState art="🔍">No matches. It either never existed or it’s called something else.</EmptyState>
       )}
-      <div className="stack">
+      <div className="item-list">
         {results.map((item) => (
           <ItemCard key={item.id} item={item} />
         ))}

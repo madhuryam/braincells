@@ -23,7 +23,7 @@ export function MeetingRow({
   onPeek?: (meeting: Meeting) => void
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
-  const { navigate } = useNav()
+  const { openOverlay } = useNav()
   const followUps =
     useLiveQuery(() => window.api.itemsForEvent(meeting.eventKey, 'follow-up-from'), [meeting.eventKey]) ?? []
   const notes =
@@ -57,7 +57,7 @@ export function MeetingRow({
             style={{ marginLeft: 'auto' }}
             onClick={(e) => {
               e.stopPropagation()
-              navigate({
+              openOverlay({
                 name: 'meeting',
                 eventKey: meeting.eventKey,
                 title: meeting.title,
@@ -77,9 +77,13 @@ export function MeetingRow({
           ) : (
             <span style={{ color: 'var(--text-faint)' }}>No notes for this one.</span>
           )}
-          {followUps.map(({ item }) => (
-            <ItemCard key={item.id} item={item} showProject={false} />
-          ))}
+          {followUps.length > 0 && (
+            <div className="item-list">
+              {followUps.map(({ item }) => (
+                <ItemCard key={item.id} item={item} showProject={false} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </Card>

@@ -149,7 +149,7 @@ export function Today(): React.JSX.Element {
                   <span className="pill">{doneToday.length}</span>
                 </button>
                 {showDone && (
-                  <div className="stack">
+                  <div className="item-list">
                     <AnimatePresence initial={false}>
                       {doneStandalone.map((item) => (
                         <ItemCard key={item.id} item={item} showDate={false} />
@@ -195,7 +195,7 @@ export function Today(): React.JSX.Element {
                     🧹 let go
                   </button>
                 </div>
-                <div className="stack">
+                <div className="item-list">
                   <AnimatePresence>
                     {carried.map((item) => (
                       <DraggableCard key={item.id} item={item}>
