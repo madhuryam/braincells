@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import type { CalendarEvent } from '@shared/types'
 import { todayYmd, ymd, ymdAddDays } from '@shared/dates'
 import { useLiveQuery } from '../state/data'
 import { useNav } from '../state/nav'
+import { useLabels } from '../state/labels'
 import { BackButton } from '../components/bits'
 import { ampm } from '../format'
 
@@ -17,6 +18,7 @@ export function CalendarScreen(): React.JSX.Element {
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth()) // 0-based
   const { navigate } = useNav()
+  const labels = useLabels()
 
   // The visible grid: 6 weeks starting on the Sunday before the 1st.
   const first = new Date(year, month, 1)
@@ -92,18 +94,31 @@ export function CalendarScreen(): React.JSX.Element {
               {/* Every event renders; a crowded day scrolls inside its
                   own cell instead of clipping behind a "+n more". */}
               <div className="cal-cell-events">
-                {dayEvents.map((e) => (
-                  <button
-                    key={e.eventKey}
-                    className="cal-event"
-                    title={`${e.title}${e.startTime ? ` · ${ampm(e.startTime)}` : ''} — open notes`}
-                    onClick={() =>
-                      navigate({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
-                    }
-                  >
-                    {e.startTime && <span className="cal-time">{ampm(e.startTime)}</span>} {e.title}
-                  </button>
-                ))}
+                {dayEvents.map((e) => {
+                  // Google label colors carry through: the chip tints
+                  // with the label, and hovering shows it full-strength.
+                  const color = labels.of(e)
+                  return (
+                    <button
+                      key={e.eventKey}
+                      className="cal-event"
+                      style={
+                        color
+                          ? ({
+                              '--ev': color.hex,
+                              '--ev-soft': `color-mix(in srgb, ${color.hex} 22%, var(--bg-card))`
+                            } as CSSProperties)
+                          : undefined
+                      }
+                      title={`${e.title}${e.startTime ? ` · ${ampm(e.startTime)}` : ''}${color ? ` · ${color.name}` : ''} — open notes`}
+                      onClick={() =>
+                        navigate({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
+                      }
+                    >
+                      {e.startTime && <span className="cal-time">{ampm(e.startTime)}</span>} {e.title}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )

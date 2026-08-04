@@ -8,19 +8,21 @@ import { ymdAddDays } from '../../shared/dates'
  * can be tested without any network at all.
  */
 
-// title, start, end, and which weekdays it occurs on (0=Sun … 6=Sat)
+// title, start, end, which weekdays it occurs on (0=Sun … 6=Sat), and
+// a Google label colorId — so the label color-coding shows in demo mode
 const TEMPLATES: Array<{
   id: string
   title: string
   start: string
   end: string
   days: number[]
+  colorId?: string
 }> = [
-  { id: 'demo-standup', title: 'Standup', start: '09:30', end: '09:45', days: [1, 2, 3, 4, 5] },
-  { id: 'demo-planning', title: 'Weekly planning', start: '10:00', end: '11:00', days: [1] },
-  { id: 'demo-1on1-sam', title: '1:1 with Sam', start: '14:00', end: '14:30', days: [2] },
-  { id: 'demo-design', title: 'Design review', start: '11:00', end: '12:00', days: [3] },
-  { id: 'demo-product', title: 'Product sync', start: '15:00', end: '15:45', days: [4] },
+  { id: 'demo-standup', title: 'Standup', start: '09:30', end: '09:45', days: [1, 2, 3, 4, 5], colorId: '2' },
+  { id: 'demo-planning', title: 'Weekly planning', start: '10:00', end: '11:00', days: [1], colorId: '7' },
+  { id: 'demo-1on1-sam', title: '1:1 with Sam', start: '14:00', end: '14:30', days: [2], colorId: '4' },
+  { id: 'demo-design', title: 'Design review', start: '11:00', end: '12:00', days: [3], colorId: '3' },
+  { id: 'demo-product', title: 'Product sync', start: '15:00', end: '15:45', days: [4], colorId: '6' },
   { id: 'demo-friday', title: 'Demo Friday 🎉', start: '16:00', end: '17:00', days: [5] }
 ]
 
@@ -56,7 +58,8 @@ export function demoEvents(startDate: string, endDate: string): CalendarEvent[] 
           title: t.title,
           date,
           startTime: t.start,
-          endTime: t.end
+          endTime: t.end,
+          colorId: t.colorId ?? null
         })
       }
     }

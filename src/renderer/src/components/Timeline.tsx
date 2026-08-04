@@ -4,6 +4,7 @@ import type { CalendarEvent, LocalEvent } from '@shared/types'
 import { hhmm, todayYmd } from '@shared/dates'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
+import { useLabels, type Label } from '../state/labels'
 import { ProgressBar } from './bits'
 import { AllDayBar } from './AllDayBar'
 import { ampm } from '../format'
@@ -75,14 +76,8 @@ export function Timeline({
   const locals = useLiveQuery(() => window.api.localEventsFor(date), [date]) ?? []
   const eventKeys = events.map((e) => e.eventKey).join(',')
   const prep = useLiveQuery(() => window.api.prepProgress(events.map((e) => e.eventKey)), [eventKeys]) ?? []
-  // Batched project lookup: meetings tint their border with their
-  // project's color (one query for the whole day, not per event).
-  const meetings = useLiveQuery(() => window.api.meetingsByKeys(events.map((e) => e.eventKey)), [eventKeys]) ?? []
   const { projects } = useData()
-  const projectColorOf = (eventKey: string): string | undefined => {
-    const projectId = meetings.find((m) => m.eventKey === eventKey)?.projectId
-    return projects.find((p) => p.id === projectId)?.color
-  }
+  const labels = useLabels()
   const bounds = useLiveQuery(
     () => window.api.getSetting<{ start: number; end: number }>('timelineBounds'),
     []
@@ -275,7 +270,7 @@ export function Timeline({
                   top={y(start)}
                   height={Math.max((end - start) * PX_PER_MIN, 34)}
                   colStyle={colStyle(`e-${e.eventKey}`)}
-                  accentColor={projectColorOf(e.eventKey)}
+                  label={labels.of(e)}
                   prepDone={p?.done ?? 0}
                   prepTotal={p?.total ?? 0}
                   past={past}
@@ -553,7 +548,7 @@ function EventBlock({
   top,
   height,
   colStyle,
-  accentColor,
+  label,
   prepDone,
   prepTotal,
   past,
@@ -563,8 +558,8 @@ function EventBlock({
   top: number
   height: number
   colStyle: CSSProperties
-  /** The assigned project's color — tints the left border. */
-  accentColor?: string
+  /** The event's Google label (overrides applied) — border and wash. */
+  label?: Label
   prepDone: number
   prepTotal: number
   past: boolean
@@ -578,7 +573,18 @@ function EventBlock({
     <div
       ref={setNodeRef}
       className={`timeline-event ${past ? 'past' : ''} ${isOver ? 'drop-over' : ''}`}
-      style={{ top, height, ...colStyle, ...(accentColor ? { borderLeftColor: accentColor } : {}) }}
+      style={{
+        top,
+        height,
+        ...colStyle,
+        ...(label
+          ? {
+              background: `color-mix(in srgb, ${label.hex} 12%, var(--bg-card))`,
+              borderColor: label.hex
+            }
+          : {})
+      }}
+      title={`${event.title}${label ? ` · ${label.name}` : ''} — open notes`}
       onClick={onOpen}
     >
       <div className="row" style={{ gap: 6 }}>

@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
+import { GOOGLE_EVENT_COLORS, type LabelOverride } from '@shared/types'
+import { todayYmd, ymdAddDays } from '@shared/dates'
 import { THEMES, useData, useLiveQuery, useMutate } from '../state/data'
+import { UNKNOWN_LABEL_HEX } from '../state/labels'
 import { Card } from '../components/Card'
 import { DEFAULT_TIME_ZONE } from '../components/Sidebar'
 import { BackButton } from '../components/bits'
@@ -228,6 +231,8 @@ export function Settings(): React.JSX.Element {
           )}
         </Card>
 
+        <CalendarLabelsCard />
+
         <Card className="stack">
           <h2>Backup</h2>
           <p style={{ margin: 0, color: 'var(--text-soft)' }}>
@@ -278,6 +283,173 @@ export function Settings(): React.JSX.Element {
           </div>
         </Card>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Settings → Calendar labels: Google's event colors, each renameable,
+ * re-colorable (display only — Google never sees these), and
+ * optionally pointed at a project. Overrides are stored sparsely in
+ * the `calendarLabels` setting keyed by colorId. Google allows labels
+ * beyond the classic eleven now, so ids found on recent events (or
+ * already overridden) get rows here too.
+ */
+function CalendarLabelsCard(): React.JSX.Element | null {
+  const mutate = useMutate()
+  const saved = useLiveQuery(
+    () => window.api.getSetting<Record<string, LabelOverride>>('calendarLabels'),
+    []
+  )
+  // Label ids in use on recent events. Fetched once on mount — not a
+  // live query, so per-keystroke saves don't refetch the calendar.
+  const [seenIds, setSeenIds] = useState<string[]>([])
+  useEffect(() => {
+    const today = todayYmd()
+    window.api
+      .calendarEvents(ymdAddDays(today, -30), ymdAddDays(today, 60))
+      .then((events) => setSeenIds([...new Set(events.map((e) => e.colorId).filter((id): id is string => !!id))]))
+  }, [])
+
+  // Rows keep their own input state (the LocalEventEditor pattern), so
+  // they must seed from real values — wait out the first load.
+  if (saved === undefined) return null
+
+  const extraIds = [...new Set([...seenIds, ...Object.keys(saved ?? {})])]
+    .filter((id) => !GOOGLE_EVENT_COLORS[id])
+    .sort((a, b) => Number(a) - Number(b) || a.localeCompare(b))
+
+  const update = (id: string, override: LabelOverride | null): void => {
+    const all = { ...(saved ?? {}) }
+    if (override) all[id] = override
+    else delete all[id]
+    void mutate(() => window.api.setSetting('calendarLabels', all))
+  }
+
+  return (
+    <Card className="stack">
+      <h2>Calendar labels</h2>
+      <p style={{ margin: 0, color: 'var(--text-soft)' }}>
+        The colors Google Calendar events can wear. Rename them, change how they display here,
+        or point one at a project — labeled meetings then borrow that project’s color on the
+        schedule. Display-only: nothing is written back to Google. Labels beyond Google’s
+        classic eleven appear here once a recent event wears one.
+      </p>
+      <div className="stack" style={{ gap: 6 }}>
+        {Object.entries(GOOGLE_EVENT_COLORS).map(([id, base]) => (
+          <LabelRow key={id} id={id} base={base} saved={saved?.[id]} onChange={update} />
+        ))}
+        {extraIds.map((id) => (
+          <LabelRow
+            key={id}
+            id={id}
+            base={{ name: `Label ${id}`, hex: UNKNOWN_LABEL_HEX }}
+            saved={saved?.[id]}
+            onChange={update}
+          />
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+function LabelRow({
+  id,
+  base,
+  saved,
+  onChange
+}: {
+  id: string
+  base: { name: string; hex: string }
+  saved: LabelOverride | undefined
+  onChange: (id: string, override: LabelOverride | null) => void
+}): React.JSX.Element {
+  const { projects } = useData()
+  // Local state is the source of truth for the inputs — each change
+  // saves, and the save round trip can never revert in-flight typing.
+  const [name, setName] = useState(saved?.name ?? '')
+  const [hex, setHex] = useState(saved?.hex ?? base.hex)
+  const [projectId, setProjectId] = useState(saved?.projectId ?? '')
+
+  const isHex = (v: string): boolean => /^#[0-9a-fA-F]{6}$/.test(v)
+  const save = (next: { name?: string; hex?: string; projectId?: string }): void => {
+    const n = next.name ?? name
+    // A half-typed hex must not drop the saved color when another
+    // field triggers the save.
+    const typed = next.hex ?? hex
+    const h = isHex(typed) ? typed : saved?.hex ?? base.hex
+    const p = next.projectId ?? projectId
+    const override: LabelOverride = {}
+    if (n.trim()) override.name = n.trim()
+    if (isHex(h) && h.toLowerCase() !== base.hex) override.hex = h.toLowerCase()
+    if (p) override.projectId = p
+    onChange(id, Object.keys(override).length > 0 ? override : null)
+  }
+  const overridden = name.trim() !== '' || hex.toLowerCase() !== base.hex || projectId !== ''
+  const reset = (): void => {
+    setName('')
+    setHex(base.hex)
+    setProjectId('')
+    onChange(id, null)
+  }
+
+  return (
+    <div className="label-row">
+      <input
+        type="color"
+        title={`Display color (Google calls this ${base.name})`}
+        value={isHex(hex) ? hex : base.hex}
+        onChange={(e) => {
+          setHex(e.target.value)
+          save({ hex: e.target.value })
+        }}
+      />
+      {/* The same color as editable hex — mid-edit invalid values sit
+          in local state and only valid #rrggbb saves. */}
+      <input
+        className="label-hex"
+        value={hex}
+        spellCheck={false}
+        onChange={(e) => {
+          const v = e.target.value.trim()
+          setHex(v)
+          if (isHex(v)) save({ hex: v })
+        }}
+        onBlur={() => {
+          if (!isHex(hex)) setHex(saved?.hex ?? base.hex)
+        }}
+      />
+      <input
+        placeholder={base.name}
+        title={`Shown in place of “${base.name}”`}
+        value={name}
+        onChange={(e) => {
+          setName(e.target.value)
+          save({ name: e.target.value })
+        }}
+      />
+      <select
+        value={projectId}
+        onChange={(e) => {
+          setProjectId(e.target.value)
+          save({ projectId: e.target.value })
+        }}
+      >
+        <option value="">No project</option>
+        {projects.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+      <button
+        className="btn ghost icon-btn"
+        title={`Reset to Google’s ${base.name}`}
+        style={{ visibility: overridden ? 'visible' : 'hidden' }}
+        onClick={reset}
+      >
+        ↺
+      </button>
     </div>
   )
 }

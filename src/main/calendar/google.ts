@@ -105,6 +105,7 @@ export class GoogleCalendar {
         id: string
         status?: string
         summary?: string
+        colorId?: string
         start?: { dateTime?: string; date?: string }
         end?: { dateTime?: string; date?: string }
       }>
@@ -123,7 +124,8 @@ export class GoogleCalendar {
         title: e.summary ?? '(untitled)',
         date,
         startTime: startsAt ? hhmm(startsAt) : null,
-        endTime: e.end?.dateTime ? hhmm(new Date(e.end.dateTime)) : null
+        endTime: e.end?.dateTime ? hhmm(new Date(e.end.dateTime)) : null,
+        colorId: e.colorId ?? null
       })
     }
     return events
