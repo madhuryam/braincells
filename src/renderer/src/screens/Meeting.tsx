@@ -2,10 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import type { CalendarEvent, Item } from '@shared/types'
 import { useData, useLiveQuery, useMutate } from '../state/data'
-import { shortTitle, useUndo } from '../state/undo'
 import { ItemCard } from '../components/ItemCard'
-import { Card } from '../components/Card'
-import { BackButton, CheckableInput, Checkbox, EmptyState, ProgressBar } from '../components/bits'
+import { BackButton, CheckableInput, EmptyState, ProgressBar } from '../components/bits'
 import { RichEditor } from '../components/RichEditor'
 import { itemBodyHtml } from '../richtext'
 import { ampm, prettyDate } from '../format'
@@ -42,7 +40,6 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
     : ''
   const { projects } = useData()
   const mutate = useMutate()
-  const { pushUndo } = useUndo()
 
   const [prepDraft, setPrepDraft] = useState('')
   const [followUpDraft, setFollowUpDraft] = useState('')
@@ -189,28 +186,12 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
             onChange={(e) => setPrepDraft(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addPrep()}
           />
+          {/* Full ItemCards, same as follow-ups (and tasks on Today):
+              prep is editable in place wherever it appears. */}
           <div className="stack">
             <AnimatePresence>
               {preps.map(({ item }) => (
-                <Card key={item.id} done={item.status === 'done'}>
-                  <div className="row">
-                    <Checkbox
-                      checked={item.status === 'done'}
-                      onToggle={() => {
-                        const wasDone = item.status === 'done'
-                        mutate(() =>
-                          window.api.updateItem(item.id, { status: wasDone ? 'active' : 'done' })
-                        )
-                        if (!wasDone) {
-                          pushUndo(`Completed “${shortTitle(item.title)}”`, async () => {
-                            await window.api.updateItem(item.id, { status: 'active' })
-                          })
-                        }
-                      }}
-                    />
-                    <span className="card-title">{item.title}</span>
-                  </div>
-                </Card>
+                <ItemCard key={item.id} item={item} />
               ))}
             </AnimatePresence>
           </div>
