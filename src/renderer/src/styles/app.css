@@ -273,6 +273,53 @@
   opacity: 0.72; /* carried-over: quiet, never red */
 }
 
+/* ── Task lists: rows, not a stack of cards ──────────────────────── */
+
+/* One quiet container per list. Rows inside divide with hairlines
+   instead of each wearing full card chrome — only the row being
+   edited (.open) lifts back into a real card. */
+.item-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden; /* accent edges and hovers clip to the corners */
+}
+.item-list:empty {
+  display: none;
+}
+.item-list > * + * {
+  border-top: 1px solid var(--border);
+}
+.item-list .card {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+/* Unaccented rows reserve the accent edge's width, so titles align
+   whether or not a row wears a project color. */
+.item-list .card:not(.accented) {
+  border-left: 3.5px solid transparent;
+}
+.item-list .card.accented {
+  /* keep the project wash, on the row's transparent base */
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--card-accent, var(--accent)) 6%, transparent),
+    transparent 45%
+  );
+}
+.item-list .card:not(.open):hover {
+  background: var(--bg-hover);
+}
+.item-list .card.open {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-lift);
+  margin: 6px;
+}
+
 /* ── Small shared bits ───────────────────────────────────────────── */
 
 .pill {
@@ -566,8 +613,11 @@
 .task-group-header:hover {
   background: var(--bg-hover);
 }
+/* Margin, not padding: the whole list container shifts under its
+   project header — padding would inset the rows (and their accent
+   edges) inside the container's own border. */
 .task-group-indent {
-  padding-left: 8px;
+  margin-left: 8px;
 }
 
 /* Subtask rows inside an expanded card. */
@@ -1056,20 +1106,24 @@
   color: var(--text-faint);
   text-align: center;
 }
-/* The month view fills its screen: the grid takes all leftover height
-   and rows share it equally, so bigger windows mean taller cells. */
+/* The calendar scrolls through weeks a few tall rows at a time, so
+   busy days read as lists instead of squeezing into a month grid. */
 .cal-screen {
   display: flex;
   flex-direction: column;
   padding-bottom: 24px;
 }
+.cal-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  grid-auto-rows: minmax(96px, 1fr);
+  /* ~3.5 week rows fill the viewport; never shorter than 150px. */
+  grid-auto-rows: max(150px, calc((100vh - 215px) / 3.5));
   gap: 6px;
-  flex: 1;
-  min-height: 0;
 }
 .cal-cell {
   background: var(--bg-card);
@@ -1091,9 +1145,6 @@
   overflow-y: auto;
   min-height: 0;
 }
-.cal-cell.dim {
-  opacity: 0.45;
-}
 .cal-cell.today {
   outline: 2px solid var(--accent);
 }
@@ -1101,6 +1152,10 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--text-soft);
+}
+/* The 1st of a month carries its name through the endless scroll. */
+.cal-daynum.month-start {
+  color: var(--accent);
 }
 /* --ev/--ev-soft are set inline when the event has a Google label
    color; without one the chips keep the theme accent. */
@@ -1189,6 +1244,35 @@
 /* Inside the overlay, "back" is meaningless — closing is the exit. */
 .overlay-modal .back-btn {
   display: none;
+}
+
+/* Project picker: 2–5 projects at a time — chips beat a dropdown. */
+.project-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.project-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 3px 10px;
+}
+.project-chip:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.project-chip.selected {
+  border-color: var(--chip-color, var(--accent));
+  background: color-mix(in srgb, var(--chip-color, var(--accent)) 14%, var(--bg-card));
+  color: var(--text);
 }
 
 /* Settings → Calendar labels: one compact row per Google color. */

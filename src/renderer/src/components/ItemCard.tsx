@@ -6,6 +6,7 @@ import { useNav } from '../state/nav'
 import { shortTitle, useUndo } from '../state/undo'
 import { Card } from './Card'
 import { CheckableInput, Checkbox, ProjectDot } from './bits'
+import { ProjectPicker } from './ProjectPicker'
 import { RichEditor } from './RichEditor'
 import { itemBodyHtml } from '../richtext'
 import { KIND_ICON, prettyDate, rollingDays } from './../format'
@@ -232,7 +233,9 @@ export function ItemCard({
   }
 
   return (
-    <Card accentColor={project?.color} done={done} faded={faded}>
+    // Inside an .item-list, the 'open' class is what lifts the row
+    // being edited back into a real card.
+    <Card accentColor={project?.color} done={done} faded={faded} className={open ? 'open' : ''}>
       <div
         onKeyDown={(e) => {
           if (e.key === 'Escape' && open) {
@@ -395,18 +398,11 @@ export function ItemCard({
               </button>
             </div>
           )}
+          <ProjectPicker
+            value={item.projectId}
+            onChange={(projectId) => patch({ projectId })}
+          />
           <div className="row" style={{ flexWrap: 'wrap' }}>
-            <select
-              value={item.projectId ?? ''}
-              onChange={(e) => patch({ projectId: e.target.value || null })}
-            >
-              <option value="">No project</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
             <label className="pill">
               do
               <input

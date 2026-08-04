@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import type { CalendarEvent, Item } from '@shared/types'
-import { useData, useLiveQuery, useMutate } from '../state/data'
+import { useLiveQuery, useMutate } from '../state/data'
 import { ItemCard } from '../components/ItemCard'
+import { ProjectPicker } from '../components/ProjectPicker'
 import { BackButton, CheckableInput, EmptyState, ProgressBar } from '../components/bits'
 import { RichEditor } from '../components/RichEditor'
 import { itemBodyHtml } from '../richtext'
@@ -38,7 +39,6 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
   const timeLabel = liveEvent?.startTime
     ? ` · ${ampm(liveEvent.startTime)}${liveEvent.endTime ? `–${ampm(liveEvent.endTime)}` : ''}`
     : ''
-  const { projects } = useData()
   const mutate = useMutate()
 
   const [prepDraft, setPrepDraft] = useState('')
@@ -127,25 +127,18 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
     [eventKey]
   )
 
-  const prepDone = preps.filter((p) => p.item.status === 'done').length
+  // Progress counts prep items and their subtasks (any depth) — the
+  // same number the timeline's event blocks show.
+  const prepProg = useLiveQuery(() => window.api.prepProgress([eventKey]), [eventKey])?.[0]
 
   // One action assigns this meeting to a project (SPEC §4.4).
   const projectSelect = (
-    <select
-      value={meeting?.projectId ?? ''}
-      onChange={(e) =>
-        mutate(() =>
-          window.api.assignMeetingProject({ eventKey, title, date }, e.target.value || null)
-        )
+    <ProjectPicker
+      value={meeting?.projectId ?? null}
+      onChange={(projectId) =>
+        mutate(() => window.api.assignMeetingProject({ eventKey, title, date }, projectId))
       }
-    >
-      <option value="">No project</option>
-      {projects.map((p) => (
-        <option key={p.id} value={p.id}>
-          {p.name}
-        </option>
-      ))}
-    </select>
+    />
   )
 
   return (
@@ -174,9 +167,9 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
         <section className="stack">
           <div className="section-label row">
             Prep
-            {preps.length > 0 && (
+            {(prepProg?.total ?? 0) > 0 && (
               <span style={{ flex: 1, maxWidth: 120 }}>
-                <ProgressBar done={prepDone} total={preps.length} />
+                <ProgressBar done={prepProg!.done} total={prepProg!.total} />
               </span>
             )}
           </div>
@@ -188,7 +181,7 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
           />
           {/* Full ItemCards, same as follow-ups (and tasks on Today):
               prep is editable in place wherever it appears. */}
-          <div className="stack">
+          <div className="item-list">
             <AnimatePresence>
               {preps.map(({ item }) => (
                 <ItemCard key={item.id} item={item} />
@@ -203,7 +196,7 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
             onChange={(e) => setFollowUpDraft(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addFollowUp()}
           />
-          <div className="stack">
+          <div className="item-list">
             <AnimatePresence>
               {followUps.map(({ item }) => (
                 <ItemCard key={item.id} item={item} />

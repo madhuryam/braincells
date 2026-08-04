@@ -6,6 +6,7 @@ import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { useLabels, type Label } from '../state/labels'
 import { ProgressBar } from './bits'
+import { ProjectPicker } from './ProjectPicker'
 import { AllDayBar } from './AllDayBar'
 import { ampm } from '../format'
 
@@ -83,7 +84,7 @@ export function Timeline({
     []
   )
   const mutate = useMutate()
-  const { navigate } = useNav()
+  const { openOverlay } = useNav()
 
   // Re-render every minute so the "now" line crawls.
   const [now, setNow] = useState(() => new Date())
@@ -277,7 +278,7 @@ export function Timeline({
                   onOpen={() =>
                     onPeekEvent
                       ? onPeekEvent({ eventKey: e.eventKey, title: e.title, date: e.date })
-                      : navigate({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
+                      : openOverlay({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
                   }
                 />
               )
@@ -405,7 +406,6 @@ function LocalEventEditor({
   onClose: () => void
 }): React.JSX.Element {
   const mutate = useMutate()
-  const { projects } = useData()
   const [title, setTitle] = useState(ev?.title ?? '')
   const [start, setStart] = useState(ev?.startTime ?? initialStart ?? '09:00')
   const [end, setEnd] = useState(ev?.endTime ?? initialEnd ?? '09:30')
@@ -491,21 +491,6 @@ function LocalEventEditor({
             if (e.target.value) save({ endTime: e.target.value })
           }}
         />
-        <select
-          value={projectId ?? ''}
-          onChange={(e) => {
-            const v = e.target.value || null
-            setProjectId(v)
-            save({ projectId: v })
-          }}
-        >
-          <option value="">No project</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
         <button className="btn ghost small" style={{ marginLeft: 'auto' }} onClick={remove}>
           🗑 delete
         </button>
@@ -513,6 +498,13 @@ function LocalEventEditor({
           Done
         </button>
       </div>
+      <ProjectPicker
+        value={projectId}
+        onChange={(v) => {
+          setProjectId(v)
+          save({ projectId: v })
+        }}
+      />
     </div>
   )
 }

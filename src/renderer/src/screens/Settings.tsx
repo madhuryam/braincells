@@ -4,6 +4,7 @@ import { todayYmd, ymdAddDays } from '@shared/dates'
 import { THEMES, useData, useLiveQuery, useMutate } from '../state/data'
 import { UNKNOWN_LABEL_HEX } from '../state/labels'
 import { Card } from '../components/Card'
+import { ProjectPicker } from '../components/ProjectPicker'
 import { DEFAULT_TIME_ZONE } from '../components/Sidebar'
 import { BackButton } from '../components/bits'
 import { ampm } from '../format'
@@ -364,7 +365,6 @@ function LabelRow({
   saved: LabelOverride | undefined
   onChange: (id: string, override: LabelOverride | null) => void
 }): React.JSX.Element {
-  const { projects } = useData()
   // Local state is the source of truth for the inputs — each change
   // saves, and the save round trip can never revert in-flight typing.
   const [name, setName] = useState(saved?.name ?? '')
@@ -428,20 +428,13 @@ function LabelRow({
           save({ name: e.target.value })
         }}
       />
-      <select
-        value={projectId}
-        onChange={(e) => {
-          setProjectId(e.target.value)
-          save({ projectId: e.target.value })
+      <ProjectPicker
+        value={projectId || null}
+        onChange={(v) => {
+          setProjectId(v ?? '')
+          save({ projectId: v ?? '' })
         }}
-      >
-        <option value="">No project</option>
-        {projects.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
+      />
       <button
         className="btn ghost icon-btn"
         title={`Reset to Google’s ${base.name}`}
