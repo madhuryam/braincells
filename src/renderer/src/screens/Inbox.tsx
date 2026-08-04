@@ -8,7 +8,7 @@ import { prettyDate, rollingDays } from '../format'
 import { ItemCard } from '../components/ItemCard'
 import { Card } from '../components/Card'
 import { DraggableCard } from '../components/dnd'
-import { BackButton, EmptyState, IconInput } from '../components/bits'
+import { BackButton, CheckableInput, EmptyState } from '../components/bits'
 
 // Empty inbox is the app's only "win state" (SPEC §4.2) — celebrate it.
 const ZERO_MESSAGES = [
@@ -23,7 +23,6 @@ function keyLegend(): Array<[string, string]> {
     ['↑↓', 'select'],
     ...rollingDays().map((d, i) => [`${i + 1}`, d.chip] as [string, string]),
     ['0', 'someday'],
-    ['N', 'make note'],
     ['P', 'project…'],
     ['M', 'meeting prep…'],
     ['X', 'drop']
@@ -42,7 +41,6 @@ export function Inbox(): React.JSX.Element {
   const events =
     useLiveQuery(() => window.api.calendarEvents(todayYmd(), ymdAddDays(todayYmd(), 7)), []) ?? []
   const backlog = useLiveQuery(() => window.api.backlogTasks(), []) ?? []
-  const unfiled = useLiveQuery(() => window.api.unfiledNotes(), []) ?? []
   const completed = useLiveQuery(() => window.api.recentCompleted(50), []) ?? []
   const zero = useMemo(() => ZERO_MESSAGES[Math.floor(Math.random() * ZERO_MESSAGES.length)], [])
 
@@ -96,9 +94,6 @@ export function Inbox(): React.JSX.Element {
         case '0': // someday: an active task with no date — the backlog
           triage({ kind: 'task', status: 'active' })
           break
-        case 'n':
-          triage({ kind: 'note', status: 'active' })
-          break
         case 'p':
           setPicking('project')
           break
@@ -122,7 +117,7 @@ export function Inbox(): React.JSX.Element {
   const capture = async (): Promise<void> => {
     const title = draft.trim()
     if (!title) return
-    await mutate(() => window.api.createItem({ kind: 'note', title }))
+    await mutate(() => window.api.createItem({ kind: 'task', title }))
     setDraft('')
   }
 
@@ -156,10 +151,8 @@ export function Inbox(): React.JSX.Element {
       </header>
 
       <div style={{ marginBottom: 14 }}>
-        <IconInput
-          icon="📝"
-          iconTitle="Lands here as a note — triage it with the keys below"
-          placeholder="Capture anything — sort it out later…"
+        <CheckableInput
+          placeholder="Capture anything — it lands here as a task to triage…"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && capture()}
@@ -238,11 +231,6 @@ export function Inbox(): React.JSX.Element {
         items={backlog}
       />
       <ItemSection
-        title="Notes · unfiled"
-        hint="Notes that aren't in any project yet. Drag one onto a project in the sidebar."
-        items={unfiled}
-      />
-      <ItemSection
         title="Completed"
         hint="Everything you've finished, newest first. Uncheck one to bring it back."
         items={completed}
@@ -251,7 +239,7 @@ export function Inbox(): React.JSX.Element {
   )
 }
 
-/** A collapsible card list with a count, used for backlog and notes. */
+/** A collapsible card list with a count, used for backlog and done. */
 function ItemSection({
   title,
   hint,

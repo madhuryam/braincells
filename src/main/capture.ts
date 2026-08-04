@@ -62,13 +62,13 @@ export function setUpQuickCapture(store: Store, onItemCaptured: () => void): voi
     const text = raw.trim()
     if (text) {
       const parsed = parseShorthand(text, store.listProjects())
+      // Everything captured is a task — shorthand-scheduled ones are
+      // ready to go, the rest wait in the inbox for triage.
       store.createItem({
-        kind: parsed.isTask ? 'task' : 'note',
+        kind: 'task',
         title: parsed.title,
         projectId: parsed.projectId,
         scheduledDate: parsed.scheduledDate,
-        // Shorthand-scheduled captures are ready-to-go tasks; everything
-        // else waits in the inbox for triage.
         status: parsed.scheduledDate ? 'active' : 'inbox'
       })
       onItemCaptured()

@@ -52,7 +52,6 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   const open = (items ?? []).filter((i) => i.status === 'active' || i.status === 'inbox')
   const pages = open.filter((i) => i.kind === 'page')
   const todos = open.filter((i) => i.kind === 'task' || i.kind === 'prep')
-  const notes = open.filter((i) => i.kind === 'note' || i.kind === 'journal')
   const done = (items ?? []).filter((i) => i.status === 'done' && i.kind !== 'page')
 
   // Projects hold tasks and pages — a longer thought belongs on a
@@ -196,21 +195,6 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
           <div className="stack project-section">
             <AnimatePresence initial={false}>
               {todos.map((item) => (
-                <DraggableCard key={item.id} item={item}>
-                  <ItemCard item={item} showProject={false} />
-                </DraggableCard>
-              ))}
-            </AnimatePresence>
-          </div>
-        </>
-      )}
-
-      {notes.length > 0 && (
-        <>
-          <div className="section-label">Notes</div>
-          <div className="stack project-section">
-            <AnimatePresence initial={false}>
-              {notes.map((item) => (
                 <DraggableCard key={item.id} item={item}>
                   <ItemCard item={item} showProject={false} />
                 </DraggableCard>

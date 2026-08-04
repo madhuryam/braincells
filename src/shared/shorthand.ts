@@ -4,8 +4,6 @@ export interface ParsedCapture {
   title: string
   projectId: string | null
   scheduledDate: string | null
-  /** True when shorthand made this a dated task rather than a raw note. */
-  isTask: boolean
 }
 
 /**
@@ -51,7 +49,6 @@ export function parseShorthand(
   return {
     title: keptWords.join(' '),
     projectId,
-    scheduledDate,
-    isTask: scheduledDate !== null
+    scheduledDate
   }
 }

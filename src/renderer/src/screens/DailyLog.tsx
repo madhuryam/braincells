@@ -116,12 +116,12 @@ export function DailyLog(): React.JSX.Element {
             onOpenFull={
               detail.kind === 'meeting'
                 ? () =>
-                    navigate({
-                      name: 'meeting',
-                      eventKey: detail.eventKey,
-                      title: detail.title,
-                      date: detail.date
-                    })
+                  navigate({
+                    name: 'meeting',
+                    eventKey: detail.eventKey,
+                    title: detail.title,
+                    date: detail.date
+                  })
                 : undefined
             }
             onClose={() => setDetail(null)}
@@ -175,7 +175,7 @@ function DayBlock({
           <DayJournal date={date} />
 
           {events.length === 0 && completed.length === 0 && (
-            <EmptyState art="🏝️">No meetings, nothing checked off this day.</EmptyState>
+            <EmptyState art="🗒️">N o n e</EmptyState>
           )}
 
           <AllDayBar events={events} />

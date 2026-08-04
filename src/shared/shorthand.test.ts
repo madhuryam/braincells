@@ -13,8 +13,7 @@ describe('parseShorthand', () => {
     expect(r).toEqual({
       title: 'call the dentist',
       projectId: null,
-      scheduledDate: null,
-      isTask: false
+      scheduledDate: null
     })
   })
 
@@ -30,8 +29,7 @@ describe('parseShorthand', () => {
     expect(r).toEqual({
       title: 'buy cake',
       projectId: 'p2',
-      scheduledDate: ymdAddDays(todayYmd(), 1),
-      isTask: true
+      scheduledDate: ymdAddDays(todayYmd(), 1)
     })
   })
 
@@ -40,8 +38,7 @@ describe('parseShorthand', () => {
     expect(r).toEqual({
       title: 'read #thatbook !sometime',
       projectId: null,
-      scheduledDate: null,
-      isTask: false
+      scheduledDate: null
     })
   })
 
