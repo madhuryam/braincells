@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import type { CalendarEvent } from '../../shared/types'
 import type { Store } from '../store'
+import { autoFileMeetingsByLabel } from './classify'
 import { demoEvents } from './demo'
 import { withoutWorkLocationEvents } from './filter'
 import { GoogleCalendar } from './google'
@@ -10,15 +11,16 @@ export type CalendarMode = 'demo' | 'google' | 'off'
 /**
  * The calendar IPC surface. Whichever provider is active, events are
  * read live and never stored — but every fetch refreshes the
- * title/date snapshots on existing links, which is how reschedules
- * propagate to saved notes (SPEC §3).
+ * title/date snapshots on existing links (how reschedules propagate
+ * to saved notes, SPEC §3) and files labeled meetings into their
+ * label's associated project.
  */
 export function registerCalendarIpc(store: Store): void {
   const google = new GoogleCalendar(store)
 
   ipcMain.handle(
     'calendar:events',
-    async (_e, startDate: string, endDate: string): Promise<CalendarEvent[]> => {
+    async (e, startDate: string, endDate: string): Promise<CalendarEvent[]> => {
       const mode = store.getSetting<CalendarMode>('calendarMode') ?? 'demo'
       let events: CalendarEvent[] = []
       if (mode === 'demo') {
@@ -32,6 +34,11 @@ export function registerCalendarIpc(store: Store): void {
         events = withoutWorkLocationEvents(events)
       }
       store.refreshEventSnapshots(events)
+      // Filing only ever creates rows, so this converges: the refresh
+      // it triggers re-fetches once, files nothing, and goes quiet.
+      if (autoFileMeetingsByLabel(store, events) > 0) {
+        e.sender.send('data-changed')
+      }
       return events
     }
   )
