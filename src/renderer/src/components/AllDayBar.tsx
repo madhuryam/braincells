@@ -8,7 +8,7 @@ import { useLabels } from '../state/labels'
  * back nothing when the day has no all-day events.
  */
 export function AllDayBar({ events }: { events: CalendarEvent[] }): React.JSX.Element | null {
-  const { navigate } = useNav()
+  const { openOverlay } = useNav()
   const labels = useLabels()
   const allDay = events.filter((e) => !e.startTime)
   if (allDay.length === 0) return null
@@ -23,7 +23,7 @@ export function AllDayBar({ events }: { events: CalendarEvent[] }): React.JSX.El
             className="allday-chip"
             title={`${e.title} · all day${color ? ` · ${color.name}` : ''} — open notes`}
             onClick={() =>
-              navigate({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
+              openOverlay({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
             }
           >
             {color ? <span className="allday-dot" style={{ background: color.hex }} /> : '🗓️'}{' '}

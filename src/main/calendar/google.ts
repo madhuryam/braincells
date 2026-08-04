@@ -89,45 +89,53 @@ export class GoogleCalendar {
 
   async eventsBetween(startDate: string, endDate: string): Promise<CalendarEvent[]> {
     const accessToken = await this.freshAccessToken()
-    const params = new URLSearchParams({
-      timeMin: localDayStart(startDate).toISOString(),
-      timeMax: localDayStart(endDate, /* nextDay */ true).toISOString(),
-      singleEvents: 'true',
-      orderBy: 'startTime',
-      maxResults: '250'
-    })
-    const res = await fetch(`${EVENTS_URL}?${params}`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    })
-    if (!res.ok) throw new Error(`Google Calendar: ${res.status} ${await res.text()}`)
-    const body = (await res.json()) as {
-      items?: Array<{
-        id: string
-        status?: string
-        summary?: string
-        colorId?: string
-        start?: { dateTime?: string; date?: string }
-        end?: { dateTime?: string; date?: string }
-      }>
-    }
-
     const events: CalendarEvent[] = []
-    for (const e of body.items ?? []) {
-      if (e.status === 'cancelled' || !e.start) continue
-      const startsAt = e.start.dateTime ? new Date(e.start.dateTime) : null
-      const date = startsAt ? ymd(startsAt) : e.start.date
-      if (!date) continue
-      events.push({
-        // Google event ids persist across edits and reschedules, which
-        // is what lets links survive (SPEC §3).
-        eventKey: eventKeyOf(e.id, date),
-        title: e.summary ?? '(untitled)',
-        date,
-        startTime: startsAt ? hhmm(startsAt) : null,
-        endTime: e.end?.dateTime ? hhmm(new Date(e.end.dateTime)) : null,
-        colorId: e.colorId ?? null
+    // Wide ranges (the scrolling calendar asks for months at a time)
+    // can exceed one page — follow nextPageToken to the end.
+    let pageToken: string | undefined
+    do {
+      const params = new URLSearchParams({
+        timeMin: localDayStart(startDate).toISOString(),
+        timeMax: localDayStart(endDate, /* nextDay */ true).toISOString(),
+        singleEvents: 'true',
+        orderBy: 'startTime',
+        maxResults: '250'
       })
-    }
+      if (pageToken) params.set('pageToken', pageToken)
+      const res = await fetch(`${EVENTS_URL}?${params}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
+      if (!res.ok) throw new Error(`Google Calendar: ${res.status} ${await res.text()}`)
+      const body = (await res.json()) as {
+        nextPageToken?: string
+        items?: Array<{
+          id: string
+          status?: string
+          summary?: string
+          colorId?: string
+          start?: { dateTime?: string; date?: string }
+          end?: { dateTime?: string; date?: string }
+        }>
+      }
+
+      for (const e of body.items ?? []) {
+        if (e.status === 'cancelled' || !e.start) continue
+        const startsAt = e.start.dateTime ? new Date(e.start.dateTime) : null
+        const date = startsAt ? ymd(startsAt) : e.start.date
+        if (!date) continue
+        events.push({
+          // Google event ids persist across edits and reschedules, which
+          // is what lets links survive (SPEC §3).
+          eventKey: eventKeyOf(e.id, date),
+          title: e.summary ?? '(untitled)',
+          date,
+          startTime: startsAt ? hhmm(startsAt) : null,
+          endTime: e.end?.dateTime ? hhmm(new Date(e.end.dateTime)) : null,
+          colorId: e.colorId ?? null
+        })
+      }
+      pageToken = body.nextPageToken
+    } while (pageToken)
     return events
   }
 
