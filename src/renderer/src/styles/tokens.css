@@ -38,7 +38,81 @@
   --local-event: #adb5bd;
 }
 
-[data-theme='dark'] {
+/* ── Named themes (Settings → Appearance). :root above is 'paper'. ── */
+
+/* Slate: plain white and gray, navy accents — the no-nonsense one. */
+[data-theme='slate'] {
+  --accent: #364fc7;
+  --accent-soft: #364fc71f;
+  --gradient-accent: linear-gradient(135deg, #364fc7, #1971c2);
+  --bg: #ffffff;
+  --bg-sunken: #f1f3f5;
+  --bg-hover: #f0f2f9;
+  --text: #212529;
+  --text-soft: #5c636a;
+  --text-faint: #9aa1a9;
+  --border: #e2e5e9;
+  --sidebar-bg: #f3f4f6;
+}
+
+[data-theme='ocean'] {
+  --accent: #1c7ed6;
+  --accent-soft: #1c7ed622;
+  --gradient-accent: linear-gradient(135deg, #1c7ed6, #15aabf);
+  --bg: #f4f9fc;
+  --bg-sunken: #e7f0f7;
+  --bg-hover: #e8f4fb;
+  --text: #1f2f3c;
+  --text-soft: #5c6f7f;
+  --text-faint: #91a4b3;
+  --border: #d7e5ef;
+  --sidebar-bg: #e6eff6;
+}
+
+[data-theme='sunset'] {
+  --accent: #f76707;
+  --accent-soft: #f7670722;
+  --gradient-accent: linear-gradient(135deg, #f76707, #f03e3e);
+  --bg: #fdf8f2;
+  --bg-sunken: #f7ede1;
+  --bg-hover: #fcf1e5;
+  --text: #382c22;
+  --text-soft: #7c6c5c;
+  --text-faint: #b3a291;
+  --border: #eddfd0;
+  --sidebar-bg: #f7eee2;
+}
+
+[data-theme='rose'] {
+  --accent: #e64980;
+  --accent-soft: #e6498022;
+  --gradient-accent: linear-gradient(135deg, #e64980, #be4bdb);
+  --bg: #fdf6f9;
+  --bg-sunken: #f8eaf1;
+  --bg-hover: #fbedf4;
+  --text: #372630;
+  --text-soft: #7b6572;
+  --text-faint: #b299a7;
+  --border: #eedbe5;
+  --sidebar-bg: #f8ecf2;
+}
+
+[data-theme='forest'] {
+  --accent: #2f9e44;
+  --accent-soft: #2f9e4422;
+  --gradient-accent: linear-gradient(135deg, #2f9e44, #66a80f);
+  --bg: #f6faf3;
+  --bg-sunken: #ebf2e6;
+  --bg-hover: #eef7e9;
+  --text: #263123;
+  --text-soft: #657261;
+  --text-faint: #9aa896;
+  --border: #dde8d7;
+  --sidebar-bg: #ebf1e6;
+}
+
+/* Plum: the one dark theme — warm, colorful, never gray-on-gray. */
+[data-theme='plum'] {
   --bg: #1b1825;
   --bg-sunken: #141220;
   --bg-card: #262236;

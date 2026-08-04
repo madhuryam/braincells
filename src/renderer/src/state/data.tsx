@@ -3,12 +3,34 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode
 } from 'react'
 import type { Item, Project } from '@shared/types'
 
-type Theme = 'light' | 'dark' | 'system'
+export type ThemeId = 'paper' | 'slate' | 'ocean' | 'sunset' | 'rose' | 'forest' | 'plum'
+
+export interface ThemeDef {
+  id: ThemeId
+  label: string
+  dark: boolean
+  /** Accent color for the picker swatch. */
+  swatch: string
+}
+
+/** Six light moods plus one friendly, colorful dark. */
+export const THEMES: ThemeDef[] = [
+  { id: 'paper', label: 'Paper', dark: false, swatch: '#845ef7' },
+  { id: 'slate', label: 'Slate', dark: false, swatch: '#364fc7' },
+  { id: 'ocean', label: 'Ocean', dark: false, swatch: '#1c7ed6' },
+  { id: 'sunset', label: 'Sunset', dark: false, swatch: '#f76707' },
+  { id: 'rose', label: 'Rose', dark: false, swatch: '#e64980' },
+  { id: 'forest', label: 'Forest', dark: false, swatch: '#2f9e44' },
+  { id: 'plum', label: 'Plum · dark', dark: true, swatch: '#9775fa' }
+]
+
+const isThemeId = (v: unknown): v is ThemeId => THEMES.some((t) => t.id === v)
 
 /**
  * Data freshness works with one global "version" counter: every
@@ -23,10 +45,12 @@ interface DataContextValue {
   projects: Project[]
   inboxCount: number
   starred: Item[]
-  theme: Theme
-  /** The currently *resolved* appearance (theme + system preference). */
+  theme: ThemeId
+  /** Whether the active theme is a dark one. */
   dark: boolean
-  setTheme: (t: Theme) => void
+  setTheme: (t: ThemeId) => void
+  /** Flip into the dark theme and back to the last light one. */
+  toggleDark: () => void
 }
 
 const DataContext = createContext<DataContextValue | null>(null)
@@ -36,7 +60,7 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
   const [projects, setProjects] = useState<Project[]>([])
   const [inboxCount, setInboxCount] = useState(0)
   const [starred, setStarred] = useState<Item[]>([])
-  const [theme, setThemeState] = useState<Theme>('system')
+  const [theme, setThemeState] = useState<ThemeId>('paper')
   const [dark, setDark] = useState(false)
 
   const bump = useCallback(() => setVersion((v) => v + 1), [])
@@ -51,35 +75,46 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
     window.api.starredItems().then(setStarred)
   }, [version])
 
-  // Theme: load once, then keep the <html data-theme> attribute in sync.
+  // Theme: load once (migrating the old light/dark/system values),
+  // then keep the <html data-theme> attribute in sync.
   useEffect(() => {
-    window.api.getSetting<Theme>('theme').then((t) => t && setThemeState(t))
+    window.api.getSetting<string>('theme').then((t) => {
+      if (isThemeId(t)) setThemeState(t)
+      else if (t === 'dark') setThemeState('plum')
+      else if (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        setThemeState('plum')
+      // anything else (old 'light', unset) stays on paper
+    })
   }, [])
+  // Remembered so the sidebar moon can flip back to *your* light theme.
+  const lastLight = useRef<ThemeId>('paper')
   useEffect(() => {
-    const apply = (): void => {
-      const isDark =
-        theme === 'dark' ||
-        (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-      document.documentElement.dataset.theme = isDark ? 'dark' : 'light'
-      // Mirrored into React state so components (the sidebar toggle)
-      // re-render with the right icon — reading the DOM attribute at
-      // render time races with this effect and froze the toggle.
-      setDark(isDark)
-    }
-    apply()
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    mq.addEventListener('change', apply)
-    return () => mq.removeEventListener('change', apply)
+    document.documentElement.dataset.theme = theme
+    const isDark = THEMES.find((t) => t.id === theme)!.dark
+    if (!isDark) lastLight.current = theme
+    // Mirrored into React state so components (the sidebar toggle)
+    // re-render with the right icon — reading the DOM attribute at
+    // render time races with this effect and froze the toggle.
+    setDark(isDark)
   }, [theme])
 
-  const setTheme = useCallback((t: Theme) => {
+  const setTheme = useCallback((t: ThemeId) => {
     setThemeState(t)
     window.api.setSetting('theme', t)
+  }, [])
+  const toggleDark = useCallback(() => {
+    setThemeState((cur) => {
+      const next = THEMES.find((t) => t.id === cur)!.dark ? lastLight.current : 'plum'
+      window.api.setSetting('theme', next)
+      return next
+    })
   }, [])
 
 
   return (
-    <DataContext.Provider value={{ version, bump, projects, inboxCount, starred, theme, dark, setTheme }}>
+    <DataContext.Provider
+      value={{ version, bump, projects, inboxCount, starred, theme, dark, setTheme, toggleDark }}
+    >
       {children}
     </DataContext.Provider>
   )

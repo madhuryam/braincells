@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useData, useLiveQuery, useMutate } from '../state/data'
+import { THEMES, useData, useLiveQuery, useMutate } from '../state/data'
 import { Card } from '../components/Card'
 import { DEFAULT_TIME_ZONE } from '../components/Sidebar'
 import { BackButton } from '../components/bits'
@@ -59,15 +59,26 @@ export function Settings(): React.JSX.Element {
 
       <div className="stack" style={{ gap: 16 }}>
         <Card className="stack">
-          <h2>Appearance</h2>
-          <div className="row">
-            {(['light', 'dark', 'system'] as const).map((t) => (
+          <h2>Theme</h2>
+          <div className="row" style={{ flexWrap: 'wrap' }}>
+            {THEMES.map((t) => (
               <button
-                key={t}
-                className={`btn ${theme === t ? 'primary' : ''}`}
-                onClick={() => setTheme(t)}
+                key={t.id}
+                className={`btn ${theme === t.id ? 'primary' : ''}`}
+                onClick={() => setTheme(t.id)}
               >
-                {t}
+                <span
+                  aria-hidden
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: '50%',
+                    background: t.swatch,
+                    boxShadow: theme === t.id ? '0 0 0 2px #fff' : undefined,
+                    flexShrink: 0
+                  }}
+                />
+                {t.label}
               </button>
             ))}
           </div>

@@ -62,7 +62,7 @@ function NavItem({
 export function Sidebar(): React.JSX.Element {
   // `dark` comes from context state (not the DOM attribute) so the
   // toggle button always re-renders in step with the actual theme.
-  const { projects, inboxCount, starred, dark, setTheme } = useData()
+  const { projects, inboxCount, starred, dark, toggleDark } = useData()
   const { view, navigate } = useNav()
   const [collapsed, setCollapsed] = useState(false)
   const [starredOpen, setStarredOpen] = useState(true)
@@ -142,8 +142,8 @@ export function Sidebar(): React.JSX.Element {
           <>
             <button
               className="btn ghost icon-btn"
-              title="Toggle light/dark"
-              onClick={() => setTheme(dark ? 'light' : 'dark')}
+              title="Toggle light/dark (remembers your light theme)"
+              onClick={toggleDark}
             >
               {dark ? '☀️' : '🌙'}
             </button>
