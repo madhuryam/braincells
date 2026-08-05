@@ -1,10 +1,14 @@
 import { app, dialog, ipcMain, type BrowserWindow } from 'electron'
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { todayYmd } from '../../shared/dates'
 import type { Store } from '../store'
 import { buildExport } from './export'
 import { replaceDatabase } from './restore'
+
+/** Where backups live by default: ~/.config/braincells. */
+const BACKUP_DIR = join(homedir(), '.config', 'braincells')
 
 /**
  * Local backups, on demand, no cloud (SPEC §2 goal 6, §8):
@@ -20,9 +24,10 @@ import { replaceDatabase } from './restore'
  */
 
 export async function createBackup(store: Store, win: BrowserWindow): Promise<string | null> {
+  mkdirSync(BACKUP_DIR, { recursive: true })
   const { filePath } = await dialog.showSaveDialog(win, {
     title: 'Create Backup',
-    defaultPath: `braincells-backup-${todayYmd()}.sqlite3`
+    defaultPath: join(BACKUP_DIR, `braincells-backup-${todayYmd()}.sqlite3`)
   })
   if (!filePath) return null
   await store.db.backup(filePath)
@@ -76,9 +81,8 @@ export async function restoreBackup(store: Store, win: BrowserWindow): Promise<v
  * comes up blank — quirk of `npm run dev`, fine in the packaged app.)
  */
 export async function clearDatabase(store: Store, win: BrowserWindow): Promise<void> {
-  const backupDir = join(app.getPath('userData'), 'backups')
-  mkdirSync(backupDir, { recursive: true })
-  const backupPath = join(backupDir, `braincells-pre-clear-${todayYmd()}-${Date.now()}.sqlite3`)
+  mkdirSync(BACKUP_DIR, { recursive: true })
+  const backupPath = join(BACKUP_DIR, `braincells-pre-clear-${todayYmd()}-${Date.now()}.sqlite3`)
 
   const { response } = await dialog.showMessageBox(win, {
     type: 'warning',
