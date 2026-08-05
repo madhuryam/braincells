@@ -100,6 +100,59 @@
   position: relative;
 }
 
+/* ── Keyboard cheat-sheet ("?" or the sidebar ⌨ button) ──────────── */
+
+.hotkeys-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, #000 40%, transparent);
+}
+.hotkeys-modal {
+  width: min(620px, 92vw);
+  max-height: 82vh;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lift);
+  padding: 18px 22px 20px;
+}
+.hotkeys-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 28px;
+}
+.hotkey-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3.5px 0;
+  font-size: 13px;
+}
+.hotkey-keys {
+  display: flex;
+  gap: 3px;
+  justify-content: flex-end;
+  min-width: 86px;
+  flex-shrink: 0;
+}
+kbd.key {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--text-soft);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
 .btn:disabled {
   opacity: 0.35;
   cursor: default;
@@ -1463,6 +1516,18 @@
   font-family: ui-monospace, monospace;
   font-size: 12px;
   padding: 6px 8px;
+}
+
+/* The "on N recent events: …" identifier line, on its own row below
+   the controls, indented past the color swatch. */
+.label-row .label-hint {
+  grid-column: 1 / -1;
+  margin: -3px 0 5px 44px;
+  font-size: 11.5px;
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .label-row input[type='color'] {

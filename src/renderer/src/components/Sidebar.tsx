@@ -5,6 +5,7 @@ import { useData, useLiveQuery } from '../state/data'
 import { useNav, type View } from '../state/nav'
 import { ProjectDot } from './bits'
 import { DropZone } from './dnd'
+import { HotkeysHelp, isTyping } from './HotkeysHelp'
 
 export const DEFAULT_TIME_ZONE = 'America/New_York'
 
@@ -76,6 +77,20 @@ export function Sidebar(): React.JSX.Element {
   const { view, navigate, openOverlay } = useNav()
   const [collapsed, setCollapsed] = useState(false)
   const [starredOpen, setStarredOpen] = useState(true)
+  const [keysOpen, setKeysOpen] = useState(false)
+
+  // "?" opens the shortcut cheat-sheet from anywhere (unless typing).
+  // Lives here because the sidebar is mounted on every screen.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !isTyping(e)) {
+        e.preventDefault()
+        setKeysOpen((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
     <nav className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -159,6 +174,13 @@ export function Sidebar(): React.JSX.Element {
             </button>
             <button
               className="btn ghost icon-btn"
+              title="Keyboard shortcuts (?)"
+              onClick={() => setKeysOpen(true)}
+            >
+              ❔
+            </button>
+            <button
+              className="btn ghost icon-btn"
               title="Settings"
               onClick={() => navigate({ name: 'settings' })}
             >
@@ -175,6 +197,8 @@ export function Sidebar(): React.JSX.Element {
           {collapsed ? '»' : '«'}
         </button>
       </div>
+
+      <HotkeysHelp open={keysOpen} onClose={() => setKeysOpen(false)} />
     </nav>
   )
 }

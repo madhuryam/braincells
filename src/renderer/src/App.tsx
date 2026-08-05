@@ -6,6 +6,7 @@ import { NavProvider, useNav } from './state/nav'
 import { Sidebar } from './components/Sidebar'
 import { TooltipProvider } from './components/Tooltip'
 import { AppDnd } from './components/dnd'
+import { isTyping } from './components/HotkeysHelp'
 import { Today } from './screens/Today'
 import { Inbox } from './screens/Inbox'
 import { Projects } from './screens/Projects'
@@ -129,6 +130,17 @@ function Shortcuts(): null {
         e.preventDefault()
         navigate({ name: 'search' })
         requestAnimationFrame(() => document.getElementById('search-input')?.focus())
+      }
+      // ⌘I → Inbox, but not while typing — the notes editor keeps ⌘I
+      // for italics.
+      if (e.metaKey && e.key.toLowerCase() === 'i' && !isTyping(e)) {
+        e.preventDefault()
+        navigate({ name: 'inbox' })
+      }
+      // ⌘, → Settings (the macOS-standard preferences shortcut).
+      if (e.metaKey && e.key === ',') {
+        e.preventDefault()
+        navigate({ name: 'settings' })
       }
     }
     window.addEventListener('keydown', onKey)

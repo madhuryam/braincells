@@ -302,21 +302,34 @@ function CalendarLabelsCard(): React.JSX.Element | null {
     () => window.api.getSetting<Record<string, LabelOverride>>('calendarLabels'),
     []
   )
-  // Label ids in use on recent events. Fetched once on mount — not a
-  // live query, so per-keystroke saves don't refetch the calendar.
-  const [seenIds, setSeenIds] = useState<string[]>([])
+  // Which labels are in use on recent events, with a few example titles
+  // each — so an opaque colorId ("Label 27") is recognizable as the
+  // label its meetings actually wear. Fetched once on mount, not a live
+  // query, so per-keystroke saves don't refetch the calendar.
+  const [usage, setUsage] = useState<Record<string, { titles: string[]; count: number }>>({})
   useEffect(() => {
     const today = todayYmd()
     window.api
       .calendarEvents(ymdAddDays(today, -30), ymdAddDays(today, 60))
-      .then((events) => setSeenIds([...new Set(events.map((e) => e.colorId).filter((id): id is string => !!id))]))
+      .then((events) => {
+        const by: Record<string, { titles: string[]; count: number }> = {}
+        for (const e of events) {
+          if (!e.colorId) continue
+          const slot = (by[e.colorId] ??= { titles: [], count: 0 })
+          slot.count++
+          if (slot.titles.length < 3 && e.title && !slot.titles.includes(e.title)) {
+            slot.titles.push(e.title)
+          }
+        }
+        setUsage(by)
+      })
   }, [])
 
   // Rows keep their own input state (the LocalEventEditor pattern), so
   // they must seed from real values — wait out the first load.
   if (saved === undefined) return null
 
-  const extraIds = [...new Set([...seenIds, ...Object.keys(saved ?? {})])]
+  const extraIds = [...new Set([...Object.keys(usage), ...Object.keys(saved ?? {})])]
     .filter((id) => !GOOGLE_EVENT_COLORS[id])
     .sort((a, b) => Number(a) - Number(b) || a.localeCompare(b))
 
@@ -338,7 +351,7 @@ function CalendarLabelsCard(): React.JSX.Element | null {
       </p>
       <div className="stack" style={{ gap: 6 }}>
         {Object.entries(GOOGLE_EVENT_COLORS).map(([id, base]) => (
-          <LabelRow key={id} id={id} base={base} saved={saved?.[id]} onChange={update} />
+          <LabelRow key={id} id={id} base={base} saved={saved?.[id]} usage={usage[id]} onChange={update} />
         ))}
         {extraIds.map((id) => (
           <LabelRow
@@ -346,6 +359,7 @@ function CalendarLabelsCard(): React.JSX.Element | null {
             id={id}
             base={{ name: `Label ${id}`, hex: UNKNOWN_LABEL_HEX }}
             saved={saved?.[id]}
+            usage={usage[id]}
             onChange={update}
           />
         ))}
@@ -358,11 +372,14 @@ function LabelRow({
   id,
   base,
   saved,
+  usage,
   onChange
 }: {
   id: string
   base: { name: string; hex: string }
   saved: LabelOverride | undefined
+  /** Recent events wearing this label — a couple of example titles. */
+  usage: { titles: string[]; count: number } | undefined
   onChange: (id: string, override: LabelOverride | null) => void
 }): React.JSX.Element {
   // Local state is the source of truth for the inputs — each change
@@ -443,6 +460,14 @@ function LabelRow({
       >
         ↺
       </button>
+      {/* Which of your meetings wear this label — so you can tell an
+          opaque colorId apart by the events using it. */}
+      {usage && usage.count > 0 && (
+        <span className="label-hint" title={usage.titles.join(', ')}>
+          on {usage.count} recent {usage.count === 1 ? 'event' : 'events'}: {usage.titles.join(', ')}
+          {usage.count > usage.titles.length ? '…' : ''}
+        </span>
+      )}
     </div>
   )
 }
