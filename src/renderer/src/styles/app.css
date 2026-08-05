@@ -111,6 +111,7 @@
   justify-content: center;
   background: color-mix(in srgb, #000 40%, transparent);
 }
+
 .hotkeys-modal {
   width: min(620px, 92vw);
   max-height: 82vh;
@@ -121,11 +122,13 @@
   box-shadow: var(--shadow-lift);
   padding: 18px 22px 20px;
 }
+
 .hotkeys-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px 28px;
 }
+
 .hotkey-row {
   display: flex;
   align-items: center;
@@ -133,6 +136,7 @@
   padding: 3.5px 0;
   font-size: 13px;
 }
+
 .hotkey-keys {
   display: flex;
   gap: 3px;
@@ -140,6 +144,7 @@
   min-width: 86px;
   flex-shrink: 0;
 }
+
 kbd.key {
   font-family: inherit;
   font-size: 11px;
@@ -871,7 +876,10 @@ kbd.key {
   justify-content: center;
 }
 
-/* A slight all-around border; a Google label recolors it inline. */
+/* A slight all-around border; a Google label recolors it inline.
+   Separation between neighbors comes from real gaps (the column width
+   and a small vertical inset), not an outward ring — a ring's spread
+   bled into the gap and made adjacent events overlap. */
 .timeline-event {
   position: absolute;
   overflow: hidden;
@@ -1025,6 +1033,18 @@ kbd.key {
   height: 8px;
   border-radius: 50%;
   background: var(--danger);
+}
+
+/* The elapsed part of today: a soft veil from the top down to the now
+   line. Theme-adaptive (tints toward the text color) and behind events,
+   so it only shades the empty grid — past meetings keep their own tint. */
+.timeline-past {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  pointer-events: none;
 }
 
 /* ── Pages: the rich text editor ─────────────────────────────────── */
@@ -1396,6 +1416,7 @@ kbd.key {
   font-size: 12px;
   color: var(--text-soft);
 }
+
 .ev-label-dot {
   width: 8px;
   height: 8px;
@@ -1504,12 +1525,31 @@ kbd.key {
   color: var(--text);
 }
 
-/* Settings → Calendar labels: one compact row per Google color. */
+/* Settings → Calendar labels: one compact row per Google color,
+   drag-reorderable by the leading ⠿ grip. */
 .label-row {
   display: grid;
-  grid-template-columns: 36px 84px minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: 14px 36px 84px minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+}
+
+.label-grip {
+  color: var(--text-faint);
+  font-size: 13px;
+  line-height: 1;
+  padding: 6px 0;
+  cursor: grab;
+  touch-action: none;
+  /* dnd-kit pointer sensor needs the raw events */
+}
+
+.label-grip:active {
+  cursor: grabbing;
+}
+
+.label-grip:hover {
+  color: var(--text-soft);
 }
 
 .label-row .label-hex {
@@ -1522,7 +1562,7 @@ kbd.key {
    the controls, indented past the color swatch. */
 .label-row .label-hint {
   grid-column: 1 / -1;
-  margin: -3px 0 5px 44px;
+  margin: -3px 0 5px 66px;
   font-size: 11.5px;
   color: var(--text-soft);
   overflow: hidden;

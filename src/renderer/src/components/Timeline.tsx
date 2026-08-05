@@ -241,6 +241,16 @@ export function Timeline({
           style={{ height: totalHeight }}
           onMouseDown={onMouseDown}
         >
+          {/* A soft veil over the elapsed part of today, so the timeline
+              itself shows how far into the day you are. Painted first, so
+              it sits under the events (which carry their own past tint). */}
+          {isToday && nowMins > dayStart && (
+            <div
+              className="timeline-past"
+              style={{ height: Math.min(y(nowMins), totalHeight) }}
+            />
+          )}
+
           {/* hour gridlines */}
           {Array.from({ length: (dayEnd - dayStart) / 60 + 1 }, (_, i) => {
             const mins = dayStart + i * 60
@@ -270,7 +280,9 @@ export function Timeline({
                   key={e.eventKey}
                   event={e}
                   top={y(start)}
-                  height={Math.max((end - start) * PX_PER_MIN, 34)}
+                  // Shave 2px off so back-to-back meetings keep a small
+                  // gap instead of their borders touching.
+                  height={Math.max((end - start) * PX_PER_MIN - 2, 32)}
                   colStyle={colStyle(`e-${e.eventKey}`)}
                   label={labels.of(e)}
                   prepDone={p?.done ?? 0}
@@ -571,19 +583,33 @@ function EventBlock({
       label && label.name
     )
   )
-  // A labeled event fills solid with its label color (like the month
-  // calendar's chips); its secondary text turns translucent white.
-  const soft = label ? 'rgba(255, 255, 255, 0.82)' : 'var(--text-soft)'
+  // An upcoming labeled event fills solid with its label color (like the
+  // month calendar's chips), white text on top. A past one becomes a
+  // light tint of that same color — the "faded" look (e.g. #E4C441 →
+  // ~#F5EEC9) — rather than a dimmed solid, so the color stays
+  // recognizable instead of going muddy.
+  const solid = !!label && !past
+  const soft = solid ? 'rgba(255, 255, 255, 0.82)' : 'var(--text-soft)'
+  const labelStyle: CSSProperties = !label
+    ? {}
+    : solid
+      ? {
+          background: label.hex,
+          // A darker rim (not the fill color) so every event has a
+          // visible border, even against a same-colored neighbor.
+          borderColor: `color-mix(in srgb, ${label.hex} 68%, #000)`,
+          color: '#fff'
+        }
+      : {
+          background: `color-mix(in srgb, ${label.hex} 30%, var(--bg-card))`,
+          borderColor: `color-mix(in srgb, ${label.hex} 55%, var(--bg-card))`,
+          opacity: 1 // the tint itself conveys "past"; skip the .past fade
+        }
   return (
     <div
       ref={setNodeRef}
       className={`timeline-event ${past ? 'past' : ''} ${isOver ? 'drop-over' : ''}`}
-      style={{
-        top,
-        height,
-        ...colStyle,
-        ...(label ? { background: label.hex, borderColor: label.hex, color: '#fff' } : {})
-      }}
+      style={{ top, height, ...colStyle, ...labelStyle }}
       {...tip}
       onClick={onOpen}
     >
