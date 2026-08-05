@@ -128,16 +128,16 @@
   --local-event: #6c7689;
 }
 
-/* The fixed palette projects pick their accent color from. */
+/* The fixed jewel palette projects pick their accent color from.
+   Mirrors PROJECT_COLORS in palette.ts (that array is the source used
+   by the UI; these tokens are the documented reference). */
 :root {
-  --palette-coral: #ff6b6b;
-  --palette-orange: #ff922b;
-  --palette-amber: #fcc419;
-  --palette-lime: #94d82d;
-  --palette-teal: #20c997;
-  --palette-cyan: #22b8cf;
-  --palette-blue: #339af0;
-  --palette-violet: #845ef7;
-  --palette-grape: #cc5de8;
-  --palette-pink: #f06595;
+  --palette-ruby: #9b1b3f;
+  --palette-copper: #ba653e;
+  --palette-topaz: #c09435;
+  --palette-emerald: #166532;
+  --palette-sapphire: #0f5872;
+  --palette-navy: #223a72;
+  --palette-plum: #732a63;
+  --palette-ruby-rose: #6c002f9d;
 }

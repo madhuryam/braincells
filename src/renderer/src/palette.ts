@@ -4,16 +4,14 @@
  * Values mirror the --palette-* tokens in styles/tokens.css.
  */
 export const PROJECT_COLORS = [
-  '#ff6b6b', // coral
-  '#ff922b', // orange
-  '#fcc419', // amber
-  '#94d82d', // lime
-  '#20c997', // teal
-  '#22b8cf', // cyan
-  '#339af0', // blue
-  '#845ef7', // violet
-  '#cc5de8', // grape
-  '#f06595' // pink
+  '#9b1b3f', // ruby
+  '#ba653e', // copper
+  '#c09435', // topaz
+  '#166532', // emerald
+  '#0f5872', // sapphire
+  '#223a72', // navy
+  '#732a63', // plum
+  '#6c002f9d' // ruby-rose
 ] as const
 
 export function randomProjectColor(): string {
