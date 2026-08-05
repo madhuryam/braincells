@@ -113,6 +113,7 @@ export class GoogleCalendar {
           status?: string
           summary?: string
           colorId?: string
+          eventLabelId?: string
           start?: { dateTime?: string; date?: string }
           end?: { dateTime?: string; date?: string }
         }>
@@ -131,7 +132,10 @@ export class GoogleCalendar {
           date,
           startTime: startsAt ? hhmm(startsAt) : null,
           endTime: e.end?.dateTime ? hhmm(new Date(e.end.dateTime)) : null,
-          colorId: e.colorId ?? null
+          colorId: e.colorId ?? null,
+          // Lowercased so a label's id is one key regardless of the
+          // casing Google happens to return per event.
+          eventLabelId: e.eventLabelId ? e.eventLabelId.toLowerCase() : null
         })
       }
       pageToken = body.nextPageToken

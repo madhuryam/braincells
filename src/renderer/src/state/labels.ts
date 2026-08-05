@@ -24,7 +24,7 @@ export const UNKNOWN_LABEL_HEX = '#9aa0a6'
  */
 export function useLabels(): {
   all: Label[]
-  of: (e: { colorId?: string | null }) => Label | undefined
+  of: (e: { colorId?: string | null; eventLabelId?: string | null }) => Label | undefined
 } {
   const overrides = useLiveQuery(
     () => window.api.getSetting<Record<string, LabelOverride>>('calendarLabels'),
@@ -45,15 +45,16 @@ export function useLabels(): {
     const byId = new Map(all.map((l) => [l.id, l]))
     return {
       all,
-      of: (e) =>
-        e.colorId
-          ? byId.get(e.colorId) ?? {
-              id: e.colorId,
-              name: `Label ${e.colorId}`,
-              hex: UNKNOWN_LABEL_HEX,
-              projectId: null
-            }
-          : undefined
+      // Prefer the standard color id (the classic eleven Just Work);
+      // fall back to the custom event-label id for events colored with a
+      // label outside that palette — those carry an eventLabelId only.
+      of: (e) => {
+        const id = e.colorId ?? e.eventLabelId
+        if (!id) return undefined
+        return (
+          byId.get(id) ?? { id, name: `Label ${id}`, hex: UNKNOWN_LABEL_HEX, projectId: null }
+        )
+      }
     }
   }, [overrides])
 }

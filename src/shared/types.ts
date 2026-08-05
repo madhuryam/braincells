@@ -80,6 +80,11 @@ export interface CalendarEvent {
   /** Google label color id ("1"–"11" classically, but Google now
    *  allows more); absent = calendar default. */
   colorId?: string | null
+  /** Google's custom event-label id (a UUID). The true label the user
+   *  applied; `colorId` is just its underlying color when that color is
+   *  one of the classic eleven. A custom-colored label carries an
+   *  `eventLabelId` but no `colorId`. Absent = unlabeled. */
+  eventLabelId?: string | null
 }
 
 /**

@@ -1,4 +1,14 @@
 import { useEffect, useState } from 'react'
+import {
+  closestCenter,
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent
+} from '@dnd-kit/core'
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { GOOGLE_EVENT_COLORS, type LabelOverride } from '@shared/types'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { THEMES, useData, useLiveQuery, useMutate } from '../state/data'
@@ -295,6 +305,10 @@ export function Settings(): React.JSX.Element {
  * the `calendarLabels` setting keyed by colorId. Google allows labels
  * beyond the classic eleven now, so ids found on recent events (or
  * already overridden) get rows here too.
+ *
+ * Rows drag-reorder by their ⠿ grip (order persists in the
+ * `calendarLabelOrder` setting); labels without a name always sink
+ * below the named ones, keeping the recognizable ones on top.
  */
 function CalendarLabelsCard(): React.JSX.Element | null {
   const mutate = useMutate()
@@ -302,6 +316,9 @@ function CalendarLabelsCard(): React.JSX.Element | null {
     () => window.api.getSetting<Record<string, LabelOverride>>('calendarLabels'),
     []
   )
+  const savedOrder =
+    useLiveQuery(() => window.api.getSetting<string[]>('calendarLabelOrder'), []) ?? []
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
   // Which labels are in use on recent events, with a few example titles
   // each — so an opaque colorId ("Label 27") is recognizable as the
   // label its meetings actually wear. Fetched once on mount, not a live
@@ -314,8 +331,10 @@ function CalendarLabelsCard(): React.JSX.Element | null {
       .then((events) => {
         const by: Record<string, { titles: string[]; count: number }> = {}
         for (const e of events) {
-          if (!e.colorId) continue
-          const slot = (by[e.colorId] ??= { titles: [], count: 0 })
+          // The key the UI colors by: standard color id, else custom label id.
+          const id = e.colorId ?? e.eventLabelId
+          if (!id) continue
+          const slot = (by[id] ??= { titles: [], count: 0 })
           slot.count++
           if (slot.titles.length < 3 && e.title && !slot.titles.includes(e.title)) {
             slot.titles.push(e.title)
@@ -333,12 +352,45 @@ function CalendarLabelsCard(): React.JSX.Element | null {
     .filter((id) => !GOOGLE_EVENT_COLORS[id])
     .sort((a, b) => Number(a) - Number(b) || a.localeCompare(b))
 
+  // Visible sequence: dragged order within each group, but unnamed
+  // labels always follow named ones. (Naming one lifts it up; clearing
+  // the name sinks it back — the saved order carries either way.)
+  const hasName = (id: string): boolean =>
+    !!GOOGLE_EVENT_COLORS[id] || !!saved?.[id]?.name?.trim()
+  const orderIdx = new Map(savedOrder.map((id, i) => [id, i]))
+  const byOrder = (a: string, b: string): number =>
+    (orderIdx.get(a) ?? Infinity) - (orderIdx.get(b) ?? Infinity)
+  const allIds = [...Object.keys(GOOGLE_EVENT_COLORS), ...extraIds]
+  const visibleIds = [
+    ...allIds.filter(hasName).sort(byOrder),
+    ...allIds.filter((id) => !hasName(id)).sort(byOrder)
+  ]
+
   const update = (id: string, override: LabelOverride | null): void => {
     const all = { ...(saved ?? {}) }
     if (override) all[id] = override
     else delete all[id]
     void mutate(() => window.api.setSetting('calendarLabels', all))
   }
+
+  const onDragEnd = (e: DragEndEvent): void => {
+    const overId = e.over?.id
+    if (!overId || overId === e.active.id) return
+    const from = visibleIds.indexOf(String(e.active.id))
+    const to = visibleIds.indexOf(String(overId))
+    if (from < 0 || to < 0) return
+    void mutate(() =>
+      window.api.setSetting('calendarLabelOrder', arrayMove(visibleIds, from, to))
+    )
+  }
+
+  const baseOf = (id: string): { name: string; hex: string } =>
+    GOOGLE_EVENT_COLORS[id] ?? {
+      // Custom event labels are UUIDs — show a short stub; the
+      // "on N recent events" hint is how you actually recognize it.
+      name: id.length > 12 ? `Label ${id.slice(0, 8)}…` : `Label ${id}`,
+      hex: UNKNOWN_LABEL_HEX
+    }
 
   return (
     <Card className="stack">
@@ -347,24 +399,53 @@ function CalendarLabelsCard(): React.JSX.Element | null {
         The colors Google Calendar events can wear. Rename them, change how they display here,
         or point one at a project — labeled meetings then borrow that project’s color on the
         schedule. Display-only: nothing is written back to Google. Labels beyond Google’s
-        classic eleven appear here once a recent event wears one.
+        classic eleven appear here once a recent event wears one. Drag ⠿ to reorder; unnamed
+        labels stay at the bottom.
       </p>
-      <div className="stack" style={{ gap: 6 }}>
-        {Object.entries(GOOGLE_EVENT_COLORS).map(([id, base]) => (
-          <LabelRow key={id} id={id} base={base} saved={saved?.[id]} usage={usage[id]} onChange={update} />
-        ))}
-        {extraIds.map((id) => (
-          <LabelRow
-            key={id}
-            id={id}
-            base={{ name: `Label ${id}`, hex: UNKNOWN_LABEL_HEX }}
-            saved={saved?.[id]}
-            usage={usage[id]}
-            onChange={update}
-          />
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <SortableContext items={visibleIds} strategy={verticalListSortingStrategy}>
+          <div className="stack" style={{ gap: 6 }}>
+            {visibleIds.map((id) => (
+              <SortableLabelRow
+                key={id}
+                id={id}
+                base={baseOf(id)}
+                saved={saved?.[id]}
+                onChange={update}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     </Card>
+  )
+}
+
+/** A LabelRow that drags by its grip to reorder the list. */
+function SortableLabelRow(props: Parameters<typeof LabelRow>[0]): React.JSX.Element {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.id
+  })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.55 : undefined,
+        position: 'relative',
+        zIndex: isDragging ? 5 : undefined
+      }}
+    >
+      <LabelRow
+        {...props}
+        grip={
+          <button className="label-grip" title="Drag to reorder" {...attributes} {...listeners}>
+            ⠿
+          </button>
+        }
+      />
+    </div>
   )
 }
 
@@ -372,15 +453,15 @@ function LabelRow({
   id,
   base,
   saved,
-  usage,
-  onChange
+  onChange,
+  grip
 }: {
   id: string
   base: { name: string; hex: string }
   saved: LabelOverride | undefined
-  /** Recent events wearing this label — a couple of example titles. */
-  usage: { titles: string[]; count: number } | undefined
   onChange: (id: string, override: LabelOverride | null) => void
+  /** The drag handle, injected by SortableLabelRow. */
+  grip?: React.ReactNode
 }): React.JSX.Element {
   // Local state is the source of truth for the inputs — each change
   // saves, and the save round trip can never revert in-flight typing.
@@ -412,6 +493,7 @@ function LabelRow({
 
   return (
     <div className="label-row">
+      {grip ?? <span />}
       <input
         type="color"
         title={`Display color (Google calls this ${base.name})`}
@@ -460,14 +542,14 @@ function LabelRow({
       >
         ↺
       </button>
-      {/* Which of your meetings wear this label — so you can tell an
-          opaque colorId apart by the events using it. */}
+      {/* Disabled: the "on N recent events: …" identifier line under
+          each label. Re-add the `usage` prop below to bring it back.
       {usage && usage.count > 0 && (
         <span className="label-hint" title={usage.titles.join(', ')}>
           on {usage.count} recent {usage.count === 1 ? 'event' : 'events'}: {usage.titles.join(', ')}
           {usage.count > usage.titles.length ? '…' : ''}
         </span>
-      )}
+      )} */}
     </div>
   )
 }

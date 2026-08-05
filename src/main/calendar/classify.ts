@@ -17,8 +17,11 @@ export function autoFileMeetingsByLabel(store: Store, events: CalendarEvent[]): 
   const activeProjects = new Set(store.listProjects().map((p) => p.id))
   let filed = 0
   for (const e of events) {
-    if (!e.colorId) continue
-    const projectId = labels[e.colorId]?.projectId
+    // Same key the UI colors by: standard color id first, else the
+    // custom event-label id.
+    const labelId = e.colorId ?? e.eventLabelId
+    if (!labelId) continue
+    const projectId = labels[labelId]?.projectId
     if (!projectId || !activeProjects.has(projectId)) continue
     if (store.getMeeting(e.eventKey)) continue
     store.assignMeetingProject({ eventKey: e.eventKey, title: e.title, date: e.date }, projectId)
