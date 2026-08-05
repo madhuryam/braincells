@@ -65,7 +65,7 @@ export function Settings(): React.JSX.Element {
   }
 
   return (
-    <div className="canvas" style={{ '--canvas-max': '720px' } as React.CSSProperties}>
+    <div className="canvas">
       <header className="canvas-header">
         <BackButton />
         <h1>Settings</h1>

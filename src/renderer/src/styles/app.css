@@ -110,6 +110,9 @@
   align-items: center;
   justify-content: center;
   background: color-mix(in srgb, #000 40%, transparent);
+  /* Same as .overlay-scrim: keep the backdrop out of the window-drag
+     region so clicking it to dismiss actually registers. */
+  -webkit-app-region: no-drag;
 }
 
 .hotkeys-modal {
@@ -1041,7 +1044,7 @@ kbd.key {
 .timeline-past {
   position: absolute;
   top: 0;
-  left: 0;
+  left: 37px;
   right: 0;
   background: color-mix(in srgb, var(--text) 4%, transparent);
   pointer-events: none;
@@ -1463,6 +1466,11 @@ kbd.key {
   display: flex;
   padding: 28px;
   background: color-mix(in srgb, #000 45%, transparent);
+  /* Carve the whole scrim out of the window-drag region. Otherwise the
+     drag regions behind it (sidebar top, canvas header) still capture
+     mousedowns, so clicking the backdrop to dismiss silently starts a
+     window-drag instead of closing. */
+  -webkit-app-region: no-drag;
 }
 
 .overlay-modal {
@@ -1486,6 +1494,17 @@ kbd.key {
   background: var(--bg-card);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-card);
+  /* The ✕ sits over the modal's header, which is a window-drag region
+     in the main window. Without this, clicks on it are swallowed as
+     window-drags and the button "doesn't work". */
+  -webkit-app-region: no-drag;
+}
+
+/* A modal header must never be a window-drag region — dragging the OS
+   window from inside a modal is meaningless, and the drag region eats
+   clicks meant for the header's buttons (and the ✕ above it). */
+.overlay-modal .canvas-header {
+  -webkit-app-region: no-drag;
 }
 
 /* Inside the overlay, "back" is meaningless — closing is the exit. */
