@@ -17,6 +17,7 @@ export function registerStoreIpc(store: Store): void {
       store.updateProject(id, patch)
   )
   ipcMain.handle('projects:delete', (_e, id: string) => store.deleteProject(id))
+  ipcMain.handle('projects:reorder', (_e, ids: string[]) => store.reorderProjects(ids))
 
   // Items
   ipcMain.handle('items:create', (_e, item: NewItem) => store.createItem(item))

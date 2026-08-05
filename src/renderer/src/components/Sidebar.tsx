@@ -3,8 +3,9 @@ import { KIND_ICON } from '../format'
 import { todayYmd } from '@shared/dates'
 import { useData, useLiveQuery } from '../state/data'
 import { useNav, type View } from '../state/nav'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ProjectDot } from './bits'
-import { DropZone } from './dnd'
+import { DropZone, SortableProjectRow } from './dnd'
 import { HotkeysHelp, isTyping } from './HotkeysHelp'
 
 export const DEFAULT_TIME_ZONE = 'America/New_York'
@@ -142,23 +143,27 @@ export function Sidebar(): React.JSX.Element {
       {!collapsed && <div className="nav-section">Projects</div>}
       <NavItem
         view={{ name: 'projects' }}
-        icon="🗂️"
+        icon="📂"
         label="All projects"
         isActive={view.name === 'projects'}
       />
-      {/* Dropping a card on a project assigns it (SPEC §7 drag & drop). */}
-      {!collapsed &&
-        projects.map((p) => (
-          <DropZone key={p.id} id={`nav-project-${p.id}`} data={{ type: 'project', projectId: p.id }}>
-            <button
-              className={`nav-item ${view.name === 'project' && view.projectId === p.id ? 'active' : ''}`}
-              onClick={() => navigate({ name: 'project', projectId: p.id })}
-            >
-              <ProjectDot color={p.color} />
-              <span>{p.name}</span>
-            </button>
-          </DropZone>
-        ))}
+      {/* Drag a project to reorder; drop a card on one to file it there
+          (SPEC §7 drag & drop). */}
+      {!collapsed && (
+        <SortableContext items={projects.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+          {projects.map((p) => (
+            <SortableProjectRow key={p.id} projectId={p.id} projectIds={projects.map((x) => x.id)}>
+              <button
+                className={`nav-item ${view.name === 'project' && view.projectId === p.id ? 'active' : ''}`}
+                onClick={() => navigate({ name: 'project', projectId: p.id })}
+              >
+                <ProjectDot color={p.color} />
+                <span>{p.name}</span>
+              </button>
+            </SortableProjectRow>
+          ))}
+        </SortableContext>
+      )}
 
       {/* When collapsed, only the expand button remains — the footer
           used to overflow the 64px rail, leaving it unclickable. */}

@@ -132,17 +132,35 @@ export class Store {
       status: 'active',
       createdAt: nowStamp()
     }
+    // New projects land at the end of the user's ordering.
+    const nextOrder = (
+      this.db.prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM projects').get() as {
+        n: number
+      }
+    ).n
     this.db
-      .prepare('INSERT INTO projects (id, name, color, status, created_at) VALUES (?, ?, ?, ?, ?)')
-      .run(p.id, p.name, p.color, p.status, p.createdAt)
+      .prepare(
+        'INSERT INTO projects (id, name, color, status, created_at, sort_order) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      .run(p.id, p.name, p.color, p.status, p.createdAt, nextOrder)
     return p
   }
 
   listProjects(includeArchived = false): Project[] {
     const where = includeArchived ? '' : "WHERE status = 'active'"
     return this.db
-      .prepare(`SELECT id, name, color, status, created_at AS createdAt FROM projects ${where} ORDER BY name`)
+      .prepare(
+        `SELECT id, name, color, status, created_at AS createdAt FROM projects ${where} ORDER BY sort_order, name`
+      )
       .all() as Project[]
+  }
+
+  /** Persist a new sidebar order: sort_order follows the given id list. */
+  reorderProjects(ids: string[]): void {
+    const stmt = this.db.prepare('UPDATE projects SET sort_order = ? WHERE id = ?')
+    this.db.transaction(() => {
+      ids.forEach((id, i) => stmt.run(i, id))
+    })()
   }
 
   updateProject(id: string, patch: Partial<Pick<Project, 'name' | 'color' | 'status'>>): void {

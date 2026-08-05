@@ -207,6 +207,16 @@ const MIGRATIONS: string[] = [
   // unassigns its blocks (same SET NULL convention as items/meetings).
   `
   ALTER TABLE local_events ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL;
+  `,
+
+  // 8: user-orderable projects (drag to reorder in the sidebar). Seed
+  // each project's order from the current alphabetical listing so the
+  // sidebar doesn't reshuffle the first time this runs.
+  `
+  ALTER TABLE projects ADD COLUMN sort_order REAL NOT NULL DEFAULT 0;
+  UPDATE projects SET sort_order = (
+    SELECT COUNT(*) FROM projects p2 WHERE p2.name < projects.name
+  );
   `
 ]
 

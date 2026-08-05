@@ -89,6 +89,40 @@ export function SortableCard({
   )
 }
 
+/**
+ * A sidebar project row: draggable to reorder (drag past the 6px
+ * threshold), and still a drop target for cards being filed into it —
+ * the drop data keeps `type:'project'` so the assign path keeps working,
+ * plus `projectIds` so onDragEnd can compute the reordered list.
+ */
+export function SortableProjectRow({
+  projectId,
+  projectIds,
+  children
+}: {
+  projectId: string
+  projectIds: string[]
+  children: ReactNode
+}): React.JSX.Element {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } =
+    useSortable({ id: projectId, data: { type: 'project', projectId, projectIds } })
+  return (
+    <div
+      ref={setNodeRef}
+      className={isOver && !isDragging ? 'drop-over' : ''}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : undefined
+      }}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </div>
+  )
+}
+
 /** Anything a card can be dropped on. Highlights itself while hovered. */
 export function DropZone({
   id,
@@ -143,13 +177,29 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
   )
 
   const onDragStart = (e: DragStartEvent): void => {
-    setDragged((e.active.data.current as DragData).item)
+    // Project drags carry no item (they just reorder the sidebar).
+    setDragged((e.active.data.current as { item?: Item }).item ?? null)
   }
 
   const onDragEnd = (e: DragEndEvent): void => {
     setDragged(null)
     const { active, over } = e
     if (!over) return
+
+    // A sidebar project dragged onto another project → reorder. Handled
+    // first (and returns) so the project-assign branch below, which
+    // shares the { type:'project' } drop data, never fires for it.
+    const activeData = active.data.current as { projectIds?: string[]; item?: Item }
+    if (activeData.projectIds && !activeData.item) {
+      const ids = activeData.projectIds
+      const from = ids.indexOf(String(active.id))
+      const to = ids.indexOf(String(over.id))
+      if (from >= 0 && to >= 0 && from !== to) {
+        mutate(() => window.api.reorderProjects(arrayMove(ids, from, to)))
+      }
+      return
+    }
+
     const { item, sortableIds } = active.data.current as DragData
     const overData = over.data.current as
       | {

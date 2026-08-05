@@ -50,6 +50,7 @@ const api = {
     patch: { name?: string; color?: string; status?: ProjectStatus }
   ): Promise<void> => invoke('projects:update', id, patch),
   deleteProject: (id: string): Promise<void> => invoke('projects:delete', id),
+  reorderProjects: (ids: string[]): Promise<void> => invoke('projects:reorder', ids),
 
   // Items
   createItem: (item: NewItem): Promise<Item> => invoke('items:create', item),
