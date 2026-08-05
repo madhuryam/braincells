@@ -4,6 +4,7 @@ import { DataProvider } from './state/data'
 import { UndoProvider } from './state/undo'
 import { NavProvider, useNav } from './state/nav'
 import { Sidebar } from './components/Sidebar'
+import { TooltipProvider } from './components/Tooltip'
 import { AppDnd } from './components/dnd'
 import { Today } from './screens/Today'
 import { Inbox } from './screens/Inbox'
@@ -141,14 +142,16 @@ export default function App(): React.JSX.Element {
     <DataProvider>
       <UndoProvider>
         <NavProvider>
-          <Shortcuts />
-          <AppDnd>
-            <div className="shell">
-              <Sidebar />
-              <Screen />
-            </div>
-            <Overlay />
-          </AppDnd>
+          <TooltipProvider>
+            <Shortcuts />
+            <AppDnd>
+              <div className="shell">
+                <Sidebar />
+                <Screen />
+              </div>
+              <Overlay />
+            </AppDnd>
+          </TooltipProvider>
         </NavProvider>
       </UndoProvider>
     </DataProvider>

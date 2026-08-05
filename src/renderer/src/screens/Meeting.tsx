@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import type { CalendarEvent, Item } from '@shared/types'
 import { useLiveQuery, useMutate } from '../state/data'
+import { useLabels } from '../state/labels'
 import { ItemCard } from '../components/ItemCard'
 import { ProjectPicker } from '../components/ProjectPicker'
 import { BackButton, CheckableInput, EmptyState, ProgressBar } from '../components/bits'
@@ -39,6 +40,9 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
   const timeLabel = liveEvent?.startTime
     ? ` · ${ampm(liveEvent.startTime)}${liveEvent.endTime ? `–${ampm(liveEvent.endTime)}` : ''}`
     : ''
+  // The event's Google label — quietly shown; project matters more.
+  const labels = useLabels()
+  const label = liveEvent ? labels.of(liveEvent) : undefined
   const mutate = useMutate()
 
   const [prepDraft, setPrepDraft] = useState('')
@@ -131,6 +135,14 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
   // same number the timeline's event blocks show.
   const prepProg = useLiveQuery(() => window.api.prepProgress([eventKey]), [eventKey])?.[0]
 
+  // A muted footnote of which calendar label the event carries.
+  const labelTag = label ? (
+    <span className="ev-label" title={`Calendar label: ${label.name}`}>
+      <span className="ev-label-dot" style={{ background: label.hex }} />
+      {label.name}
+    </span>
+  ) : null
+
   // One action assigns this meeting to a project (SPEC §4.4).
   const projectSelect = (
     <ProjectPicker
@@ -149,6 +161,7 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
             {prettyDate(date)}
             {timeLabel}
           </span>
+          {labelTag}
           {projectSelect}
         </div>
       ) : (
@@ -159,6 +172,7 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
             {prettyDate(date)}
             {timeLabel}
           </span>
+          {labelTag}
           {projectSelect}
         </header>
       )}

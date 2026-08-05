@@ -3,9 +3,49 @@ import type { CalendarEvent } from '@shared/types'
 import { todayYmd, ymd, ymdAddDays } from '@shared/dates'
 import { useLiveQuery } from '../state/data'
 import { useNav } from '../state/nav'
-import { useLabels } from '../state/labels'
+import { useLabels, type Label } from '../state/labels'
 import { BackButton } from '../components/bits'
+import { tipLines, useTip } from '../components/Tooltip'
 import { ampm } from '../format'
+
+/**
+ * One meeting chip in the month grid, tinted by its Google label. The
+ * label name (and time) shows on hover via the fast viewport tooltip —
+ * a CSS tooltip would be clipped by the day cell's own scroll.
+ */
+function CalEventChip({
+  event,
+  color,
+  onOpen
+}: {
+  event: CalendarEvent
+  color: Label | undefined
+  onOpen: () => void
+}): React.JSX.Element {
+  // One line per fact, so nothing truncates behind the title.
+  const tip = tipLines(
+    event.title,
+    event.startTime && `🕐 ${ampm(event.startTime)}${event.endTime ? `–${ampm(event.endTime)}` : ''}`,
+    color && `${color.name}`
+  )
+  return (
+    <button
+      className="cal-event"
+      style={
+        color
+          ? ({
+            '--ev': color.hex,
+            '--ev-soft': `color-mix(in srgb, ${color.hex} 22%, var(--bg-card))`
+          } as CSSProperties)
+          : undefined
+      }
+      {...useTip(tip)}
+      onClick={onOpen}
+    >
+      {event.startTime && <span className="cal-time">{ampm(event.startTime)}</span>} {event.title}
+    </button>
+  )
+}
 
 // The rolling window: this many weeks behind/ahead of the current one.
 const WEEKS_BACK = 8
@@ -114,31 +154,16 @@ export function CalendarScreen(): React.JSX.Element {
                 {/* Every event renders; a crowded day scrolls inside
                     its own cell instead of clipping behind a "+n more". */}
                 <div className="cal-cell-events">
-                  {dayEvents.map((e) => {
-                    // Google label colors carry through: the chip tints
-                    // with the label, and hovering shows it full-strength.
-                    const color = labels.of(e)
-                    return (
-                      <button
-                        key={e.eventKey}
-                        className="cal-event"
-                        style={
-                          color
-                            ? ({
-                                '--ev': color.hex,
-                                '--ev-soft': `color-mix(in srgb, ${color.hex} 22%, var(--bg-card))`
-                              } as CSSProperties)
-                            : undefined
-                        }
-                        title={`${e.title}${e.startTime ? ` · ${ampm(e.startTime)}` : ''}${color ? ` · ${color.name}` : ''} — open notes`}
-                        onClick={() =>
-                          openOverlay({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
-                        }
-                      >
-                        {e.startTime && <span className="cal-time">{ampm(e.startTime)}</span>} {e.title}
-                      </button>
-                    )
-                  })}
+                  {dayEvents.map((e) => (
+                    <CalEventChip
+                      key={e.eventKey}
+                      event={e}
+                      color={labels.of(e)}
+                      onOpen={() =>
+                        openOverlay({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
+                      }
+                    />
+                  ))}
                 </div>
               </div>
             )

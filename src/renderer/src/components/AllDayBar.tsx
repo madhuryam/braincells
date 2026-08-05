@@ -1,6 +1,7 @@
 import type { CalendarEvent } from '@shared/types'
 import { useNav } from '../state/nav'
-import { useLabels } from '../state/labels'
+import { useLabels, type Label } from '../state/labels'
+import { tipLines, useTip } from './Tooltip'
 
 /**
  * All-day events as a quiet horizontal chip bar atop a day's timed
@@ -14,23 +15,35 @@ export function AllDayBar({ events }: { events: CalendarEvent[] }): React.JSX.El
   if (allDay.length === 0) return null
   return (
     <div className="allday-bar">
-      {allDay.map((e) => {
-        // A labeled all-day event swaps the generic 🗓️ for its color.
-        const color = labels.of(e)
-        return (
-          <button
-            key={e.eventKey}
-            className="allday-chip"
-            title={`${e.title} · all day${color ? ` · ${color.name}` : ''} — open notes`}
-            onClick={() =>
-              openOverlay({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
-            }
-          >
-            {color ? <span className="allday-dot" style={{ background: color.hex }} /> : '🗓️'}{' '}
-            {e.title}
-          </button>
-        )
-      })}
+      {allDay.map((e) => (
+        <AllDayChip
+          key={e.eventKey}
+          event={e}
+          color={labels.of(e)}
+          onOpen={() =>
+            openOverlay({ name: 'meeting', eventKey: e.eventKey, title: e.title, date: e.date })
+          }
+        />
+      ))}
     </div>
+  )
+}
+
+/** One chip; a labeled all-day event swaps the generic 🗓️ for its color. */
+function AllDayChip({
+  event,
+  color,
+  onOpen
+}: {
+  event: CalendarEvent
+  color: Label | undefined
+  onOpen: () => void
+}): React.JSX.Element {
+  const tip = useTip(tipLines(event.title, '🕐 all day', color && `${color.name}`))
+  return (
+    <button className="allday-chip" {...tip} onClick={onOpen}>
+      {color ? <span className="allday-dot" style={{ background: color.hex }} /> : '🗓️'}{' '}
+      {event.title}
+    </button>
   )
 }

@@ -16,7 +16,8 @@
   padding: 10px;
   /* room for the macOS traffic lights (frameless window) */
   padding-top: 44px;
-  -webkit-app-region: drag; /* the empty parts drag the window */
+  -webkit-app-region: drag;
+  /* the empty parts drag the window */
   transition: width 0.18s ease;
 }
 
@@ -30,9 +31,9 @@
 }
 
 .sidebar-brand {
-  font-size: 25px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.035em;
   padding: 2px 10px 12px;
   background: var(--gradient-accent);
   -webkit-background-clip: text;
@@ -51,26 +52,54 @@
   white-space: nowrap;
   overflow: hidden;
 }
+
 .sidebar-time {
   font-size: 20px;
-  font-weight: 750;
-  letter-spacing: -0.02em;
+  font-weight: 400;
+  letter-spacing: 0.02em;
   line-height: 1.1;
   background: var(--gradient-accent);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
+
 .sidebar-date {
   font-size: 12px;
   font-weight: 550;
   color: var(--text-soft);
 }
 
+/* Viewport-level hover tooltip (Tooltip.tsx) — used where a CSS
+   `::after` tooltip would be clipped by an `overflow` ancestor, e.g.
+   the calendar's scrolling day cells. */
+.hovertip {
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 60;
+  pointer-events: none;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 5px 10px;
+  border-radius: 4px;
+  /* Never truncate: `\n`s in the tip text become line breaks, long
+     lines wrap — every piece of info stays visible. */
+  width: max-content;
+  max-width: 300px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  text-align: left;
+  box-shadow: var(--shadow-lift);
+}
+
 /* CSS-only tooltip via data-tooltip (native title is slow to appear). */
 .tooltip {
   position: relative;
 }
+
 .btn:disabled {
   opacity: 0.35;
   cursor: default;
@@ -125,7 +154,8 @@
 /* Doubled selector so this outranks the later `.btn { font-size }`
    rule — with a single class the order of rules silently won it. */
 .btn.icon-btn {
-  font-size: 20px; /* matches the sidebar nav icons */
+  font-size: 20px;
+  /* matches the sidebar nav icons */
   line-height: 1;
   padding: 8px 11px;
 }
@@ -172,6 +202,7 @@
   text-align: left;
   cursor: pointer;
 }
+
 .nav-section-toggle:hover {
   color: var(--text-soft);
 }
@@ -209,9 +240,11 @@
   gap: 14px;
   margin-bottom: 22px;
 }
-.canvas-header > * {
+
+.canvas-header>* {
   -webkit-app-region: no-drag;
 }
+
 .canvas-header .date {
   color: var(--text-soft);
   font-weight: 550;
@@ -224,7 +257,8 @@
   background: var(--bg-card);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  padding: 8px 13px; /* trim: more cards fit on screen */
+  padding: 8px 13px;
+  /* trim: more cards fit on screen */
   transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 
@@ -238,11 +272,9 @@
   /* the project's color tints the card edge + background wash */
   border-left: 3.5px solid var(--card-accent, var(--accent));
   background:
-    linear-gradient(
-      to right,
+    linear-gradient(to right,
       color-mix(in srgb, var(--card-accent, var(--accent)) 6%, transparent),
-      transparent 45%
-    ),
+      transparent 45%),
     var(--bg-card);
 }
 
@@ -259,8 +291,10 @@
   font-size: 12px;
   color: var(--text-soft);
 }
+
 .card-meta:empty {
-  display: none; /* metaless cards don't reserve the row's space */
+  display: none;
+  /* metaless cards don't reserve the row's space */
 }
 
 .card.done .card-title {
@@ -270,7 +304,8 @@
 }
 
 .card.faded {
-  opacity: 0.72; /* carried-over: quiet, never red */
+  opacity: 0.72;
+  /* carried-over: quiet, never red */
 }
 
 /* ── Task lists: rows, not a stack of cards ──────────────────────── */
@@ -284,35 +319,41 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  overflow: hidden; /* accent edges and hovers clip to the corners */
+  overflow: hidden;
+  /* accent edges and hovers clip to the corners */
 }
+
 .item-list:empty {
   display: none;
 }
-.item-list > * + * {
+
+.item-list>*+* {
   border-top: 1px solid var(--border);
 }
+
 .item-list .card {
   background: transparent;
   border-radius: 0;
   box-shadow: none;
 }
+
 /* Unaccented rows reserve the accent edge's width, so titles align
    whether or not a row wears a project color. */
 .item-list .card:not(.accented) {
   border-left: 3.5px solid transparent;
 }
+
 .item-list .card.accented {
   /* keep the project wash, on the row's transparent base */
-  background: linear-gradient(
-    to right,
-    color-mix(in srgb, var(--card-accent, var(--accent)) 6%, transparent),
-    transparent 45%
-  );
+  background: linear-gradient(to right,
+      color-mix(in srgb, var(--card-accent, var(--accent)) 6%, transparent),
+      transparent 45%);
 }
+
 .item-list .card:not(.open):hover {
   background: var(--bg-hover);
 }
+
 .item-list .card.open {
   background: var(--bg-card);
   border-radius: var(--radius-card);
@@ -346,25 +387,31 @@
   color: var(--text);
   transition: filter 0.12s ease, transform 0.08s ease;
 }
+
 .btn:hover {
   filter: brightness(0.97);
 }
+
 .btn:active {
   transform: scale(0.97);
 }
+
 .btn.primary {
   background: var(--gradient-accent);
   color: #fff;
   box-shadow: 0 2px 8px var(--accent-soft);
 }
+
 .btn.small {
   padding: 4px 10px;
   font-size: 12px;
 }
+
 .btn.ghost {
   background: transparent;
   color: var(--text-soft);
 }
+
 .btn.ghost:hover {
   background: var(--bg-hover);
   color: var(--text);
@@ -383,9 +430,11 @@
   color: transparent;
   font-size: 12px;
 }
+
 .checkbox:hover {
   border-color: var(--accent);
 }
+
 .checkbox.checked {
   background: var(--gradient-accent);
   border-color: transparent;
@@ -397,9 +446,11 @@
   0% {
     transform: scale(0.7);
   }
+
   55% {
     transform: scale(1.25);
   }
+
   100% {
     transform: scale(1);
   }
@@ -433,31 +484,38 @@
   border-radius: var(--radius-input);
   padding-left: 11px;
 }
+
 .check-input .checkbox {
   pointer-events: none;
   opacity: 0.45;
 }
+
 .check-input .input-icon {
   opacity: 0.5;
   font-size: 15px;
 }
+
 .check-input:focus-within .input-icon {
   opacity: 0.9;
 }
+
 .check-input input {
   flex: 1;
   border: none;
   background: transparent;
   padding-left: 0;
 }
+
 .check-input input:focus {
   box-shadow: none;
   border: none;
 }
+
 .check-input:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
+
 .check-input:focus-within .checkbox {
   opacity: 0.9;
   border-color: var(--accent);
@@ -469,11 +527,13 @@
   background: var(--bg-sunken);
   overflow: hidden;
 }
-.progress > div {
+
+.progress>div {
   height: 100%;
   border-radius: 4px;
   background: var(--gradient-accent);
-  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1); /* satisfying fill */
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  /* satisfying fill */
 }
 
 .empty-state {
@@ -481,6 +541,7 @@
   color: var(--text-soft);
   padding: 48px 20px;
 }
+
 .empty-state .art {
   font-size: 44px;
   display: block;
@@ -541,8 +602,10 @@
   border-radius: 12px;
   box-shadow: var(--shadow-lift);
   padding: 14px;
-  margin: 8px; /* breathing room inside the transparent window */
+  margin: 8px;
+  /* breathing room inside the transparent window */
 }
+
 .capture-window input {
   width: 100%;
   font-size: 17px;
@@ -551,10 +614,12 @@
   background: transparent;
   padding: 6px 4px;
 }
+
 .capture-window input:focus {
   box-shadow: none;
   border: none;
 }
+
 .capture-hints {
   display: flex;
   gap: 6px;
@@ -568,8 +633,10 @@
   gap: 18px;
   align-items: start;
 }
+
 /* Narrow or non-landscape (split-screen) windows: stack vertically. */
-@media (max-width: 980px), (orientation: portrait) {
+@media (max-width: 980px),
+(orientation: portrait) {
   .today-grid {
     grid-template-columns: 1fr;
   }
@@ -584,9 +651,11 @@
   padding: 2px 10px 10px;
   margin-bottom: 8px;
 }
-.today-scope > :first-child .section-label {
+
+.today-scope> :first-child .section-label {
   margin-top: 14px;
 }
+
 .section-label.coming-up {
   margin-top: 26px;
   padding-bottom: 4px;
@@ -597,6 +666,7 @@
 .task-group {
   margin-bottom: 10px;
 }
+
 /* A clickable fold header: caret column keeps names aligned. */
 .task-group-header {
   display: flex;
@@ -610,9 +680,11 @@
   border-radius: 6px;
   cursor: pointer;
 }
+
 .task-group-header:hover {
   background: var(--bg-hover);
 }
+
 /* Margin, not padding: the whole list container shifts under its
    project header — padding would inset the rows (and their accent
    edges) inside the container's own border. */
@@ -625,26 +697,32 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-left: 30px; /* first level reads as nested under the title */
+  padding-left: 30px;
+  /* first level reads as nested under the title */
 }
+
 .subtask-row {
   display: flex;
   align-items: center;
   gap: 9px;
 }
+
 .subtask-row .subtask-title {
   flex: 1;
   min-width: 0;
   font-size: 13.5px;
 }
+
 .subtask-row .subtask-title.done {
   color: var(--text-faint);
   text-decoration: line-through;
 }
+
 .subtask-row .btn {
   opacity: 0;
   transition: opacity 0.12s ease;
 }
+
 .subtask-row:hover .btn {
   opacity: 1;
 }
@@ -657,6 +735,7 @@
   width: 100%;
   cursor: pointer;
 }
+
 .day-toggle:hover {
   color: var(--text);
 }
@@ -668,11 +747,14 @@
 .timeline-pane {
   position: relative;
 }
+
 .timeline-peek {
   position: absolute;
-  inset: 26px 0 0; /* below the 'Schedule' label */
+  inset: 26px 0 0;
+  /* below the 'Schedule' label */
   z-index: 20;
 }
+
 .timeline-peek .detail-panel {
   position: static;
   height: 100%;
@@ -688,8 +770,10 @@
 .timeline {
   position: relative;
   margin-left: 8px;
-  user-select: none; /* dragging out a block shouldn't select text */
-  cursor: crosshair; /* empty space is a create-a-block surface */
+  user-select: none;
+  /* dragging out a block shouldn't select text */
+  cursor: crosshair;
+  /* empty space is a create-a-block surface */
 }
 
 /* The band right of the hour gutter where everything timed lives;
@@ -702,16 +786,19 @@
   bottom: 0;
   pointer-events: none;
 }
-.timeline-items > * {
+
+.timeline-items>* {
   pointer-events: auto;
   cursor: default;
 }
+
 .timeline-hour {
   position: absolute;
   left: 0;
   right: 0;
   border-top: 1px solid var(--border);
 }
+
 .timeline-hour span {
   position: absolute;
   top: -9px;
@@ -721,6 +808,7 @@
   background: var(--bg);
   padding-right: 6px;
 }
+
 .timeline-slot {
   position: absolute;
   left: 44px;
@@ -729,6 +817,7 @@
   align-items: center;
   justify-content: center;
 }
+
 /* A slight all-around border; a Google label recolors it inline. */
 .timeline-event {
   position: absolute;
@@ -741,17 +830,21 @@
   cursor: pointer;
   transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
+
 .timeline-event:hover {
   box-shadow: var(--shadow-lift);
   transform: translateY(-1px);
   z-index: 2;
 }
+
 .timeline-items .timeline-event {
   cursor: pointer;
 }
+
 .timeline-event.past {
   opacity: 0.55;
 }
+
 .timeline-task {
   position: absolute;
   overflow: hidden;
@@ -761,15 +854,20 @@
   border: 1px dashed var(--accent);
   border-radius: 6px;
   padding: 3px 8px;
-  pointer-events: none; /* blocks are suggestions; manage them in the list */
+  pointer-events: none;
+  /* blocks are suggestions; manage them in the list */
 }
+
 .timeline-task.done {
   opacity: 0.5;
   border-style: solid;
 }
+
 .timeline-task.missed {
-  opacity: 0.45; /* missed ≠ shamed: it quietly fades, stays on the list */
+  opacity: 0.45;
+  /* missed ≠ shamed: it quietly fades, stays on the list */
 }
+
 /* Local time blocks: distinct color, clearly not calendar events. */
 .local-event {
   position: absolute;
@@ -781,14 +879,17 @@
   border-radius: 6px;
   padding: 3px 8px;
 }
+
 .timeline-items .local-event {
   cursor: pointer;
 }
+
 .local-event .le-time {
   color: var(--text-soft);
   font-weight: 500;
   font-size: 11px;
 }
+
 .local-event-editor {
   position: absolute;
   left: 0;
@@ -805,15 +906,18 @@
   cursor: default;
   user-select: text;
 }
+
 /* One wide row: times · project · (spacer) · delete · done. When the
    timeline column is narrow the controls wrap instead of overflowing. */
 .local-event-editor .row {
   flex-wrap: wrap;
 }
+
 .local-event-editor input[type='time'] {
   min-width: 0;
   padding: 6px 8px;
 }
+
 .local-event-editor select {
   min-width: 0;
   max-width: 180px;
@@ -827,9 +931,11 @@
   height: 7px;
   cursor: ns-resize;
 }
+
 .le-handle.top {
   top: -2px;
 }
+
 .le-handle.bottom {
   bottom: -2px;
 }
@@ -856,6 +962,7 @@
   border-top: 2px solid var(--danger);
   z-index: 3;
 }
+
 .timeline-now::before {
   content: '';
   position: absolute;
@@ -878,6 +985,7 @@
   background: transparent;
   padding: 2px 0;
 }
+
 .page-title:focus {
   border: none;
   box-shadow: none;
@@ -885,7 +993,8 @@
 
 .rich-toolbar {
   position: sticky;
-  top: -28px; /* counters the canvas padding so it pins to the window */
+  top: -28px;
+  /* counters the canvas padding so it pins to the window */
   z-index: 5;
   display: flex;
   align-items: center;
@@ -898,6 +1007,7 @@
   border-radius: 9px;
   box-shadow: var(--shadow-card);
 }
+
 .rt-btn {
   min-width: 30px;
   padding: 5px 8px;
@@ -906,20 +1016,24 @@
   font-weight: 650;
   color: var(--text-soft);
 }
+
 .rt-btn:hover {
   background: var(--bg-hover);
   color: var(--text);
 }
+
 .rt-btn.on {
   background: var(--accent-soft);
   color: var(--text);
 }
+
 .rt-sep {
   width: 1px;
   height: 18px;
   background: var(--border);
   margin: 0 4px;
 }
+
 .rt-font {
   padding: 4px 8px;
   font-size: 12.5px;
@@ -940,6 +1054,7 @@
   border-radius: 7px;
   padding: 10px 12px;
 }
+
 .rich-editor.compact .rich-toolbar {
   position: static;
   margin-bottom: 8px;
@@ -948,6 +1063,7 @@
   background: transparent;
   border: none;
 }
+
 .rt-hint {
   margin-left: auto;
   font-size: 11px;
@@ -968,11 +1084,13 @@
   gap: 24px;
   align-items: flex-start;
 }
+
 .log-main {
   flex: 1 1 50%;
   max-width: 720px;
   min-width: 0;
 }
+
 .detail-panel {
   flex: 1 1 50%;
   min-width: 0;
@@ -989,15 +1107,18 @@
   box-shadow: var(--shadow-card);
   padding: 18px 20px;
 }
+
 @keyframes panel-in {
   from {
     opacity: 0;
     transform: translateX(8px);
   }
 }
+
 .detail-panel-header {
   margin-bottom: 12px;
 }
+
 /* Peeked meeting notes shouldn't demand the full-screen height. */
 .detail-panel .ProseMirror,
 .detail-panel .meeting-notes .ProseMirror {
@@ -1014,13 +1135,16 @@
   border-radius: var(--radius-input);
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
+
 .meeting-notes .ProseMirror:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
-.rich-editor .ProseMirror > * + * {
+
+.rich-editor .ProseMirror>*+* {
   margin-top: 0.5em;
 }
+
 .rich-editor .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
@@ -1028,12 +1152,14 @@
   pointer-events: none;
   height: 0;
 }
+
 .rich-editor .ProseMirror blockquote {
   border-left: 3px solid var(--accent);
   padding-left: 12px;
   color: var(--text-soft);
   margin: 0.6em 0;
 }
+
 .rich-editor .ProseMirror pre {
   background: var(--bg-sunken);
   border-radius: 7px;
@@ -1041,12 +1167,14 @@
   font-size: 13px;
   overflow-x: auto;
 }
+
 .rich-editor .ProseMirror table {
   border-collapse: collapse;
   width: 100%;
   margin: 0.6em 0;
   table-layout: fixed;
 }
+
 .rich-editor .ProseMirror th,
 .rich-editor .ProseMirror td {
   border: 1px solid var(--border);
@@ -1054,37 +1182,45 @@
   vertical-align: top;
   min-width: 40px;
 }
+
 .rich-editor .ProseMirror th {
   background: var(--bg-sunken);
   font-weight: 700;
   text-align: left;
 }
+
 .rich-editor .ProseMirror .selectedCell {
   background: var(--accent-soft);
 }
+
 .rich-editor .ProseMirror ul[data-type='taskList'] {
   list-style: none;
   padding-left: 2px;
 }
+
 .rich-editor .ProseMirror ul[data-type='taskList'] li {
   display: flex;
   gap: 8px;
   align-items: flex-start;
 }
+
 /* The checkbox lives in a <label>, the text in a <div><p>. The p's
    default margin pushed the text below the checkbox — kill it and
    nudge the box down to the text's first line instead. */
-.rich-editor .ProseMirror ul[data-type='taskList'] li > label {
+.rich-editor .ProseMirror ul[data-type='taskList'] li>label {
   flex-shrink: 0;
   margin-top: 3px;
 }
-.rich-editor .ProseMirror ul[data-type='taskList'] li > div {
+
+.rich-editor .ProseMirror ul[data-type='taskList'] li>div {
   flex: 1;
   min-width: 0;
 }
+
 .rich-editor .ProseMirror ul[data-type='taskList'] li p {
   margin: 0;
 }
+
 .rich-editor .ProseMirror ul[data-type='taskList'] input[type='checkbox'] {
   accent-color: var(--accent);
   width: 16px;
@@ -1106,6 +1242,7 @@
   color: var(--text-faint);
   text-align: center;
 }
+
 /* The calendar scrolls through weeks a few tall rows at a time, so
    busy days read as lists instead of squeezing into a month grid. */
 .cal-screen {
@@ -1113,11 +1250,13 @@
   flex-direction: column;
   padding-bottom: 24px;
 }
+
 .cal-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
+
 .cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -1125,6 +1264,7 @@
   grid-auto-rows: max(150px, calc((100vh - 215px) / 3.5));
   gap: 6px;
 }
+
 .cal-cell {
   background: var(--bg-card);
   border-radius: 7px;
@@ -1137,6 +1277,7 @@
   min-width: 0;
   min-height: 0;
 }
+
 /* A crowded day scrolls within its own box rather than clipping. */
 .cal-cell-events {
   display: flex;
@@ -1145,18 +1286,22 @@
   overflow-y: auto;
   min-height: 0;
 }
+
 .cal-cell.today {
   outline: 2px solid var(--accent);
 }
+
 .cal-daynum {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-soft);
 }
+
 /* The 1st of a month carries its name through the endless scroll. */
 .cal-daynum.month-start {
   color: var(--accent);
 }
+
 /* --ev/--ev-soft are set inline when the event has a Google label
    color; without one the chips keep the theme accent. */
 .cal-event {
@@ -1168,22 +1313,43 @@
   line-height: 1.3;
   padding: 2px 6px;
   border-radius: 4px;
-  background: var(--ev-soft, var(--accent-soft));
+  background: var(--ev, var(--accent));
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .cal-event:hover {
-  background: var(--ev, var(--accent));
-  color: #fff;
+  background: var(--ev-soft, var(--accent-soft));
+  color: var(--text);
 }
+
 .cal-time {
-  color: var(--text-soft);
+  color: rgba(255, 255, 255, 0.8);
   font-weight: 500;
 }
+
 .cal-event:hover .cal-time {
-  color: #fff;
+  color: var(--text-soft);
 }
+
+/* The calendar label as a quiet footnote in the meeting header —
+   deliberately less prominent than the project chip beside it. */
+.ev-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+.ev-label-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
 /* All-day events: a quiet chip bar above timed lists. */
 .allday-bar {
   display: flex;
@@ -1191,6 +1357,7 @@
   gap: 6px;
   margin-bottom: 10px;
 }
+
 .allday-chip {
   font-size: 12px;
   font-weight: 600;
@@ -1200,10 +1367,12 @@
   border-radius: var(--radius-pill);
   padding: 3px 10px;
 }
+
 .allday-chip:hover {
   background: var(--bg-hover);
   color: var(--text);
 }
+
 .allday-dot {
   display: inline-block;
   width: 8px;
@@ -1221,6 +1390,7 @@
   padding: 28px;
   background: color-mix(in srgb, #000 45%, transparent);
 }
+
 .overlay-modal {
   position: relative;
   display: flex;
@@ -1230,8 +1400,10 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow-lift);
-  overflow: hidden; /* the .canvas inside scrolls */
+  overflow: hidden;
+  /* the .canvas inside scrolls */
 }
+
 .overlay-close {
   position: absolute;
   top: 14px;
@@ -1241,6 +1413,7 @@
   border: 1px solid var(--border);
   box-shadow: var(--shadow-card);
 }
+
 /* Inside the overlay, "back" is meaningless — closing is the exit. */
 .overlay-modal .back-btn {
   display: none;
@@ -1253,6 +1426,7 @@
   align-items: center;
   gap: 6px;
 }
+
 .project-chip {
   display: inline-flex;
   align-items: center;
@@ -1265,10 +1439,12 @@
   border-radius: var(--radius-pill);
   padding: 3px 10px;
 }
+
 .project-chip:hover {
   background: var(--bg-hover);
   color: var(--text);
 }
+
 .project-chip.selected {
   border-color: var(--chip-color, var(--accent));
   background: color-mix(in srgb, var(--chip-color, var(--accent)) 14%, var(--bg-card));
@@ -1282,11 +1458,13 @@
   gap: 8px;
   align-items: center;
 }
+
 .label-row .label-hex {
   font-family: ui-monospace, monospace;
   font-size: 12px;
   padding: 6px 8px;
 }
+
 .label-row input[type='color'] {
   width: 36px;
   height: 30px;
@@ -1319,12 +1497,14 @@
   min-width: 0;
   flex: 1;
 }
+
 .project-color-btn {
   display: flex;
   align-items: center;
   padding: 6px;
   border-radius: 50%;
 }
+
 .project-color-btn:hover {
   background: var(--bg-hover);
 }

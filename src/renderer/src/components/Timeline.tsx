@@ -8,6 +8,7 @@ import { useLabels, type Label } from '../state/labels'
 import { ProgressBar } from './bits'
 import { ProjectPicker } from './ProjectPicker'
 import { AllDayBar } from './AllDayBar'
+import { tipLines, useTip } from './Tooltip'
 import { ampm } from '../format'
 
 const PX_PER_MIN = 2.4 // tall enough that a 15-minute block fits its text
@@ -561,6 +562,18 @@ function EventBlock({
     id: `event-${event.eventKey}`,
     data: { type: 'event-prep', event }
   })
+  // The fast viewport tooltip (not the ~1s native `title`), same as
+  // the month calendar's chips. One line per fact — never truncated.
+  const tip = useTip(
+    tipLines(
+      event.title,
+      event.startTime && `🕐 ${ampm(event.startTime)}${event.endTime ? `–${ampm(event.endTime)}` : ''}`,
+      label && label.name
+    )
+  )
+  // A labeled event fills solid with its label color (like the month
+  // calendar's chips); its secondary text turns translucent white.
+  const soft = label ? 'rgba(255, 255, 255, 0.82)' : 'var(--text-soft)'
   return (
     <div
       ref={setNodeRef}
@@ -569,23 +582,18 @@ function EventBlock({
         top,
         height,
         ...colStyle,
-        ...(label
-          ? {
-              background: `color-mix(in srgb, ${label.hex} 12%, var(--bg-card))`,
-              borderColor: label.hex
-            }
-          : {})
+        ...(label ? { background: label.hex, borderColor: label.hex, color: '#fff' } : {})
       }}
-      title={`${event.title}${label ? ` · ${label.name}` : ''} — open notes`}
+      {...tip}
       onClick={onOpen}
     >
       <div className="row" style={{ gap: 6 }}>
         <b>{event.title}</b>
-        <span style={{ color: 'var(--text-soft)', fontSize: 12 }}>
+        <span style={{ color: soft, fontSize: 12 }}>
           {ampm(event.startTime!)}
           {event.endTime ? `–${ampm(event.endTime)}` : ''}
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: soft }}>
           notes ↗
         </span>
       </div>
@@ -594,7 +602,7 @@ function EventBlock({
           <span style={{ flex: 1 }}>
             <ProgressBar done={prepDone} total={prepTotal} />
           </span>
-          <span style={{ fontSize: 11.5, color: 'var(--text-soft)' }}>
+          <span style={{ fontSize: 11.5, color: soft }}>
             {prepDone} of {prepTotal} prep
           </span>
         </div>
