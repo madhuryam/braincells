@@ -71,7 +71,7 @@ export function DailyLog(): React.JSX.Element {
         </span>
         <span className="row" style={{ marginLeft: 'auto' }}>
           <button className="btn ghost" onClick={() => setWeekStart(ymdAddDays(weekStart, -7))}>
-            ←
+            ⬅
           </button>
           {weekStart !== weekStartOf(today) && (
             <button className="btn ghost" onClick={() => setWeekStart(weekStartOf(today))}>
@@ -83,7 +83,7 @@ export function DailyLog(): React.JSX.Element {
             disabled={weekStart === weekStartOf(today)}
             onClick={() => setWeekStart(ymdAddDays(weekStart, 7))}
           >
-            →
+            ➡
           </button>
           <button
             className="btn ghost icon-btn tooltip"

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { useNav } from '../state/nav'
 
 /**
- * "← back" in a screen header. Renders nothing on the first screen of
+ * "⬅ back" in a screen header. Renders nothing on the first screen of
  * the session, so Today usually stays clean.
  */
 export function BackButton(): React.JSX.Element | null {
@@ -10,7 +10,7 @@ export function BackButton(): React.JSX.Element | null {
   if (!canGoBack) return null
   return (
     <button className="btn ghost icon-btn back-btn" title="Back" onClick={back}>
-      ←
+      ⬅
     </button>
   )
 }

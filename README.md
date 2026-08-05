@@ -65,7 +65,7 @@ Useful commands:
   up/down to reorder.
 - **Daily Log**: what got done, which meetings happened, plus a journal box.
 - **⌘K**: full-text search across every title, note, and page. **⌘N**:
-  quick capture inside the app. **←** in any header goes back.
+  quick capture inside the app. **⬅** in any header goes back.
 
 ## Calendar
 

@@ -21,8 +21,8 @@ export interface ThemeDef {
 
 /** Six light moods plus one friendly, colorful dark. */
 export const THEMES: ThemeDef[] = [
-  { id: 'paper', label: 'Paper', dark: false, swatch: '#845ef7' },
   { id: 'slate', label: 'Slate', dark: false, swatch: '#364fc7' },
+  { id: 'paper', label: 'Paper', dark: false, swatch: '#845ef7' },
   { id: 'ocean', label: 'Ocean', dark: false, swatch: '#1c7ed6' },
   { id: 'sunset', label: 'Sunset', dark: false, swatch: '#f76707' },
   { id: 'rose', label: 'Rose', dark: false, swatch: '#e64980' },
@@ -60,7 +60,7 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
   const [projects, setProjects] = useState<Project[]>([])
   const [inboxCount, setInboxCount] = useState(0)
   const [starred, setStarred] = useState<Item[]>([])
-  const [theme, setThemeState] = useState<ThemeId>('paper')
+  const [theme, setThemeState] = useState<ThemeId>('slate')
   const [dark, setDark] = useState(false)
 
   const bump = useCallback(() => setVersion((v) => v + 1), [])
@@ -87,7 +87,7 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
     })
   }, [])
   // Remembered so the sidebar moon can flip back to *your* light theme.
-  const lastLight = useRef<ThemeId>('paper')
+  const lastLight = useRef<ThemeId>('slate')
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     const isDark = THEMES.find((t) => t.id === theme)!.dark

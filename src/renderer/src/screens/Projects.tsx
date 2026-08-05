@@ -85,7 +85,7 @@ export function Projects(): React.JSX.Element {
 
       <div className="section-label">Active</div>
       {projects.length === 0 && (
-        <EmptyState art="🗂️">No projects yet. They’re just buckets — make one above.</EmptyState>
+        <EmptyState art="📁">No projects yet. They’re just buckets — make one above.</EmptyState>
       )}
       <div className="stack">
         {projects.map((p) => (
