@@ -115,16 +115,20 @@ function Overlay(): React.JSX.Element | null {
   )
 }
 
-/** App-wide shortcuts. ⌘N: jump to Today and focus quick capture. */
+/** App-wide shortcuts. ⌘N: jump to Inbox and focus quick capture. */
 function Shortcuts(): null {
   const { navigate } = useNav()
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.metaKey && e.key.toLowerCase() === 'n') {
         e.preventDefault()
+        navigate({ name: 'inbox' })
+        // Focus after the Inbox screen has rendered.
+        requestAnimationFrame(() => document.getElementById('inbox-capture')?.focus())
+      }
+      if (e.metaKey && e.key.toLowerCase() === 't') {
+        e.preventDefault()
         navigate({ name: 'today' })
-        // Focus after the Today screen has rendered.
-        requestAnimationFrame(() => document.getElementById('quick-capture')?.focus())
       }
       if (e.metaKey && e.key.toLowerCase() === 'k') {
         e.preventDefault()

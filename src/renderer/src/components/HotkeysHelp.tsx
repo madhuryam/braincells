@@ -16,12 +16,13 @@ const SECTIONS: Array<{ title: string; rows: Row[] }> = [
     title: 'Anywhere',
     rows: [
       { keys: ['⌥', 'Space'], what: 'Quick capture — even outside the app' },
-      { keys: ['⌘', 'N'], what: 'Jump to Today and start capturing' },
+      { keys: ['⌘', 'N'], what: 'Jump to Inbox and start capturing' },
+      { keys: ['⌘', 'T'], what: 'Go to Today' },
       { keys: ['⌘', 'K'], what: 'Search everything' },
       { keys: ['⌘', 'I'], what: 'Go to Inbox' },
       { keys: ['⌘', ','], what: 'Open Settings' },
       { keys: ['⌘', 'Z'], what: 'Undo (drops, sweeps, check-offs)' },
-      { keys: ['Esc'], what: 'Close the floating page / peek panel' },
+      { keys: ['Esc'], what: 'Close the floating view / side panel' },
       { keys: ['?'], what: 'This cheat-sheet' }
     ]
   },

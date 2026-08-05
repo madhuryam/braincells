@@ -152,7 +152,8 @@ export function Inbox(): React.JSX.Element {
 
       <div style={{ marginBottom: 14 }}>
         <CheckableInput
-          placeholder="Capture anything — it lands here as a task to triage…"
+          id="inbox-capture"
+          placeholder="Capture anything (⌘N) — it lands here as a task to triage…"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && capture()}
