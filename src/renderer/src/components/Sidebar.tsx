@@ -98,10 +98,6 @@ export function Sidebar(): React.JSX.Element {
       <div className="sidebar-brand">{collapsed ? 'b.' : 'braincells'}</div>
       {!collapsed && <Clock />}
 
-      {/* Dropping any card on "Today" schedules it for today. */}
-      <DropZone id="nav-today" data={{ type: 'schedule', date: todayYmd() }}>
-        <NavItem view={{ name: 'today' }} icon="📅" label="Today" isActive={view.name === 'today'} />
-      </DropZone>
       <NavItem
         view={{ name: 'inbox' }}
         icon="📨"
@@ -109,6 +105,10 @@ export function Sidebar(): React.JSX.Element {
         badge={inboxCount}
         isActive={view.name === 'inbox'}
       />
+      {/* Dropping any card on "Today" schedules it for today. */}
+      <DropZone id="nav-today" data={{ type: 'schedule', date: todayYmd() }}>
+        <NavItem view={{ name: 'today' }} icon="📅" label="Today" isActive={view.name === 'today'} />
+      </DropZone>
       <NavItem view={{ name: 'log' }} icon="📑" label="Weekly Log" isActive={view.name === 'log'} />
       <NavItem
         view={{ name: 'calendar' }}
@@ -126,19 +126,25 @@ export function Sidebar(): React.JSX.Element {
       )}
       {!collapsed &&
         starredOpen &&
-        starred.map((item) => (
-          <button
-            key={item.id}
-            className={`nav-item ${view.name === 'page' && view.itemId === item.id ? 'active' : ''}`}
-            title={item.title}
-            onClick={() => openOverlay({ name: 'page', itemId: item.id })}
-          >
-            <span className="nav-icon" aria-hidden>
-              {KIND_ICON[item.kind]}
-            </span>
-            <span>{item.title || 'Untitled'}</span>
-          </button>
-        ))}
+        starred.map((item) => {
+          // Project dot + tooltip so starred items show where they live.
+          // find() misses archived projects — those render plain on purpose.
+          const project = projects.find((p) => p.id === item.projectId)
+          return (
+            <button
+              key={item.id}
+              className={`nav-item ${view.name === 'page' && view.itemId === item.id ? 'active' : ''}`}
+              title={project ? `${item.title} — ${project.name}` : item.title}
+              onClick={() => openOverlay({ name: 'page', itemId: item.id })}
+            >
+              <span className="nav-icon" aria-hidden>
+                {KIND_ICON[item.kind]}
+              </span>
+              {project && <ProjectDot color={project.color} />}
+              <span>{item.title || 'Untitled'}</span>
+            </button>
+          )
+        })}
 
       {!collapsed && <div className="nav-section">Projects</div>}
       <NavItem
