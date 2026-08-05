@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useData, useLiveQuery, useMutate } from '../state/data'
+import { useNav } from '../state/nav'
+import { ConfirmButton } from '../components/ConfirmButton'
 import { RichEditor } from '../components/RichEditor'
 import { BackButton, ProjectDot } from '../components/bits'
 
@@ -12,6 +14,7 @@ import { BackButton, ProjectDot } from '../components/bits'
 export function Page({ itemId }: { itemId: string }): React.JSX.Element {
   const item = useLiveQuery(() => window.api.getItem(itemId), [itemId])
   const { projects } = useData()
+  const { closeOverlay } = useNav()
   const mutate = useMutate()
 
   // Title: seeded once per page, saved on blur (same pattern as cards).
@@ -48,7 +51,7 @@ export function Page({ itemId }: { itemId: string }): React.JSX.Element {
     [itemId]
   )
 
-  if (!item) return <div className="canvas">Page not found.</div>
+  if (!item) return <div className="canvas">Canvas not found.</div>
   const project = projects.find((p) => p.id === item.projectId)
 
   return (
@@ -58,7 +61,7 @@ export function Page({ itemId }: { itemId: string }): React.JSX.Element {
         <input
           className="page-title"
           value={title}
-          placeholder="Untitled page"
+          placeholder="Untitled canvas"
           onChange={(e) => setTitle(e.target.value)}
           onBlur={() => title !== item.title && mutate(() => window.api.updateItem(itemId, { title }))}
           onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
@@ -75,6 +78,18 @@ export function Page({ itemId }: { itemId: string }): React.JSX.Element {
         >
           {item.starred ? '⭐' : '☆'}
         </button>
+        {/* Deleting lives ONLY here, on the full view — where you can
+            see everything you're about to lose. Two-step, never one click. */}
+        <ConfirmButton
+          label="🗑"
+          confirmLabel="delete canvas?"
+          title="Delete this canvas"
+          className="btn ghost"
+          onConfirm={async () => {
+            await mutate(() => window.api.deleteItem(itemId))
+            closeOverlay()
+          }}
+        />
       </header>
 
       {/* Keyed by id: the editor seeds once per page and owns the

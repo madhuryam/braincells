@@ -36,9 +36,16 @@ export function ItemDetail({ itemId }: { itemId: string }): React.JSX.Element | 
         <h2 style={{ flex: 1, minWidth: 0, textDecoration: done ? 'line-through' : undefined }}>
           {item.title || <span style={{ color: 'var(--text-faint)' }}>Untitled</span>}
         </h2>
+        <button
+          className="btn ghost icon-btn"
+          title={item.starred ? 'Unstar' : 'Star — pin it to the sidebar'}
+          onClick={() => mutate(() => window.api.updateItem(item.id, { starred: !item.starred }))}
+        >
+          {item.starred ? '⭐' : '☆'}
+        </button>
         {item.kind === 'page' && (
           <button className="btn ghost" onClick={() => openOverlay({ name: 'page', itemId: item.id })}>
-            open full page ↗
+            open canvas ↗
           </button>
         )}
       </div>

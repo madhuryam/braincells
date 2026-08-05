@@ -28,7 +28,7 @@ export function DetailPanel({
         <span className="row" style={{ marginLeft: 'auto', flexShrink: 0 }}>
           {onOpenFull && (
             <button className="btn ghost" onClick={onOpenFull}>
-              open full page ↗
+              open full view ↗
             </button>
           )}
           <button className="btn ghost" title="Close panel" onClick={onClose}>

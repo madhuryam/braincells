@@ -190,9 +190,6 @@ function DayBlock({
               <div className="row">
                 <span className="card-title">📅 {ev.title}</span>
                 {ev.startTime && <span className="pill">{ampm(ev.startTime)}</span>}
-                <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
-                  peek →
-                </span>
               </div>
             </Card>
           ))}
@@ -202,9 +199,6 @@ function DayBlock({
               <div className="row">
                 <span aria-hidden>{KIND_ICON[item.kind]}</span>
                 <span className="card-title">{item.title || 'Untitled'}</span>
-                <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
-                  peek →
-                </span>
               </div>
             </Card>
           ))}

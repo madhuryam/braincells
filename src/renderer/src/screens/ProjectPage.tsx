@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
+import type { Item } from '@shared/types'
+import { todayYmd } from '@shared/dates'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { Card } from '../components/Card'
-import { ConfirmButton } from '../components/ConfirmButton'
 import { DetailPanel } from '../components/DetailPanel'
 import { ItemCard } from '../components/ItemCard'
 import { ItemDetail } from '../components/ItemDetail'
@@ -13,10 +14,26 @@ import { Meeting } from './Meeting'
 import { BackButton, CheckableInput, EmptyState, ProjectDot } from '../components/bits'
 import { PROJECT_COLORS } from '../palette'
 
-/** What the right-hand peek panel is showing. */
+/** What the right-hand detail panel is showing. */
 type Detail =
   | { kind: 'meeting'; eventKey: string; title: string; date: string }
   | { kind: 'item'; itemId: string }
+
+/**
+ * One canvas in the project's list. Clicking opens the side panel —
+ * no action buttons here: deletion lives on the canvas's full view,
+ * where you can see what you're deleting.
+ */
+function CanvasRow({ item, onOpen }: { item: Item; onOpen: () => void }): React.JSX.Element {
+  return (
+    <Card interactive onClick={onOpen}>
+      <div className="row">
+        <span aria-hidden>{item.starred ? '⭐' : '📄'}</span>
+        <span className="card-title">{item.title || 'Untitled canvas'}</span>
+      </div>
+    </Card>
+  )
+}
 
 export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Element {
   const { projects } = useData()
@@ -27,6 +44,11 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   const meetings = useLiveQuery(() => window.api.meetingsForProject(projectId), [projectId]) ?? []
   const [draft, setDraft] = useState('')
   const [showDone, setShowDone] = useState(false)
+  // Meetings stay out of the way: collapsed by default, and each group
+  // (upcoming/previous) reveals a page at a time.
+  const [meetingsOpen, setMeetingsOpen] = useState(false)
+  const [upcomingShown, setUpcomingShown] = useState(5)
+  const [previousShown, setPreviousShown] = useState(5)
 
   // Inline header editing: click the name to rename, the dot to recolor.
   const [editingName, setEditingName] = useState(false)
@@ -51,8 +73,22 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
 
   const open = (items ?? []).filter((i) => i.status === 'active' || i.status === 'inbox')
   const pages = open.filter((i) => i.kind === 'page')
+  // Starred canvases get their own section up top — the ones worth
+  // keeping within reach shouldn't hide among the rest.
+  const starredPages = pages.filter((p) => p.starred)
+  const plainPages = pages.filter((p) => !p.starred)
   const todos = open.filter((i) => i.kind === 'task' || i.kind === 'prep')
   const done = (items ?? []).filter((i) => i.status === 'done' && i.kind !== 'page')
+
+  // Meetings split around today: upcoming soonest-first, previous
+  // most-recent-first — each browseable on its own.
+  const today = todayYmd()
+  const upcoming = meetings
+    .filter((m) => m.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+  const previous = meetings
+    .filter((m) => m.date < today)
+    .sort((a, b) => b.date.localeCompare(a.date))
 
   // Projects hold tasks and pages — a longer thought belongs on a
   // page, so the quick-add only makes tasks.
@@ -154,36 +190,32 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
         <EmptyState art="🌱">Nothing here yet. Add a task or note above.</EmptyState>
       )}
 
-      {/* Pages: full writing surfaces (rich text, tables) per project. */}
+      {/* Starred canvases: pinned above the rest for quick access. */}
+      {starredPages.length > 0 && (
+        <>
+          <div className="section-label">⭐ Starred</div>
+          <div className="stack project-section">
+            {starredPages.map((p) => (
+              <CanvasRow key={p.id} item={p} onOpen={() => setDetail({ kind: 'item', itemId: p.id })} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Canvases: full writing surfaces (rich text, tables) per project. */}
       <div className="section-label row">
-        Pages
+        Canvases
         <button className="btn ghost" onClick={newPage}>
-          ＋ new page
+          ＋ new canvas
         </button>
       </div>
       <div className="stack project-section">
-        {pages.map((p) => (
-          <Card key={p.id} interactive onClick={() => setDetail({ kind: 'item', itemId: p.id })}>
-            <div className="row">
-              <span aria-hidden>📄</span>
-              <span className="card-title">{p.title || 'Untitled page'}</span>
-              <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
-                peek →
-              </span>
-              {/* Deleting a document should never be one click. */}
-              <ConfirmButton
-                label="🗑"
-                confirmLabel="delete page?"
-                title="Delete this page"
-                className="btn ghost small"
-                onConfirm={() => mutate(() => window.api.deleteItem(p.id))}
-              />
-            </div>
-          </Card>
+        {plainPages.map((p) => (
+          <CanvasRow key={p.id} item={p} onOpen={() => setDetail({ kind: 'item', itemId: p.id })} />
         ))}
         {pages.length === 0 && (
           <span style={{ color: 'var(--text-faint)', fontSize: 13 }}>
-            No pages yet — a page is a full document for brain-dumping knowledge.
+            No canvases yet — a canvas is a full document for brain-dumping knowledge.
           </span>
         )}
       </div>
@@ -204,20 +236,56 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
         </>
       )}
 
+      {/* Meetings: collapsed until asked for, split around today, and
+          revealed a handful at a time — a busy project accumulates far
+          more meetings than anyone wants to scroll past. */}
       {meetings.length > 0 && (
         <>
-          <div className="section-label">Meetings</div>
-          <div className="stack project-section">
-            {meetings.map((m) => (
-              <MeetingRow
-                key={m.eventKey}
-                meeting={m}
-                onPeek={(mtg) =>
-                  setDetail({ kind: 'meeting', eventKey: mtg.eventKey, title: mtg.title, date: mtg.date })
-                }
-              />
-            ))}
-          </div>
+          <button className="section-label day-toggle" onClick={() => setMeetingsOpen(!meetingsOpen)}>
+            {meetingsOpen ? '▾' : '▸'} Meetings <span className="pill">{meetings.length}</span>
+          </button>
+          {meetingsOpen && (
+            <div className="stack project-section">
+              {upcoming.length > 0 && (
+                <>
+                  <div className="section-sublabel">Upcoming · {upcoming.length}</div>
+                  {upcoming.slice(0, upcomingShown).map((m) => (
+                    <MeetingRow
+                      key={m.eventKey}
+                      meeting={m}
+                      onPeek={(mtg) =>
+                        setDetail({ kind: 'meeting', eventKey: mtg.eventKey, title: mtg.title, date: mtg.date })
+                      }
+                    />
+                  ))}
+                  {upcoming.length > upcomingShown && (
+                    <button className="btn ghost small" onClick={() => setUpcomingShown(upcomingShown + 10)}>
+                      show {Math.min(10, upcoming.length - upcomingShown)} more of {upcoming.length}
+                    </button>
+                  )}
+                </>
+              )}
+              {previous.length > 0 && (
+                <>
+                  <div className="section-sublabel">Previous · {previous.length}</div>
+                  {previous.slice(0, previousShown).map((m) => (
+                    <MeetingRow
+                      key={m.eventKey}
+                      meeting={m}
+                      onPeek={(mtg) =>
+                        setDetail({ kind: 'meeting', eventKey: mtg.eventKey, title: mtg.title, date: mtg.date })
+                      }
+                    />
+                  ))}
+                  {previous.length > previousShown && (
+                    <button className="btn ghost small" onClick={() => setPreviousShown(previousShown + 10)}>
+                      show {Math.min(10, previous.length - previousShown)} more of {previous.length}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </>
       )}
 

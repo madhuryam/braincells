@@ -45,13 +45,9 @@ export function MeetingRow({
             {done}/{followUps.length} follow-ups
           </span>
         )}
-        {/* Peekable rows keep one action: peek. Opening the full page
-            lives in the peek panel's header. */}
-        {onPeek ? (
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-soft)' }}>
-            peek →
-          </span>
-        ) : (
+        {/* Clicking the row opens the side panel — that's implied, no
+            label needed. Standalone rows keep an explicit Open. */}
+        {!onPeek && (
           <button
             className="btn ghost"
             style={{ marginLeft: 'auto' }}
