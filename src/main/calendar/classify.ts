@@ -12,14 +12,18 @@ import type { Store } from '../store'
  * renderer to refresh when something actually changed.
  */
 export function autoFileMeetingsByLabel(store: Store, events: CalendarEvent[]): number {
-  const labels = store.getSetting<Record<string, LabelOverride>>('calendarLabels') ?? {}
+  const raw = store.getSetting<Record<string, LabelOverride>>('calendarLabels') ?? {}
+  // Case-insensitive keys, matching the renderer's normLabelId — a
+  // label saved as 'AbC…' must still match events reporting 'abc…'.
+  const labels: Record<string, LabelOverride> = {}
+  for (const [k, v] of Object.entries(raw)) labels[k.toLowerCase()] = { ...labels[k.toLowerCase()], ...v }
   if (!Object.values(labels).some((l) => l.projectId)) return 0
   const activeProjects = new Set(store.listProjects().map((p) => p.id))
   let filed = 0
   for (const e of events) {
     // Same key the UI colors by: standard color id first, else the
     // custom event-label id.
-    const labelId = e.colorId ?? e.eventLabelId
+    const labelId = (e.colorId ?? e.eventLabelId)?.toLowerCase()
     if (!labelId) continue
     const projectId = labels[labelId]?.projectId
     if (!projectId || !activeProjects.has(projectId)) continue

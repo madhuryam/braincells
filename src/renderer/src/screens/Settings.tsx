@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   closestCenter,
   DndContext,
@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { GOOGLE_EVENT_COLORS, type LabelOverride } from '@shared/types'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { THEMES, useData, useLiveQuery, useMutate } from '../state/data'
-import { UNKNOWN_LABEL_HEX } from '../state/labels'
+import { fallbackLabelHex, normLabelId } from '../state/labels'
 import { Card } from '../components/Card'
 import { ProjectPicker } from '../components/ProjectPicker'
 import { DEFAULT_TIME_ZONE } from '../components/Sidebar'
@@ -312,12 +312,23 @@ export function Settings(): React.JSX.Element {
  */
 function CalendarLabelsCard(): React.JSX.Element | null {
   const mutate = useMutate()
-  const saved = useLiveQuery(
+  const savedRaw = useLiveQuery(
     () => window.api.getSetting<Record<string, LabelOverride>>('calendarLabels'),
     []
   )
-  const savedOrder =
+  // Consolidate keys case-insensitively (normLabelId): overrides saved
+  // before event ids were lowercased must keep matching their label.
+  const saved = useMemo(() => {
+    if (savedRaw === undefined || savedRaw === null) return savedRaw
+    const out: Record<string, LabelOverride> = {}
+    for (const [k, v] of Object.entries(savedRaw)) {
+      out[normLabelId(k)] = { ...out[normLabelId(k)], ...v }
+    }
+    return out
+  }, [savedRaw])
+  const savedOrder = (
     useLiveQuery(() => window.api.getSetting<string[]>('calendarLabelOrder'), []) ?? []
+  ).map(normLabelId)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
   // Which labels are in use on recent events, with a few example titles
   // each — so an opaque colorId ("Label 27") is recognizable as the
@@ -388,8 +399,9 @@ function CalendarLabelsCard(): React.JSX.Element | null {
     GOOGLE_EVENT_COLORS[id] ?? {
       // Custom event labels are UUIDs — show a short stub; the
       // "on N recent events" hint is how you actually recognize it.
+      // The base color matches what the calendar renders (stable hash).
       name: id.length > 12 ? `Label ${id.slice(0, 8)}…` : `Label ${id}`,
-      hex: UNKNOWN_LABEL_HEX
+      hex: fallbackLabelHex(id)
     }
 
   return (
