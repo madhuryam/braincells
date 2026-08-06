@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion'
 import type { Item } from '@shared/types'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useData, useLiveQuery, useMutate } from '../state/data'
+import { useSelection } from '../state/selection'
 import { shortTitle, useUndo } from '../state/undo'
 import { prettyDate, rollingDays } from '../format'
 import { ItemCard } from '../components/ItemCard'
@@ -35,6 +36,11 @@ export function Inbox(): React.JSX.Element {
   const mutate = useMutate()
   const { pushUndo } = useUndo()
   const [selected, setSelected] = useState(0)
+  // The keyboard-triage cursor stays hidden until the user engages, so
+  // the first row isn't ringed the moment the page loads.
+  const [touched, setTouched] = useState(false)
+  // Which row's inline editor is open — only one at a time.
+  const [openId, setOpenId] = useState<string | null>(null)
   const [picking, setPicking] = useState<'project' | 'meeting' | null>(null)
   const [draft, setDraft] = useState('')
   // Upcoming events, so a capture can be attached as meeting prep.
@@ -45,6 +51,7 @@ export function Inbox(): React.JSX.Element {
   const zero = useMemo(() => ZERO_MESSAGES[Math.floor(Math.random() * ZERO_MESSAGES.length)], [])
 
   const current = items[Math.min(selected, items.length - 1)]
+  const { selected: multi, clear: clearMulti } = useSelection()
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -52,29 +59,38 @@ export function Inbox(): React.JSX.Element {
       const t = e.target as HTMLElement
       if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return
 
+      // Every triage key acts on the multi-selection when one exists,
+      // else on the keyboard-cursor row. Applying clears the selection.
+      const targets =
+        multi.size > 0 ? items.filter((i) => multi.has(i.id)) : current ? [current] : []
+      const triage = (patch: Parameters<typeof window.api.updateItem>[1]): void => {
+        mutate(async () => {
+          for (const it of targets) await window.api.updateItem(it.id, patch)
+        })
+        if (multi.size > 0) clearMulti()
+      }
+
       if (picking) {
         // Second keystroke of "P"/"M": a digit picks the target.
         const idx = Number(e.key) - 1
-        if (picking === 'project' && idx >= 0 && idx < projects.length && current) {
-          mutate(() =>
-            window.api.updateItem(current.id, { projectId: projects[idx].id, status: 'active' })
-          )
+        if (picking === 'project' && idx >= 0 && idx < projects.length && targets.length > 0) {
+          triage({ projectId: projects[idx].id, status: 'active' })
         }
-        if (picking === 'meeting' && idx >= 0 && idx < events.length && current) {
+        if (picking === 'meeting' && idx >= 0 && idx < events.length && targets.length > 0) {
           const event = events[idx]
           mutate(async () => {
-            await window.api.updateItem(current.id, { kind: 'prep', status: 'active' })
-            await window.api.linkToEvent(current.id, event, 'prep-for')
+            for (const it of targets) {
+              await window.api.updateItem(it.id, { kind: 'prep', status: 'active' })
+              await window.api.linkToEvent(it.id, event, 'prep-for')
+            }
           })
+          if (multi.size > 0) clearMulti()
         }
         setPicking(null)
         return
       }
-      if (!current) return
+      if (targets.length === 0) return
 
-      const triage = (patch: Parameters<typeof window.api.updateItem>[1]): void => {
-        mutate(() => window.api.updateItem(current.id, patch))
-      }
       // 1–5: a task on that day of the rolling window.
       const days = rollingDays()
       const dayIdx = Number(e.key) - 1
@@ -85,10 +101,12 @@ export function Inbox(): React.JSX.Element {
       switch (e.key) {
         case 'ArrowDown':
         case 'j':
+          setTouched(true)
           setSelected((s) => Math.min(s + 1, items.length - 1))
           break
         case 'ArrowUp':
         case 'k':
+          setTouched(true)
           setSelected((s) => Math.max(s - 1, 0))
           break
         case '0': // someday: an active task with no date — the backlog
@@ -101,18 +119,23 @@ export function Inbox(): React.JSX.Element {
           setPicking('meeting')
           break
         case 'x': {
-          const dropped = current
+          const dropped = [...targets]
           triage({ status: 'dropped' })
-          pushUndo(`Dropped “${shortTitle(dropped.title)}”`, async () => {
-            await window.api.updateItem(dropped.id, { status: 'inbox' })
-          })
+          pushUndo(
+            dropped.length === 1
+              ? `Dropped “${shortTitle(dropped[0].title)}”`
+              : `Dropped ${dropped.length} items`,
+            async () => {
+              for (const it of dropped) await window.api.updateItem(it.id, { status: 'inbox' })
+            }
+          )
           break
         }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [current, items.length, picking, projects, events, mutate, pushUndo])
+  }, [current, items, picking, projects, events, mutate, pushUndo, multi, clearMulti])
 
   const capture = async (): Promise<void> => {
     const title = draft.trim()
@@ -205,11 +228,18 @@ export function Inbox(): React.JSX.Element {
             {items.map((item, i) => (
               <div
                 key={item.id}
-                onClick={() => setSelected(i)}
+                onClick={() => {
+                  setSelected(i)
+                  setTouched(true)
+                }}
                 className={sweeping ? 'sweep-out' : ''}
                 style={{
-                  ...(i === selected && !sweeping
-                    ? { outline: '2px solid var(--accent)', borderRadius: 'var(--radius-card)' }
+                  // The keyboard-triage cursor: only after the user has
+                  // actually engaged, so item 0 isn't marked on load.
+                  // An accent edge + wash, not an outline — outlines jut
+                  // outside flush rows and clip against the container.
+                  ...(touched && i === selected && !sweeping
+                    ? { boxShadow: 'inset 3px 0 0 var(--accent)', background: 'var(--accent-soft)' }
                     : {}),
                   ...(sweeping ? { transitionDelay: `${Math.min(i, 12) * 60}ms` } : {})
                 }}
@@ -218,8 +248,20 @@ export function Inbox(): React.JSX.Element {
                 <DraggableCard item={item}>
                   {/* Checkbox multi-selects (inbox items are triaged,
                       not completed); a click also bubbles up to target
-                      the row for keyboard triage as the editor opens. */}
-                  <ItemCard item={item} checkboxSelects />
+                      the row for keyboard triage as the editor opens.
+                      Controlled open → only one card edits at a time. */}
+                  <ItemCard
+                    item={item}
+                    checkboxSelects
+                    open={openId === item.id}
+                    onOpenChange={(o) => {
+                      setOpenId(o ? item.id : null)
+                      if (o) {
+                        setSelected(i)
+                        setTouched(true)
+                      }
+                    }}
+                  />
                 </DraggableCard>
               </div>
             ))}
