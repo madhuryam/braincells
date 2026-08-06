@@ -21,17 +21,29 @@ export function DetailPanel({
     <aside className="detail-panel">
       <div className="detail-panel-header row">
         {title && (
-          <h2 style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          // The title doubles as the open-full affordance — clicking a
+          // thing's name to go to it needs no label.
+          <h2
+            style={{
+              flex: 1,
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              cursor: onOpenFull ? 'pointer' : undefined
+            }}
+            title={onOpenFull ? 'Open full view' : undefined}
+            onClick={onOpenFull}
+          >
             {title}
           </h2>
         )}
         <span className="row" style={{ marginLeft: 'auto', flexShrink: 0 }}>
           {onOpenFull && (
-            <button className="btn ghost" onClick={onOpenFull}>
-              open full view ↗
+            <button className="btn ghost icon-btn" title="Open full view" onClick={onOpenFull}>
+              ↗
             </button>
           )}
-          <button className="btn ghost" title="Close panel" onClick={onClose}>
+          <button className="btn ghost icon-btn" title="Close panel" onClick={onClose}>
             ✕
           </button>
         </span>

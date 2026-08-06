@@ -6,8 +6,11 @@ import { ProjectDot } from './bits'
 
 /**
  * Mutually-exclusive project chips instead of a dropdown — with the
- * handful of projects in play at any time, one click beats two. With
- * no projects yet it offers to create the first one inline.
+ * handful of projects in play at any time, one click beats two. Rests
+ * as a single badge (the selected project, or "no project") so it
+ * never drowns its row; clicking expands the full chip set, and any
+ * pick — or focus leaving — collapses it again. With no projects yet
+ * it offers to create the first one inline.
  */
 export function ProjectPicker({
   value,
@@ -18,6 +21,7 @@ export function ProjectPicker({
 }): React.JSX.Element {
   const { projects } = useData()
   const mutate = useMutate()
+  const [open, setOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState('')
 
@@ -33,26 +37,16 @@ export function ProjectPicker({
     if (created) onChange(created.id)
   }
 
-  return (
-    <div className="project-picker">
-      <button
-        className={`project-chip ${value === null ? 'selected' : ''}`}
-        onClick={() => onChange(null)}
-      >
-        no project
-      </button>
-      {projects.map((p) => (
-        <button
-          key={p.id}
-          className={`project-chip ${value === p.id ? 'selected' : ''}`}
-          style={{ '--chip-color': p.color } as CSSProperties}
-          onClick={() => onChange(p.id)}
-        >
-          <ProjectDot color={p.color} /> {p.name}
-        </button>
-      ))}
-      {projects.length === 0 &&
-        (adding ? (
+  const pick = (projectId: string | null): void => {
+    setOpen(false)
+    onChange(projectId)
+  }
+
+  // Zero projects: nothing to collapse — show the create flow directly.
+  if (projects.length === 0) {
+    return (
+      <div className="project-picker">
+        {adding ? (
           <input
             autoFocus
             placeholder="First project’s name…"
@@ -72,7 +66,57 @@ export function ProjectPicker({
           <button className="project-chip" onClick={() => setAdding(true)}>
             ＋ new project
           </button>
-        ))}
+        )}
+      </div>
+    )
+  }
+
+  if (!open) {
+    const selected = projects.find((p) => p.id === value)
+    return (
+      <div className="project-picker">
+        {selected ? (
+          <button
+            className="project-chip selected"
+            style={{ '--chip-color': selected.color } as CSSProperties}
+            title="Change project"
+            onClick={() => setOpen(true)}
+          >
+            <ProjectDot color={selected.color} /> {selected.name}
+          </button>
+        ) : (
+          <button className="project-chip" title="Assign a project" onClick={() => setOpen(true)}>
+            no project
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="project-picker"
+      onBlur={(e) => {
+        // Focus left the picker entirely (not moved between chips) → collapse.
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false)
+      }}
+    >
+      <button
+        className={`project-chip ${value === null ? 'selected' : ''}`}
+        onClick={() => pick(null)}
+      >
+        no project
+      </button>
+      {projects.map((p) => (
+        <button
+          key={p.id}
+          className={`project-chip ${value === p.id ? 'selected' : ''}`}
+          style={{ '--chip-color': p.color } as CSSProperties}
+          onClick={() => pick(p.id)}
+        >
+          <ProjectDot color={p.color} /> {p.name}
+        </button>
+      ))}
     </div>
   )
 }

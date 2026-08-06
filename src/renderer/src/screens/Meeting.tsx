@@ -143,7 +143,8 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
     </span>
   ) : null
 
-  // One action assigns this meeting to a project (SPEC §4.4).
+  // One action assigns this meeting to a project (SPEC §4.4). The
+  // picker rests collapsed, so it fits the narrow peek panel too.
   const projectSelect = (
     <ProjectPicker
       value={meeting?.projectId ?? null}
