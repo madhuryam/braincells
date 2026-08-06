@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 import type { CalendarEvent, Item } from '@shared/types'
 import { useMutate } from '../state/data'
 
@@ -33,6 +33,21 @@ interface DragData {
   item: Item
   /** Present when the card lives in a sortable list: ids in list order. */
   sortableIds?: string[]
+}
+
+/*
+ * Optimistic order for sortable reorders. On drop, dnd-kit's sortable
+ * transforms reset instantly, but the reordered list only comes back
+ * after an IPC write + refresh — so the list would re-render in the OLD
+ * DB order and the dropped card would visibly jump back before settling.
+ * AppDnd publishes the target order here for the duration of the save;
+ * sortable lists sort by it so the drop looks instant.
+ */
+const PendingOrderContext = createContext<string[] | null>(null)
+
+/** The id order a sortable list should show while a reorder persists (null when idle). */
+export function usePendingOrder(): string[] | null {
+  return useContext(PendingOrderContext)
 }
 
 /** A drag handle wrapper for cards in plain (non-sortable) lists. */
@@ -155,6 +170,13 @@ export function DropZone({
  * (title, checkbox), and the 6px activation distance already lets
  * plain clicks through — so the whole card is grabbable.
  */
+/** '13:45' + 30 → '14:15'. Clamped to 23:59 so a block never spills past its day. */
+function addMinutes(time: string, minutes: number): string {
+  const [h, m] = time.split(':').map(Number)
+  const total = Math.min(h * 60 + m + minutes, 23 * 60 + 59)
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
 class CardPointerSensor extends PointerSensor {
   static activators = [
     {
@@ -170,6 +192,8 @@ class CardPointerSensor extends PointerSensor {
 export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element {
   const mutate = useMutate()
   const [dragged, setDragged] = useState<Item | null>(null)
+  const [sortableDrag, setSortableDrag] = useState(false)
+  const [pendingOrder, setPendingOrder] = useState<string[] | null>(null)
 
   // A small movement threshold keeps plain clicks working on cards.
   const sensors = useSensors(
@@ -178,10 +202,12 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
 
   const onDragStart = (e: DragStartEvent): void => {
     // Project drags carry no item (they just reorder the sidebar).
-    setDragged((e.active.data.current as { item?: Item }).item ?? null)
+    const data = e.active.data.current as { item?: Item; sortableIds?: string[] }
+    setDragged(data.item ?? null)
+    setSortableDrag(!!data.sortableIds)
   }
 
-  const onDragEnd = (e: DragEndEvent): void => {
+  const onDragEnd = async (e: DragEndEvent): Promise<void> => {
     setDragged(null)
     const { active, over } = e
     if (!over) return
@@ -228,11 +254,32 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
     // Time blocking (SPEC §4.6): dropping on a timeline slot sets the
     // date AND a time. Blocks are suggestions, not commitments.
     if (overData?.type === 'timeblock' && overData.date && overData.time) {
+      const { date, time } = overData
+      // Already time-blocked on this same day? The task keeps its slot
+      // and the drop creates an ADDITIONAL block — a local event that
+      // points back at the task, sized by its time estimate.
+      if (item.scheduledTime && item.scheduledDate === date) {
+        mutate(() =>
+          window.api.createLocalEvent({
+            title: item.title,
+            date,
+            startTime: time,
+            endTime: addMinutes(time, item.timeEstimateMinutes ?? 30),
+            projectId: item.projectId,
+            itemId: item.id
+          })
+        )
+        return
+      }
       mutate(() =>
         window.api.updateItem(item.id, {
           kind: 'task',
-          scheduledDate: overData.date,
-          scheduledTime: overData.time,
+          scheduledDate: date,
+          scheduledTime: time,
+          // Give the new block a real length (the default 30-min slot)
+          // so it has a duration from the moment it lands, not just a
+          // render-time fallback — keep any estimate it already had.
+          timeEstimateMinutes: item.timeEstimateMinutes ?? 30,
           ...(item.status === 'inbox' ? { status: 'active' as const } : {})
         })
       )
@@ -280,7 +327,18 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
       const from = sortableIds.indexOf(String(active.id))
       const to = sortableIds.indexOf(String(over.id))
       if (from >= 0 && to >= 0) {
-        mutate(() => window.api.reorderItems(arrayMove(sortableIds, from, to)))
+        const newOrder = arrayMove(sortableIds, from, to)
+        // Publish the target order BEFORE the async save: the sortable
+        // transforms have already reset, so without this the list snaps
+        // back to the old DB order until the IPC round-trip lands.
+        setPendingOrder(newOrder)
+        try {
+          await mutate(() => window.api.reorderItems(newOrder))
+        } finally {
+          // Always clear: on success the DB now matches so the swap is a
+          // no-op; on failure a phantom order must not stick around.
+          setPendingOrder(null)
+        }
       }
       return
     }
@@ -302,9 +360,15 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
 
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-      {children}
-      {/* The ghost card that follows the pointer during a drag. */}
-      <DragOverlay dropAnimation={{ duration: 180 }}>
+      <PendingOrderContext.Provider value={pendingOrder}>{children}</PendingOrderContext.Provider>
+      {/* The ghost card that follows the pointer during a drag.
+          For sortable reorders the drop animation is disabled: the list
+          order comes back from the DB after an async round-trip, so
+          dnd-kit would animate the overlay back to the card's ORIGINAL
+          rect (the only position it knows pre-re-render) — a visible
+          snap-back. The in-list placeholder already sits in the target
+          slot, so an instant drop is the correct feel there. */}
+      <DragOverlay dropAnimation={sortableDrag ? null : { duration: 180 }}>
         {dragged && (
           <div className="card drag-ghost">
             <span className="card-title">{dragged.title || 'Untitled'}</span>

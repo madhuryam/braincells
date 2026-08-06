@@ -3,7 +3,9 @@ import { motion } from 'framer-motion'
 import { DataProvider } from './state/data'
 import { UndoProvider } from './state/undo'
 import { NavProvider, useNav } from './state/nav'
+import { SelectionProvider } from './state/selection'
 import { Sidebar } from './components/Sidebar'
+import { SelectionBar } from './components/SelectionBar'
 import { TooltipProvider } from './components/Tooltip'
 import { AppDnd } from './components/dnd'
 import { isTyping } from './components/HotkeysHelp'
@@ -159,14 +161,17 @@ export default function App(): React.JSX.Element {
       <UndoProvider>
         <NavProvider>
           <TooltipProvider>
-            <Shortcuts />
-            <AppDnd>
-              <div className="shell">
-                <Sidebar />
-                <Screen />
-              </div>
-              <Overlay />
-            </AppDnd>
+            <SelectionProvider>
+              <Shortcuts />
+              <AppDnd>
+                <div className="shell">
+                  <Sidebar />
+                  <Screen />
+                </div>
+                <Overlay />
+                <SelectionBar />
+              </AppDnd>
+            </SelectionProvider>
           </TooltipProvider>
         </NavProvider>
       </UndoProvider>

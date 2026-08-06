@@ -67,11 +67,14 @@ function layoutColumns(
  */
 export function Timeline({
   date,
-  onPeekEvent
+  onPeekEvent,
+  onPeekTask
 }: {
   date: string
   /** When given, clicking a meeting peeks it instead of navigating. */
   onPeekEvent?: (ev: { eventKey: string; title: string; date: string }) => void
+  /** When given, clicking a time-blocked task peeks it in a panel. */
+  onPeekTask?: (itemId: string) => void
 }): React.JSX.Element {
   const events = useLiveQuery(() => window.api.calendarEvents(date, date), [date]) ?? []
   const tasks = useLiveQuery(() => window.api.tasksFor(date), [date]) ?? []
@@ -101,6 +104,8 @@ export function Timeline({
   const [draft, setDraft] = useState<{ start: number; end: number } | null>(null)
   // A block mid-resize renders from this instead of its saved times.
   const [resizing, setResizing] = useState<{ id: string; start: number; end: number } | null>(null)
+  // A time-blocked task mid drag/resize renders from this override.
+  const [taskDrag, setTaskDrag] = useState<{ id: string; start: number; end: number } | null>(null)
   const suppressClick = useRef(false) // a resize's mouseup must not open the editor
   const timelineRef = useRef<HTMLDivElement>(null)
 
@@ -229,6 +234,63 @@ export function Timeline({
     window.addEventListener('mouseup', onUp)
   }
 
+  // Time-blocked tasks retime on the calendar too: drag the body to
+  // move (keeping duration), or the bottom edge to change how long it
+  // takes. A plain click (no drag) peeks the task instead. Start time
+  // lives on the item as scheduledTime; duration as timeEstimateMinutes.
+  const startTaskDrag = (
+    e: React.MouseEvent,
+    t: { id: string; scheduledTime?: string | null; timeEstimateMinutes?: number | null },
+    mode: 'move' | 'end'
+  ): void => {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    e.preventDefault()
+    const rect = timelineRef.current!.getBoundingClientRect()
+    const rawAt = (clientY: number): number => dayStart + (clientY - rect.top) / PX_PER_MIN
+    const origStart = toMin(t.scheduledTime!)
+    const dur = t.timeEstimateMinutes ?? 30
+    // Where inside the block the grab happened, so moving doesn't jump.
+    const grabOffset = mode === 'move' ? rawAt(e.clientY) - origStart : 0
+    let next = { start: origStart, end: origStart + dur }
+    let moved = false
+
+    const onMove = (me: MouseEvent): void => {
+      if (mode === 'move') {
+        const s = Math.max(
+          dayStart,
+          Math.min(dayEnd - dur, Math.round((rawAt(me.clientY) - grabOffset) / SLOT_MIN) * SLOT_MIN)
+        )
+        next = { start: s, end: s + dur }
+      } else {
+        const end = Math.min(dayEnd, Math.max(origStart + SLOT_MIN, Math.round(rawAt(me.clientY) / SLOT_MIN) * SLOT_MIN))
+        next = { start: origStart, end }
+      }
+      moved = true
+      setTaskDrag({ id: t.id, ...next })
+    }
+    const onUp = (): void => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      setTaskDrag(null)
+      // No real drag → treat as a click and peek the task.
+      if (!moved || (next.start === origStart && next.end - next.start === dur)) {
+        onPeekTask?.(t.id)
+        return
+      }
+      suppressClick.current = true
+      window.setTimeout(() => (suppressClick.current = false), 150)
+      mutate(() =>
+        window.api.updateItem(t.id, {
+          scheduledTime: toHHMM(next.start),
+          timeEstimateMinutes: next.end - next.start
+        })
+      )
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
   const totalHeight = (dayEnd - dayStart) * PX_PER_MIN
 
   return (
@@ -344,18 +406,25 @@ export function Timeline({
 
             {/* time-blocked tasks */}
             {blocks.map((t) => {
-              const start = toMin(t.scheduledTime!)
-              const dur = t.timeEstimateMinutes ?? 30
+              const td = taskDrag?.id === t.id ? taskDrag : null
+              const start = td ? td.start : toMin(t.scheduledTime!)
+              const dur = td ? td.end - td.start : t.timeEstimateMinutes ?? 30
               const missed = isToday && start + dur < nowMins && t.status === 'active'
               return (
                 <div
                   key={t.id}
                   className={`timeline-task ${t.status === 'done' ? 'done' : ''} ${missed ? 'missed' : ''}`}
                   style={{ top: y(start), height: Math.max(dur * PX_PER_MIN, 26), ...colStyle(`t-${t.id}`) }}
-                  title={missed ? 'Missed the block — no big deal, it’s still on your list' : t.title}
+                  title={
+                    missed
+                      ? 'Missed the block — no big deal, it’s still on your list'
+                      : `${t.title} — click to open, drag to move, drag the bottom edge to resize`
+                  }
+                  onMouseDown={(e) => startTaskDrag(e, t, 'move')}
                 >
                   {t.status === 'done' ? '✓ ' : ''}
                   {t.title}
+                  <div className="le-handle bottom" onMouseDown={(e) => startTaskDrag(e, t, 'end')} />
                 </div>
               )
             })}

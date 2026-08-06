@@ -6,13 +6,15 @@ import { useNav } from '../state/nav'
 import { useUndo } from '../state/undo'
 import { Card } from '../components/Card'
 import { DetailPanel } from '../components/DetailPanel'
+import { TaskPeek } from '../components/TaskPeek'
 import { Meeting } from './Meeting'
 import { ItemCard } from '../components/ItemCard'
 import { TaskGroups } from '../components/TaskGroups'
 import { DraggableCard, DropZone } from '../components/dnd'
 import { Timeline } from '../components/Timeline'
 import { CheckableInput, Checkbox, EmptyState } from '../components/bits'
-import { longDate, rollingDays, type RollingDay } from '../format'
+import type { Item } from '@shared/types'
+import { longDate, prettyDate, rollingDays, type RollingDay } from '../format'
 
 /** 'August 5' — the weekday already leads the header, so no repeat. */
 function monthDay(date: string): string {
@@ -42,17 +44,27 @@ export function Today(): React.JSX.Element {
   const { navigate, openOverlay } = useNav()
   const { pushUndo } = useUndo()
   const [taskDraft, setTaskDraft] = useState('')
-  const [showAll, setShowAll] = useState(false)
+  // Everything shows by default — "Show fewer" is the opt-in trim,
+  // not the other way around.
+  const [showAll, setShowAll] = useState(true)
   // A clicked calendar event peeks in a panel over the schedule —
   // no page navigation just to glance at a meeting.
   const [peek, setPeek] = useState<{ eventKey: string; title: string; date: string } | null>(null)
+  // A clicked time-blocked task peeks in the same panel slot.
+  const [peekTask, setPeekTask] = useState<string | null>(null)
+  const closePeeks = (): void => {
+    setPeek(null)
+    setPeekTask(null)
+  }
   useEffect(() => {
-    if (!peek) return
+    if (!peek && !peekTask) return
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setPeek(null)
+      if (e.key === 'Escape') closePeeks()
     }
     const onDown = (e: MouseEvent): void => {
-      if (!(e.target as HTMLElement).closest('.timeline-peek')) setPeek(null)
+      // Don't dismiss on the drag that retimes a block on the timeline.
+      const t = e.target as HTMLElement
+      if (!t.closest('.timeline-peek') && !t.closest('.timeline-task')) closePeeks()
     }
     window.addEventListener('keydown', onKey)
     window.addEventListener('mousedown', onDown)
@@ -60,7 +72,7 @@ export function Today(): React.JSX.Element {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('mousedown', onDown)
     }
-  }, [peek])
+  }, [peek, peekTask])
 
   const visibleTasks = showAll ? tasks : tasks.slice(0, TOP_TASK_CAP)
 
@@ -109,11 +121,14 @@ export function Today(): React.JSX.Element {
           {/* The viewed day's own sections sit on a soft accent wash;
               the rest of the week stays plain below. */}
           <div className="today-scope">
+            {/* Deadlines answer "what's due by this day" — including
+                everything already overdue when viewing today. */}
+            <DueStrip date={date} includeOverdue={date === today} />
             <DropZone id="list-today" data={{ type: 'schedule', date }}>
               <div style={{ margin: '14px 0 10px' }}>
                 <CheckableInput
                   id="quick-capture"
-                  placeholder="Add a task for today (⌘N)…"
+                  placeholder="Add a task for today…"
                   value={taskDraft}
                   onChange={(e) => setTaskDraft(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addTask()}
@@ -221,7 +236,17 @@ export function Today(): React.JSX.Element {
         {/* Right column: the chosen day's schedule (events + time blocks). */}
         <section className="timeline-pane">
           <div className="section-label">Schedule</div>
-          <Timeline date={date} onPeekEvent={setPeek} />
+          <Timeline
+            date={date}
+            onPeekEvent={(e) => {
+              setPeekTask(null)
+              setPeek(e)
+            }}
+            onPeekTask={(id) => {
+              setPeek(null)
+              setPeekTask(id)
+            }}
+          />
           {peek && (
             <div className="timeline-peek">
               <DetailPanel
@@ -238,6 +263,16 @@ export function Today(): React.JSX.Element {
                   title={peek.title}
                   date={peek.date}
                 />
+              </DetailPanel>
+            </div>
+          )}
+          {peekTask && (
+            <div className="timeline-peek">
+              <DetailPanel
+                onOpenFull={() => openOverlay({ name: 'page', itemId: peekTask })}
+                onClose={() => setPeekTask(null)}
+              >
+                <TaskPeek key={peekTask} itemId={peekTask} />
               </DetailPanel>
             </div>
           )}
@@ -282,7 +317,7 @@ function DoneSubtaskGroup({
   return (
     <Card>
       <div className="row">
-        <span aria-hidden>✅</span>
+        <span aria-hidden style={{ color: 'var(--text-faint)', fontWeight: 700 }}>✓</span>
         <span className="card-title">{rootTitle}</span>
         <span className="pill" style={{ marginLeft: 'auto' }}>
           subtasks
@@ -316,6 +351,7 @@ function DaySection({ day }: { day: RollingDay }): React.JSX.Element {
       </button>
       {open && (
         <div>
+          <DueStrip date={day.date} />
           <TaskGroups items={tasks} date={day.date} />
           {tasks.length === 0 && (
             <span style={{ color: 'var(--text-faint)', fontSize: 13, padding: '2px 0 8px', display: 'block' }}>
@@ -325,5 +361,35 @@ function DaySection({ day }: { day: RollingDay }): React.JSX.Element {
         </div>
       )}
     </DropZone>
+  )
+}
+
+/**
+ * What's DUE by a day — distinct from what's scheduled on it. Quiet
+ * pills; on today, everything already overdue rides along in the
+ * danger color (text only — calm, not alarming).
+ */
+function DueStrip({ date, includeOverdue = false }: { date: string; includeOverdue?: boolean }): React.JSX.Element | null {
+  const due = useLiveQuery(() => window.api.tasksDueOn(date), [date]) ?? []
+  const overdue =
+    useLiveQuery(
+      () => (includeOverdue ? window.api.tasksOverdue(date) : Promise.resolve([] as Item[])),
+      [date, includeOverdue]
+    ) ?? []
+  if (due.length === 0 && overdue.length === 0) return null
+  return (
+    <div className="row" style={{ flexWrap: 'wrap', gap: 6, margin: '2px 0 8px' }}>
+      <span className="section-sublabel" style={{ marginTop: 0 }}>Due</span>
+      {overdue.map((t) => (
+        <span key={t.id} className="pill" title={`was due ${prettyDate(t.dueDate!)}`} style={{ color: 'var(--danger)' }}>
+          {t.title}
+        </span>
+      ))}
+      {due.map((t) => (
+        <span key={t.id} className="pill">
+          {t.title}
+        </span>
+      ))}
+    </div>
   )
 }

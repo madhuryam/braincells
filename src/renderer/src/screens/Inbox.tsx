@@ -216,7 +216,10 @@ export function Inbox(): React.JSX.Element {
               >
                 {/* Draggable: drop on a sidebar project or on Today. */}
                 <DraggableCard item={item}>
-                  <ItemCard item={item} />
+                  {/* Checkbox multi-selects (inbox items are triaged,
+                      not completed); a click also bubbles up to target
+                      the row for keyboard triage as the editor opens. */}
+                  <ItemCard item={item} checkboxSelects />
                 </DraggableCard>
               </div>
             ))}
@@ -230,6 +233,7 @@ export function Inbox(): React.JSX.Element {
         title="Backlog · someday"
         hint="Tasks with no date. Open one to put it on a day, or drag it onto Today."
         items={backlog}
+        defaultOpen
       />
       <ItemSection
         title="Completed"
@@ -244,13 +248,15 @@ export function Inbox(): React.JSX.Element {
 function ItemSection({
   title,
   hint,
-  items
+  items,
+  defaultOpen = false
 }: {
   title: string
   hint: string
   items: Item[]
+  defaultOpen?: boolean
 }): React.JSX.Element | null {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   if (items.length === 0) return null
   return (
     <section style={{ marginTop: 18 }}>
