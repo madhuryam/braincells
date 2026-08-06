@@ -198,8 +198,8 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
               prep is editable in place wherever it appears. */}
           <div className="item-list">
             <AnimatePresence>
-              {preps.map(({ item }) => (
-                <ItemCard key={item.id} item={item} />
+              {preps.map(({ link, item }) => (
+                <ItemCard key={item.id} item={item} unlinkId={link.id} />
               ))}
             </AnimatePresence>
           </div>
@@ -213,8 +213,8 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
           />
           <div className="item-list">
             <AnimatePresence>
-              {followUps.map(({ item }) => (
-                <ItemCard key={item.id} item={item} />
+              {followUps.map(({ link, item }) => (
+                <ItemCard key={item.id} item={item} unlinkId={link.id} />
               ))}
             </AnimatePresence>
           </div>

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { todayYmd } from '@shared/dates'
+import { todayYmd, ymdAddDays } from '@shared/dates'
 import type { Item, ItemStatus } from '@shared/types'
 import { useData, useLiveQuery, useMutate } from '../state/data'
+import { useEditing } from '../state/editing'
+import { useLabels } from '../state/labels'
 import { useNav } from '../state/nav'
 import { useSelection } from '../state/selection'
 import { shortTitle, useUndo } from '../state/undo'
@@ -10,7 +12,7 @@ import { CheckableInput, Checkbox, ProjectDot } from './bits'
 import { ProjectPicker } from './ProjectPicker'
 import { RichEditor } from './RichEditor'
 import { itemBodyHtml } from '../richtext'
-import { KIND_ICON, prettyDate, rollingDays } from './../format'
+import { KIND_ICON, mmdd, prettyDate, rollingDays } from './../format'
 
 interface ItemCardProps {
   item: Item
@@ -31,6 +33,18 @@ interface ItemCardProps {
    * instead of completing it (the Inbox: items are triaged, not done).
    */
   checkboxSelects?: boolean
+  /**
+   * The link binding this card to the meeting it renders under (prep
+   * or follow-up lists). The context menu then offers "Remove from
+   * this meeting" instead of the prep picker.
+   */
+  unlinkId?: string
+  /**
+   * Controlled expand/collapse. Pass both to let a parent enforce a
+   * single open card at a time (the Inbox); omit for self-managed state.
+   */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 /**
@@ -140,9 +154,20 @@ export function ItemCard({
   showDate = true,
   faded,
   contextDate,
-  checkboxSelects = false
+  checkboxSelects = false,
+  unlinkId,
+  open: controlledOpen,
+  onOpenChange
 }: ItemCardProps): React.JSX.Element {
-  const [open, setOpen] = useState(false)
+  // Controlled when the parent passes `open` (Inbox: one card at a
+  // time); otherwise the app-wide editing slot decides — at most one
+  // card's editor is open anywhere, ever.
+  const editing = useEditing()
+  const open = controlledOpen ?? editing.openId === item.id
+  const setOpen = (next: boolean): void => {
+    if (controlledOpen === undefined) editing.setOpenId(next ? item.id : null)
+    onOpenChange?.(next)
+  }
   const [title, setTitle] = useState(item.title)
   const mutate = useMutate()
   const { projects } = useData()
@@ -238,6 +263,8 @@ export function ItemCard({
 
   // Right-click menu (task/prep only): a small in-app menu at the cursor.
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  // 'prep' swaps the menu body for the upcoming-meetings picker.
+  const [menuMode, setMenuMode] = useState<'main' | 'prep'>('main')
   // "Remove from calendar": counted only while the menu is open; with
   // several blocks on the schedule the first click arms, second fires.
   const [removeArmed, setRemoveArmed] = useState(false)
@@ -246,8 +273,32 @@ export function ItemCard({
       () => (menu && isCheckable ? window.api.calendarInstanceCount(item.id) : Promise.resolve(0)),
       [menu !== null, item.id]
     ) ?? 0
+  // Label colors for the prep picker — a row wears its meeting's label
+  // so the right one is findable by color, not just by reading.
+  const labels = useLabels()
+  // Meetings this task could prep for: the next two weeks, fetched only
+  // while the picker is up (the events cache makes this instant). The
+  // picker scrolls, so the list can be long without swallowing the menu.
+  const prepTargets =
+    useLiveQuery(
+      () =>
+        menu && menuMode === 'prep'
+          ? window.api.calendarEvents(todayYmd(), ymdAddDays(todayYmd(), 14))
+          : Promise.resolve([]),
+      [menu !== null, menuMode]
+    ) ?? []
+  // The task's existing meeting links (🎯 pills in the open editor).
+  const eventLinks = (
+    useLiveQuery(
+      () => (open ? window.api.linksFrom(item.id) : Promise.resolve([])),
+      [open, item.id]
+    ) ?? []
+  ).filter((l) => l.role === 'prep-for' && l.toEventKey)
   useEffect(() => {
-    if (!menu) setRemoveArmed(false)
+    if (!menu) {
+      setRemoveArmed(false)
+      setMenuMode('main')
+    }
   }, [menu])
   const menuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -301,10 +352,11 @@ export function ItemCard({
         .join(' ')}
     >
       <div
-        // Multi-selected ring: inline (no stylesheet rule for it).
+        // Multi-selected: a soft wash, not a ring — rings box awkwardly
+        // inside flush list rows. The checked checkbox carries the rest.
         style={
           multiSelected
-            ? { boxShadow: 'inset 0 0 0 2px var(--accent)', borderRadius: 8 }
+            ? { background: 'var(--accent-soft)', margin: '-8px -13px', padding: '8px 13px' }
             : undefined
         }
         onKeyDown={(e) => {
@@ -510,6 +562,26 @@ export function ItemCard({
             value={item.projectId}
             onChange={(projectId) => patch({ projectId })}
           />
+          {/* Which meetings this task preps — the ✕ unlinks without
+              touching the task itself. */}
+          {eventLinks.length > 0 && (
+            <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+              {eventLinks.map((l) => (
+                <span key={l.id} className="pill" title={`Prep for ${l.eventTitle ?? 'meeting'}`}>
+                  🎯 {l.eventDate && <span className="meeting-date">{mmdd(l.eventDate)}</span>}{' '}
+                  {l.eventTitle ?? 'meeting'}
+                  <button
+                    className="btn ghost small"
+                    style={{ padding: '0 2px', marginLeft: 2 }}
+                    title="No longer prep for this meeting"
+                    onClick={() => mutate(() => window.api.deleteLink(l.id))}
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <div className="row" style={{ flexWrap: 'wrap' }}>
             <label className="pill">
               do
@@ -575,6 +647,57 @@ export function ItemCard({
             boxShadow: 'var(--shadow-lift)'
           }}
         >
+          {menuMode === 'prep' ? (
+            <>
+              <button
+                className="btn ghost small"
+                style={{ justifyContent: 'flex-start', color: 'var(--text-soft)' }}
+                onClick={() => setMenuMode('main')}
+              >
+                ‹ back
+              </button>
+              <div
+                style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+              >
+                {prepTargets.map((ev) => {
+                  // The meeting's label edge + wash — pick by color.
+                  const color = labels.of(ev)
+                  return (
+                    <button
+                      key={ev.eventKey}
+                      className="btn ghost small"
+                      style={{
+                        justifyContent: 'flex-start',
+                        flexShrink: 0,
+                        borderRadius: 4,
+                        borderLeft: `3px solid ${color?.hex ?? 'transparent'}`,
+                        ...(color
+                          ? { background: `color-mix(in srgb, ${color.hex} 10%, transparent)` }
+                          : {}),
+                        marginBottom: 2
+                      }}
+                      onClick={() => {
+                        setMenu(null)
+                        // The link is the whole relationship — the task keeps
+                        // its kind, day, and project; the meeting's prep list
+                        // and progress pick it up from here.
+                        void mutate(() => window.api.linkToEvent(item.id, ev, 'prep-for'))
+                      }}
+                    >
+                      <span className="meeting-date" style={{ marginRight: 6 }}>{mmdd(ev.date)}</span>
+                      {ev.title}
+                    </button>
+                  )
+                })}
+              </div>
+              {prepTargets.length === 0 && (
+                <span style={{ padding: '4px 8px', fontSize: 12.5, color: 'var(--text-faint)' }}>
+                  no meetings in the next two weeks
+                </span>
+              )}
+            </>
+          ) : (
+            <>
           <button
             className="btn ghost small"
             style={{ justifyContent: 'flex-start' }}
@@ -590,6 +713,28 @@ export function ItemCard({
           >
             ＋ Add subtask
           </button>
+          {unlinkId ? (
+            // Under a meeting, the useful action is the inverse: cut
+            // the link that put this card here (task itself untouched).
+            <button
+              className="btn ghost small"
+              style={{ justifyContent: 'flex-start' }}
+              onClick={() => {
+                setMenu(null)
+                void mutate(() => window.api.deleteLink(unlinkId))
+              }}
+            >
+              ✕ Remove from this meeting
+            </button>
+          ) : (
+            <button
+              className="btn ghost small"
+              style={{ justifyContent: 'flex-start' }}
+              onClick={() => setMenuMode('prep')}
+            >
+              🎯 Prep for meeting…
+            </button>
+          )}
           {item.dueDate && (
             <button
               className="btn ghost small"
@@ -632,6 +777,8 @@ export function ItemCard({
           >
             🗑 Delete task
           </button>
+            </>
+          )}
         </div>
       )}
       </div>
