@@ -4,6 +4,7 @@ import { DataProvider } from './state/data'
 import { UndoProvider } from './state/undo'
 import { NavProvider, useNav } from './state/nav'
 import { SelectionProvider } from './state/selection'
+import { EditingProvider } from './state/editing'
 import { Sidebar } from './components/Sidebar'
 import { SelectionBar } from './components/SelectionBar'
 import { TooltipProvider } from './components/Tooltip'
@@ -162,6 +163,7 @@ export default function App(): React.JSX.Element {
         <NavProvider>
           <TooltipProvider>
             <SelectionProvider>
+            <EditingProvider>
               <Shortcuts />
               <AppDnd>
                 <div className="shell">
@@ -171,6 +173,7 @@ export default function App(): React.JSX.Element {
                 <Overlay />
                 <SelectionBar />
               </AppDnd>
+            </EditingProvider>
             </SelectionProvider>
           </TooltipProvider>
         </NavProvider>
