@@ -1230,9 +1230,12 @@ kbd.key {
   outline: 2px solid var(--accent);
 }
 
-/* Compact variant: notes inside cards. */
+/* Compact variant: notes inside cards. Long notes scroll in place —
+   a card should never grow to fill the screen. */
 .rich-editor.compact .ProseMirror {
   min-height: 88px;
+  max-height: 38vh;
+  overflow-y: auto;
   font-size: 14px;
   background: var(--bg-sunken);
   border-radius: 7px;
