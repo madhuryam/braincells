@@ -1,15 +1,19 @@
+import { useRef } from 'react'
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import { Image as ImageExtension } from '@tiptap/extension-image'
 import { TableKit } from '@tiptap/extension-table'
 import { TextStyleKit } from '@tiptap/extension-text-style'
 import { Placeholder } from '@tiptap/extensions'
 import { TaskItem } from '@tiptap/extension-task-item'
 import { TaskList } from '@tiptap/extension-task-list'
+import type { EditorView } from '@tiptap/pm/view'
 
 /**
  * The rich text editor for Pages — a Slack-canvas-style writing
  * surface: headings, bold/italic/underline/strike, lists, checklists,
- * quotes, code blocks, tables, and font choice.
+ * quotes, code blocks, tables, images (paste/drop/attach), and font
+ * choice.
  *
  * DELIBERATELY A THIN WALL: this is the only file in the app that
  * knows TipTap exists. Everyone else passes in HTML and receives
@@ -31,6 +35,66 @@ export interface RichEditorProps {
    * you type, Obsidian-style.
    */
   variant?: 'full' | 'compact'
+  /** false hides the toolbar entirely (markdown shortcuts still work) —
+   *  for tight surfaces like the detail-panel peek. Default true. */
+  toolbar?: boolean
+}
+
+// Images embed as base64 data URIs inside the stored HTML, so the whole
+// app stays one .sqlite3 file — no asset folder to lose in a backup. To
+// keep the database sane we cap sources at 10MB and downscale/re-encode
+// before embedding.
+const MAX_IMAGE_SOURCE_BYTES = 10 * 1024 * 1024
+const MAX_IMAGE_EDGE_PX = 1600
+
+async function imageFileToDataUri(file: File): Promise<string | null> {
+  if (file.size > MAX_IMAGE_SOURCE_BYTES) {
+    console.warn(`RichEditor: image is ${file.size} bytes (>10MB), refusing to embed`)
+    return null
+  }
+  const url = URL.createObjectURL(file)
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new window.Image()
+      el.onload = (): void => resolve(el)
+      el.onerror = (): void => reject(new Error('undecodable image'))
+      el.src = url
+    })
+    const scale = Math.min(1, MAX_IMAGE_EDGE_PX / Math.max(img.naturalWidth, img.naturalHeight))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale))
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
+    canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height)
+    // PNG keeps transparency; everything else compresses far better as JPEG.
+    return file.type === 'image/png'
+      ? canvas.toDataURL('image/png')
+      : canvas.toDataURL('image/jpeg', 0.85)
+  } catch {
+    console.warn('RichEditor: could not decode image, not embedding')
+    return null
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+// Shared by paste and drop. Inserts asynchronously (encoding takes a beat)
+// but reports "handled" synchronously so ProseMirror doesn't also paste the
+// raw file. `pos` anchors dropped images at the drop point.
+function insertImageFiles(view: EditorView, files: File[], pos?: number): boolean {
+  const images = files.filter((f) => f.type.startsWith('image/'))
+  if (images.length === 0) return false
+  for (const file of images) {
+    void imageFileToDataUri(file).then((src) => {
+      if (!src) return
+      const node = view.state.schema.nodes.image.create({ src })
+      const tr =
+        pos !== undefined
+          ? view.state.tr.insert(pos, node)
+          : view.state.tr.replaceSelectionWith(node)
+      view.dispatch(tr)
+    })
+  }
+  return true
 }
 
 const FONTS: Array<[label: string, css: string]> = [
@@ -44,7 +108,8 @@ export function RichEditor({
   initialHtml,
   placeholder,
   onChange,
-  variant = 'full'
+  variant = 'full',
+  toolbar = true
 }: RichEditorProps): React.JSX.Element | null {
   const editor = useEditor({
     extensions: [
@@ -53,16 +118,30 @@ export function RichEditor({
       TextStyleKit,
       TaskList,
       TaskItem.configure({ nested: true }),
+      // base64 so the image lives in richContent (and thus SQLite);
+      // block-level images read better in notes than inline ones.
+      ImageExtension.configure({ allowBase64: true, inline: false }),
       Placeholder.configure({ placeholder: placeholder ?? 'Write anything…' })
     ],
     content: initialHtml,
+    editorProps: {
+      handlePaste: (view, event): boolean =>
+        insertImageFiles(view, Array.from(event.clipboardData?.files ?? [])),
+      handleDrop: (view, event, _slice, moved): boolean => {
+        if (moved) return false // internal drag of existing content — let PM move it
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos
+        return insertImageFiles(view, Array.from(event.dataTransfer?.files ?? []), pos)
+      }
+    },
+    // Note: getText() skips images, so the plain-text mirror callers keep
+    // for search/preview simply won't mention them — acceptable.
     onUpdate: ({ editor }) => onChange(editor.getHTML(), editor.getText())
   })
 
   if (!editor) return null
   return (
     <div className={`rich-editor ${variant}`}>
-      <Toolbar editor={editor} compact={variant === 'compact'} />
+      {toolbar && <Toolbar editor={editor} compact={variant === 'compact'} />}
       <EditorContent editor={editor} />
     </div>
   )
@@ -113,6 +192,29 @@ function Toolbar({ editor, compact }: { editor: Editor; compact: boolean }): Rea
 
   const chain = (): ReturnType<Editor['chain']> => editor.chain().focus()
 
+  // Attach flow: hidden input so the 🖼 button can open the OS picker.
+  const fileInput = useRef<HTMLInputElement>(null)
+  const onImagePicked = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // so picking the same file again still fires change
+    if (!file) return
+    void imageFileToDataUri(file).then((src) => {
+      if (src) editor.chain().focus().setImage({ src }).run()
+    })
+  }
+  const imageControls = (
+    <>
+      {btn('🖼', 'Insert image', () => fileInput.current?.click())}
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={onImagePicked}
+      />
+    </>
+  )
+
   if (compact) {
     return (
       <div className="rich-toolbar">
@@ -124,6 +226,7 @@ function Toolbar({ editor, compact }: { editor: Editor; compact: boolean }): Rea
         {btn('1.', 'Numbered list', () => chain().toggleOrderedList().run(), state.ordered)}
         {btn('☑', 'Checklist', () => chain().toggleTaskList().run(), state.task)}
         {btn('❝', 'Quote', () => chain().toggleBlockquote().run(), state.quote)}
+        {imageControls}
         <span className="rt-hint">md shortcuts work: # ** - [ ] &gt;</span>
       </div>
     )
@@ -145,6 +248,7 @@ function Toolbar({ editor, compact }: { editor: Editor; compact: boolean }): Rea
       {btn('☑', 'Checklist', () => chain().toggleTaskList().run(), state.task)}
       {btn('❝', 'Quote', () => chain().toggleBlockquote().run(), state.quote)}
       {btn('</>', 'Code block', () => chain().toggleCodeBlock().run(), state.code)}
+      {imageControls}
       <span className="rt-sep" />
       {state.inTable ? (
         <>
