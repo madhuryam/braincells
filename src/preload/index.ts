@@ -76,6 +76,8 @@ const api = {
   tasksFor: (date: string): Promise<Item[]> => invoke('today:tasks', date),
   tasksThisWeek: (date: string): Promise<Item[]> => invoke('today:week', date),
   carriedOver: (date: string): Promise<Item[]> => invoke('today:carriedOver', date),
+  tasksDueOn: (date: string): Promise<Item[]> => invoke('today:dueOn', date),
+  tasksOverdue: (date: string): Promise<Item[]> => invoke('today:overdue', date),
   projectItems: (projectId: string): Promise<Item[]> => invoke('project:items', projectId),
   completedOn: (date: string): Promise<Item[]> => invoke('log:completedOn', date),
   completedSubtasksOn: (
@@ -114,6 +116,7 @@ const api = {
     startTime: string
     endTime: string
     projectId?: string | null
+    itemId?: string | null
   }): Promise<LocalEvent> => invoke('localEvents:create', ev),
   updateLocalEvent: (
     id: string,
@@ -126,6 +129,8 @@ const api = {
     }
   ): Promise<LocalEvent | null> => invoke('localEvents:update', id, patch),
   deleteLocalEvent: (id: string): Promise<void> => invoke('localEvents:delete', id),
+  calendarInstanceCount: (id: string): Promise<number> => invoke('items:calendarInstanceCount', id),
+  removeFromCalendar: (id: string): Promise<void> => invoke('items:removeFromCalendar', id),
   localEventsFor: (date: string): Promise<LocalEvent[]> => invoke('localEvents:for', date),
 
   // Search

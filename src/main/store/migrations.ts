@@ -217,6 +217,21 @@ const MIGRATIONS: string[] = [
   UPDATE projects SET sort_order = (
     SELECT COUNT(*) FROM projects p2 WHERE p2.name < projects.name
   );
+  `,
+
+  // 9: a time block can point back at the task it schedules, so one
+  // task can appear as several blocks on the timeline. Deleting the
+  // task takes its blocks with it (unlike projects' SET NULL — a block
+  // for a task that no longer exists means nothing).
+  `
+  ALTER TABLE local_events ADD COLUMN item_id TEXT REFERENCES items(id) ON DELETE CASCADE;
+  `,
+
+  // 10: edit recency. Nullable — rows from before this migration fall
+  // back to created_at, which is the honest answer for them anyway.
+  `
+  ALTER TABLE items ADD COLUMN updated_at TEXT;
+  UPDATE items SET updated_at = created_at;
   `
 ]
 

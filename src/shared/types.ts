@@ -34,6 +34,8 @@ export interface Item {
   /** Quick-access favorites, surfaced in the sidebar. */
   starred: boolean
   createdAt: string
+  /** Last edit (null only for rows migrated before this existed). */
+  updatedAt: string | null
   completedAt: string | null
 }
 
@@ -130,6 +132,9 @@ export interface LocalEvent {
   endTime: string
   /** Optional project — the block tints with its color on the timeline. */
   projectId: string | null
+  /** Optional task this block schedules — lets one task appear as
+   *  several blocks. Deleting the task deletes its blocks. */
+  itemId: string | null
 }
 
 /**

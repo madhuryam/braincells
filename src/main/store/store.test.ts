@@ -100,6 +100,30 @@ describe('Today / This Week / carried over', () => {
   })
 })
 
+describe('due dates', () => {
+  it('splits live tasks into due-today and overdue, never done or dropped', () => {
+    const overdue = store.createItem({
+      kind: 'task', title: 'late', status: 'active', dueDate: ymdAddDays(today, -2)
+    })
+    const lateCapture = store.createItem({ // still in the inbox — still counts
+      kind: 'task', title: 'late capture', dueDate: ymdAddDays(today, -1)
+    })
+    const dueToday = store.createItem({
+      kind: 'task', title: 'now', status: 'active', dueDate: today
+    })
+    store.createItem({ kind: 'task', title: 'future', status: 'active', dueDate: ymdAddDays(today, 1) })
+    store.createItem({ kind: 'note', title: 'not a task', status: 'active', dueDate: today })
+    const finished = store.createItem({
+      kind: 'task', title: 'handled', status: 'active', dueDate: ymdAddDays(today, -3)
+    })
+    store.updateItem(finished.id, { status: 'done' })
+
+    expect(store.tasksDueOn(today).map((i) => i.id)).toEqual([dueToday.id])
+    // Ordered by due date (oldest deadline first), then creation.
+    expect(store.tasksOverdue(today).map((i) => i.id)).toEqual([overdue.id, lateCapture.id])
+  })
+})
+
 describe('links and the meeting loop', () => {
   it('attaches prep items to an event and reports progress', () => {
     const p1 = store.createItem({ kind: 'prep', title: 'read doc', status: 'active' })
@@ -369,6 +393,17 @@ describe('local time blocks', () => {
     expect(edited).toMatchObject({ title: 'writing', startTime: '09:00', endTime: '11:00' })
 
     store.deleteLocalEvent(ev.id)
+    expect(store.localEventsFor(today)).toHaveLength(0)
+  })
+
+  it('a block can point at its task, and dies with it (cascade)', () => {
+    const task = store.createItem({ kind: 'task', title: 'deep work', status: 'active' })
+    store.createLocalEvent({
+      title: 'deep work', date: today, startTime: '09:00', endTime: '09:30', itemId: task.id
+    })
+    expect(store.localEventsFor(today)[0].itemId).toBe(task.id)
+
+    store.deleteItem(task.id)
     expect(store.localEventsFor(today)).toHaveLength(0)
   })
 })

@@ -39,6 +39,8 @@ export function registerStoreIpc(store: Store): void {
   ipcMain.handle('today:tasks', (_e, date: string) => store.tasksFor(date))
   ipcMain.handle('today:week', (_e, date: string) => store.tasksThisWeek(date))
   ipcMain.handle('today:carriedOver', (_e, date: string) => store.carriedOver(date))
+  ipcMain.handle('today:dueOn', (_e, date: string) => store.tasksDueOn(date))
+  ipcMain.handle('today:overdue', (_e, date: string) => store.tasksOverdue(date))
   ipcMain.handle('project:items', (_e, projectId: string) => store.projectItems(projectId))
   ipcMain.handle('log:completedOn', (_e, date: string) => store.completedOn(date))
   ipcMain.handle('log:completedSubtasksOn', (_e, date: string) => store.completedSubtasksOn(date))
@@ -73,7 +75,14 @@ export function registerStoreIpc(store: Store): void {
     'localEvents:create',
     (
       _e,
-      ev: { title: string; date: string; startTime: string; endTime: string; projectId?: string | null }
+      ev: {
+        title: string
+        date: string
+        startTime: string
+        endTime: string
+        projectId?: string | null
+        itemId?: string | null
+      }
     ) => store.createLocalEvent(ev)
   )
   ipcMain.handle(
@@ -91,6 +100,8 @@ export function registerStoreIpc(store: Store): void {
     ) => store.updateLocalEvent(id, patch)
   )
   ipcMain.handle('localEvents:delete', (_e, id: string) => store.deleteLocalEvent(id))
+  ipcMain.handle('items:calendarInstanceCount', (_e, id: string) => store.calendarInstanceCount(id))
+  ipcMain.handle('items:removeFromCalendar', (_e, id: string) => store.removeFromCalendar(id))
   ipcMain.handle('localEvents:for', (_e, date: string) => store.localEventsFor(date))
 
   // Search

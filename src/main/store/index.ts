@@ -40,7 +40,7 @@ export interface LinkedItem {
 // Column lists are written out once so every query returns identical shapes.
 const ITEM_COLS = `id, kind, title, content, rich_content, status, project_id, due_date,
   scheduled_date, scheduled_time, time_estimate_minutes, sort_order, starred,
-  created_at, completed_at`
+  created_at, updated_at, completed_at`
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function rowToItem(r: any): Item {
@@ -59,6 +59,7 @@ function rowToItem(r: any): Item {
     sortOrder: r.sort_order,
     starred: !!r.starred,
     createdAt: r.created_at,
+    updatedAt: r.updated_at,
     completedAt: r.completed_at
   }
 }
@@ -200,11 +201,12 @@ export class Store {
       sortOrder: this.nextSortOrder(),
       starred: false,
       createdAt: nowStamp(),
+      updatedAt: nowStamp(),
       completedAt: null
     }
     this.db
       .prepare(
-        `INSERT INTO items (${ITEM_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO items (${ITEM_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         item.id,
@@ -221,6 +223,7 @@ export class Store {
         item.sortOrder,
         item.starred ? 1 : 0,
         item.createdAt,
+        item.updatedAt,
         item.completedAt
       )
     return item
@@ -275,6 +278,9 @@ export class Store {
       sets.push('completed_at = NULL')
     }
     if (sets.length > 0) {
+      // Every real edit refreshes recency ("most recently edited").
+      sets.push('updated_at = ?')
+      vals.push(nowStamp())
       this.db.prepare(`UPDATE items SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id)
     }
     return this.getItem(id)
@@ -336,6 +342,30 @@ export class Store {
          ORDER BY scheduled_date, sort_order`
       )
       .all(today)
+      .map(rowToItem)
+  }
+
+  /** Live (active or inbox) tasks whose deadline is exactly this date. */
+  tasksDueOn(date: string): Item[] {
+    return this.db
+      .prepare(
+        `SELECT ${ITEM_COLS} FROM items
+         WHERE kind = 'task' AND status IN ('active', 'inbox') AND due_date = ?
+         ORDER BY due_date, created_at`
+      )
+      .all(date)
+      .map(rowToItem)
+  }
+
+  /** Live (active or inbox) tasks whose deadline has passed, oldest deadline first. */
+  tasksOverdue(date: string): Item[] {
+    return this.db
+      .prepare(
+        `SELECT ${ITEM_COLS} FROM items
+         WHERE kind = 'task' AND status IN ('active', 'inbox') AND due_date < ?
+         ORDER BY due_date, created_at`
+      )
+      .all(date)
       .map(rowToItem)
   }
 
@@ -755,6 +785,7 @@ export class Store {
     startTime: string
     endTime: string
     projectId?: string | null
+    itemId?: string | null
   }): LocalEvent {
     const ev: LocalEvent = {
       id: randomUUID(),
@@ -762,18 +793,20 @@ export class Store {
       date: e.date,
       startTime: e.startTime,
       endTime: e.endTime,
-      projectId: e.projectId ?? null
+      projectId: e.projectId ?? null,
+      itemId: e.itemId ?? null
     }
     this.db
       .prepare(
-        `INSERT INTO local_events (id, title, date, start_time, end_time, project_id, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO local_events (id, title, date, start_time, end_time, project_id, item_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       )
-      .run(ev.id, ev.title, ev.date, ev.startTime, ev.endTime, ev.projectId, nowStamp())
+      .run(ev.id, ev.title, ev.date, ev.startTime, ev.endTime, ev.projectId, ev.itemId, nowStamp())
     return ev
   }
 
-  updateLocalEvent(id: string, patch: Partial<Omit<LocalEvent, 'id'>>): LocalEvent | null {
+  // itemId is set at creation (a drag) and never edited afterwards.
+  updateLocalEvent(id: string, patch: Partial<Omit<LocalEvent, 'id' | 'itemId'>>): LocalEvent | null {
     const colOf: Record<string, string> = {
       title: 'title',
       date: 'date',
@@ -796,7 +829,7 @@ export class Store {
     const r = this.db
       .prepare(
         `SELECT id, title, date, start_time AS startTime, end_time AS endTime,
-                project_id AS projectId
+                project_id AS projectId, item_id AS itemId
          FROM local_events WHERE id = ?`
       )
       .get(id)
@@ -807,11 +840,38 @@ export class Store {
     this.db.prepare('DELETE FROM local_events WHERE id = ?').run(id)
   }
 
+  /**
+   * How many times a task sits on the calendar: its own scheduledTime
+   * slot plus every linked block — the "are you sure" number for
+   * remove-from-calendar.
+   */
+  calendarInstanceCount(itemId: string): number {
+    const item = this.getItem(itemId)
+    const blocks = this.db
+      .prepare('SELECT COUNT(*) AS n FROM local_events WHERE item_id = ?')
+      .get(itemId) as { n: number }
+    return blocks.n + (item?.scheduledTime ? 1 : 0)
+  }
+
+  /** Take a task off the calendar entirely: slot and linked blocks. */
+  removeFromCalendar(itemId: string): void {
+    this.db.transaction(() => {
+      this.db.prepare('DELETE FROM local_events WHERE item_id = ?').run(itemId)
+      // The time estimate only existed as the block's length — off the
+      // calendar it has no meaning, so clear it with the time.
+      this.db
+        .prepare(
+          'UPDATE items SET scheduled_time = NULL, time_estimate_minutes = NULL, updated_at = ? WHERE id = ?'
+        )
+        .run(nowStamp(), itemId)
+    })()
+  }
+
   localEventsFor(date: string): LocalEvent[] {
     return this.db
       .prepare(
         `SELECT id, title, date, start_time AS startTime, end_time AS endTime,
-                project_id AS projectId
+                project_id AS projectId, item_id AS itemId
          FROM local_events WHERE date = ? ORDER BY start_time`
       )
       .all(date) as LocalEvent[]
