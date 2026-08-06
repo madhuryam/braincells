@@ -236,6 +236,26 @@ kbd.key {
   color: var(--text);
 }
 
+/* Individual projects sit a touch further in than "All projects". */
+.nav-item-nested {
+  padding-left: 22px;
+}
+
+/* Starred rows: dot + name, with the kind icon pinned to the far end.
+   The name takes the slack and ellipsis-truncates when it's too long. */
+.nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-icon-end {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 14px;
+  opacity: 0.75;
+}
+
 .nav-item .badge {
   margin-left: auto;
   background: var(--gradient-accent);
@@ -413,6 +433,34 @@ kbd.key {
 
 .item-list .card:not(.open):hover {
   background: var(--bg-hover);
+}
+
+/* Interactive rows inside a list keep the pointer but drop the card
+   lift — rows highlight, they don't levitate. */
+.item-list .card.interactive:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* The fixed-width date column on meeting rows. */
+.meeting-date {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  flex-shrink: 0;
+}
+
+/* Like .meeting-date, but for a start time — a fixed-width leading
+   column so every title starts at the same x regardless of "9:00 AM"
+   vs "12:45 PM". */
+.meeting-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  flex-shrink: 0;
+  min-width: 62px;
 }
 
 .item-list .card.open {
@@ -746,6 +794,33 @@ kbd.key {
   background: var(--bg-hover);
 }
 
+/* A quiet "+" that adds a task into this project. Sits by the name,
+   only comes forward on hover so headers stay calm at rest. */
+.task-group-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-soft);
+  opacity: 0.4;
+  cursor: pointer;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.task-group-header:hover .task-group-add {
+  opacity: 0.8;
+}
+
+.task-group-add:hover {
+  opacity: 1;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
 /* Margin, not padding: the whole list container shifts under its
    project header — padding would inset the rows (and their accent
    edges) inside the container's own border. */
@@ -811,8 +886,13 @@ kbd.key {
 
 .timeline-peek {
   position: absolute;
-  inset: 26px 0 0;
+  top: 26px;
   /* below the 'Schedule' label */
+  right: 0;
+  bottom: 0;
+  /* Wide enough for the notes toolbar to stay on one line — the panel
+     grows leftward over the day list when the schedule pane is narrow. */
+  width: max(100%, 500px);
   z-index: 20;
 }
 
@@ -887,7 +967,8 @@ kbd.key {
   position: absolute;
   overflow: hidden;
   background: var(--bg-card);
-  border: 1.5px solid var(--accent);
+  /* No label → neutral gray (labeled events override this inline). */
+  border: 1.5px solid var(--local-event);
   border-radius: 7px;
   box-shadow: var(--shadow-card);
   padding: 6px 10px;
@@ -1083,7 +1164,11 @@ kbd.key {
   z-index: 5;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  /* One line always: a narrow pane scrolls the toolbar sideways
+     instead of stacking it into a two-row block. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
   gap: 3px;
   padding: 8px;
   margin-bottom: 14px;
@@ -1091,6 +1176,9 @@ kbd.key {
   border: 1px solid var(--border);
   border-radius: 9px;
   box-shadow: var(--shadow-card);
+}
+.rich-toolbar::-webkit-scrollbar {
+  display: none; /* it still pans; the bar under every toolbar was noise */
 }
 
 .rt-btn {
@@ -1129,6 +1217,17 @@ kbd.key {
   min-height: 55vh;
   line-height: 1.65;
   font-size: 15px;
+}
+
+/* Pasted/attached images: never wider than the pane, gently rounded.
+   A selected image shows the accent ring (ProseMirror's selection). */
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+.ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
 }
 
 /* Compact variant: notes inside cards. */
@@ -1172,8 +1271,17 @@ kbd.key {
 
 .log-main {
   flex: 1 1 50%;
-  max-width: 720px;
+  /* No cap: the list column uses whatever the panel doesn't. */
   min-width: 0;
+}
+
+/* The overview aside (project page, nothing peeked): panel geometry
+   without panel chrome — it's ambient info, not a window. */
+.detail-panel.quiet {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  animation: none;
 }
 
 .detail-panel {
@@ -1398,7 +1506,8 @@ kbd.key {
   line-height: 1.3;
   padding: 2px 6px;
   border-radius: 4px;
-  background: var(--ev, var(--accent));
+  /* No label → neutral gray (labeled events set --ev inline). */
+  background: var(--ev, var(--local-event));
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
@@ -1406,7 +1515,7 @@ kbd.key {
 }
 
 .cal-event:hover {
-  background: var(--ev-soft, var(--accent-soft));
+  background: var(--ev-soft, color-mix(in srgb, var(--local-event) 22%, var(--bg-card)));
   color: var(--text);
 }
 

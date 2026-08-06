@@ -27,7 +27,7 @@ h1,
 h2,
 h3 {
   margin: 0;
-  font-weight: 750; /* bold and confident, not whisper-quiet */
+  font-weight: 600; /* present, but not heavy */
   letter-spacing: -0.02em;
 }
 

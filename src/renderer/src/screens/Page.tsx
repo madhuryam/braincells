@@ -60,6 +60,9 @@ export function Page({ itemId }: { itemId: string }): React.JSX.Element {
         <BackButton />
         <input
           className="page-title"
+          // A brand-new canvas lands with the cursor in the title —
+          // type the name first, no hunting for the field.
+          autoFocus={item.title === ''}
           value={title}
           placeholder="Untitled canvas"
           onChange={(e) => setTitle(e.target.value)}

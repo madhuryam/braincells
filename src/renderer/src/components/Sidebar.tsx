@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { KIND_ICON } from '../format'
 import { todayYmd } from '@shared/dates'
 import { useData, useLiveQuery } from '../state/data'
 import { useNav, type View } from '../state/nav'
@@ -74,10 +73,9 @@ function NavItem({
 export function Sidebar(): React.JSX.Element {
   // `dark` comes from context state (not the DOM attribute) so the
   // toggle button always re-renders in step with the actual theme.
-  const { projects, inboxCount, starred, dark, toggleDark } = useData()
-  const { view, navigate, openOverlay } = useNav()
+  const { projects, inboxCount, dark, toggleDark } = useData()
+  const { view, navigate } = useNav()
   const [collapsed, setCollapsed] = useState(false)
-  const [starredOpen, setStarredOpen] = useState(true)
   const [keysOpen, setKeysOpen] = useState(false)
 
   // "?" opens the shortcut cheat-sheet from anywhere (unless typing).
@@ -118,34 +116,8 @@ export function Sidebar(): React.JSX.Element {
       />
       <NavItem view={{ name: 'search' }} icon="🔍" label="Search" isActive={view.name === 'search'} />
 
-      {/* Quick access to starred notes/pages, no project digging. */}
-      {!collapsed && starred.length > 0 && (
-        <button className="nav-section nav-section-toggle" onClick={() => setStarredOpen(!starredOpen)}>
-          {starredOpen ? '▾' : '▸'} Starred
-        </button>
-      )}
-      {!collapsed &&
-        starredOpen &&
-        starred.map((item) => {
-          // Project dot + tooltip so starred items show where they live.
-          // find() misses archived projects — those render plain on purpose.
-          const project = projects.find((p) => p.id === item.projectId)
-          return (
-            <button
-              key={item.id}
-              className={`nav-item ${view.name === 'page' && view.itemId === item.id ? 'active' : ''}`}
-              title={project ? `${item.title} — ${project.name}` : item.title}
-              onClick={() => openOverlay({ name: 'page', itemId: item.id })}
-            >
-              <span className="nav-icon" aria-hidden>
-                {KIND_ICON[item.kind]}
-              </span>
-              {project && <ProjectDot color={project.color} />}
-              <span>{item.title || 'Untitled'}</span>
-            </button>
-          )
-        })}
-
+      {/* Starred canvases live on their project's overview now — the
+          sidebar stays pure navigation. */}
       {!collapsed && <div className="nav-section">Projects</div>}
       <NavItem
         view={{ name: 'projects' }}
@@ -160,7 +132,7 @@ export function Sidebar(): React.JSX.Element {
           {projects.map((p) => (
             <SortableProjectRow key={p.id} projectId={p.id} projectIds={projects.map((x) => x.id)}>
               <button
-                className={`nav-item ${view.name === 'project' && view.projectId === p.id ? 'active' : ''}`}
+                className={`nav-item nav-item-nested ${view.name === 'project' && view.projectId === p.id ? 'active' : ''}`}
                 onClick={() => navigate({ name: 'project', projectId: p.id })}
               >
                 <ProjectDot color={p.color} />

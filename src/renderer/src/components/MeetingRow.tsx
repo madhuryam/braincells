@@ -5,7 +5,7 @@ import { useNav } from '../state/nav'
 import { Card } from './Card'
 import { ItemCard } from './ItemCard'
 import { ItemBody } from './Markdown'
-import { prettyDate } from '../format'
+import { mmdd } from '../format'
 
 /**
  * One collapsed row per meeting on a project page (SPEC §4.4):
@@ -38,8 +38,10 @@ export function MeetingRow({
         onClick={() => (onPeek ? onPeek(meeting) : setOpen(!open))}
       >
         {!onPeek && <span aria-hidden>{open ? '▾' : '▸'}</span>}
-        <span className="card-title">📅 {meeting.title}</span>
-        <span className="pill">{prettyDate(meeting.date)}</span>
+        {/* A fixed-width date column beats an emoji: it says *when*
+            and keeps every title starting at the same x. */}
+        <span className="meeting-date">{mmdd(meeting.date)}</span>
+        <span className="card-title">{meeting.title}</span>
         {followUps.length > 0 && (
           <span className="pill">
             {done}/{followUps.length} follow-ups

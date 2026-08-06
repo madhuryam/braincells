@@ -11,7 +11,7 @@ import { DetailPanel } from '../components/DetailPanel'
 import { ItemDetail } from '../components/ItemDetail'
 import { Meeting } from './Meeting'
 import { BackButton, EmptyState } from '../components/bits'
-import { ampm, KIND_ICON, longDate } from '../format'
+import { ampm, longDate } from '../format'
 
 /**
  * The weekly log (SPEC §4.5): an automatic answer to "what did I even
@@ -167,7 +167,7 @@ function DayBlock({
         {open ? '▾' : '▸'} {isToday ? 'today · ' : ''}
         {longDate(date)}
         {events.length > 0 && <span className="pill">📅 {events.length}</span>}
-        {completed.length > 0 && <span className="pill">✅ {completed.length}</span>}
+        {completed.length > 0 && <span className="pill">✓ {completed.length}</span>}
       </button>
 
       {open && (
@@ -179,29 +179,48 @@ function DayBlock({
           )}
 
           <AllDayBar events={events} />
-          {events.filter((ev) => ev.startTime).map((ev) => (
-            <Card
-              key={ev.eventKey}
-              interactive
-              onClick={() =>
-                onPeek({ kind: 'meeting', eventKey: ev.eventKey, title: ev.title, date: ev.date })
-              }
-            >
-              <div className="row">
-                <span className="card-title">📅 {ev.title}</span>
-                {ev.startTime && <span className="pill">{ampm(ev.startTime)}</span>}
+          {/* Done left, meetings right — "what you did" reads separately
+              from "where you were". Empty .item-list divs hide via :empty. */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
+            <div className="stack">
+              <span className="section-sublabel">Done</span>
+              <div className="item-list">
+                {completed.map((item) => (
+                  <Card key={item.id} interactive done onClick={() => onPeek({ kind: 'item', itemId: item.id })}>
+                    <div className="row">
+                      {/* Quiet ✓ instead of KIND_ICON — the bright ✅ overpowers a log view. */}
+                      <span aria-hidden style={{ color: 'var(--text-faint)', fontWeight: 700 }}>
+                        ✓
+                      </span>
+                      <span className="card-title">{item.title || 'Untitled'}</span>
+                    </div>
+                  </Card>
+                ))}
               </div>
-            </Card>
-          ))}
+            </div>
 
-          {completed.map((item) => (
-            <Card key={item.id} interactive done onClick={() => onPeek({ kind: 'item', itemId: item.id })}>
-              <div className="row">
-                <span aria-hidden>{KIND_ICON[item.kind]}</span>
-                <span className="card-title">{item.title || 'Untitled'}</span>
+            <div className="stack">
+              <span className="section-sublabel">Meetings</span>
+              {/* Rows in one container, not a stack of cards — same calm
+                  treatment as the task lists. */}
+              <div className="item-list">
+                {events.filter((ev) => ev.startTime).map((ev) => (
+                  <Card
+                    key={ev.eventKey}
+                    interactive
+                    onClick={() =>
+                      onPeek({ kind: 'meeting', eventKey: ev.eventKey, title: ev.title, date: ev.date })
+                    }
+                  >
+                    <div className="row">
+                      <span className="meeting-time">{ampm(ev.startTime!)}</span>
+                      <span className="card-title">{ev.title}</span>
+                    </div>
+                  </Card>
+                ))}
               </div>
-            </Card>
-          ))}
+            </div>
+          </div>
         </div>
       )}
     </section>

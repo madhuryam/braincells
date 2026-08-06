@@ -10,6 +10,11 @@ export function prettyDate(date: string): string {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
+/** '06/12' — compact fixed-width date for dense rows. */
+export function mmdd(date: string): string {
+  return `${date.slice(5, 7)}/${date.slice(8, 10)}`
+}
+
 /** 'Thursday, June 12' — for screen headers. */
 export function longDate(date: string): string {
   const [y, m, d] = date.split('-').map(Number)
@@ -66,7 +71,7 @@ export function ampm(time: string): string {
 }
 
 export const KIND_ICON: Record<string, string> = {
-  task: '✅',
+  task: '✓', // quiet check — the green ✅ shouted from every list
   note: '📝',
   journal: '📓',
   prep: '🎯',
