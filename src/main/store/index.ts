@@ -595,6 +595,10 @@ export class Store {
       createdAt: nowStamp()
     }
     this.insertLink(link)
+    // A prep task is due when its meeting happens — every caller
+    // (prep picker, meeting screen, triage, drag-onto-meeting) gets
+    // the deadline for free by doing it here.
+    if (role === 'prep-for') this.updateItem(fromItemId, { dueDate: event.date })
     return link
   }
 

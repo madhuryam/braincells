@@ -154,6 +154,20 @@ describe('links and the meeting loop', () => {
     expect(progress).toMatchObject({ eventKey: demoEvent.eventKey, done: 1, total: 3 })
   })
 
+  it('prep links stamp the meeting date as the due date; other roles don’t', () => {
+    const prep = store.createItem({ kind: 'prep', title: 'read doc', status: 'active' })
+    store.linkToEvent(prep.id, demoEvent, 'prep-for')
+    expect(store.getItem(prep.id)!.dueDate).toBe(demoEvent.date)
+
+    const note = store.createItem({ kind: 'note', title: 'notes', status: 'active' })
+    store.linkToEvent(note.id, demoEvent, 'notes-for')
+    expect(store.getItem(note.id)!.dueDate).toBeNull()
+
+    const followUp = store.createItem({ kind: 'task', title: 'recap', status: 'active' })
+    store.linkToEvent(followUp.id, demoEvent, 'follow-up-from')
+    expect(store.getItem(followUp.id)!.dueDate).toBeNull()
+  })
+
   it('keeps the snapshot so notes survive event deletion', () => {
     const note = store.createItem({ kind: 'note', title: 'meeting notes', status: 'active' })
     const link = store.linkToEvent(note.id, demoEvent, 'notes-for')
