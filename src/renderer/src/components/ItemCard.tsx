@@ -1,18 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import type { Item, ItemStatus } from '@shared/types'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useEditing } from '../state/editing'
 import { useLabels } from '../state/labels'
 import { useNav } from '../state/nav'
+import { useMeetingPeek } from '../state/peek'
 import { useSelection } from '../state/selection'
 import { shortTitle, useUndo } from '../state/undo'
 import { Card } from './Card'
 import { CheckableInput, Checkbox, ProjectDot } from './bits'
+import { ConfirmButton } from './ConfirmButton'
 import { ProjectPicker } from './ProjectPicker'
 import { RichEditor } from './RichEditor'
 import { itemBodyHtml } from '../richtext'
-import { KIND_ICON, mmdd, prettyDate, rollingDays } from './../format'
+import { KIND_ICON, mmdd, prettyDate, projectLabel, rollingDays } from './../format'
 
 interface ItemCardProps {
   item: Item
@@ -87,6 +89,7 @@ function SubtaskRow({
               if (t && t !== sub.title) onRename(sub, t)
             }}
             onKeyDown={(e) => {
+              // Enter / ⌘⏎ / ⌃⏎ / ⇧⏎ all commit-and-exit; blur saves.
               if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
               if (e.key === 'Escape') {
                 e.stopPropagation() // don't also collapse the card
@@ -161,11 +164,15 @@ export function ItemCard({
 }: ItemCardProps): React.JSX.Element {
   // Controlled when the parent passes `open` (Inbox: one card at a
   // time); otherwise the app-wide editing slot decides — at most one
-  // card's editor is open anywhere, ever.
+  // card's editor is open anywhere, ever. The slot is keyed by this
+  // card INSTANCE, not the item: the same task can render in several
+  // places at once (Today's list and a meeting's prep list, say), and
+  // only the copy that was clicked should expand.
+  const instanceId = useId()
   const editing = useEditing()
-  const open = controlledOpen ?? editing.openId === item.id
+  const open = controlledOpen ?? editing.openId === instanceId
   const setOpen = (next: boolean): void => {
-    if (controlledOpen === undefined) editing.setOpenId(next ? item.id : null)
+    if (controlledOpen === undefined) editing.setOpenId(next ? instanceId : null)
     onOpenChange?.(next)
   }
   const [title, setTitle] = useState(item.title)
@@ -174,6 +181,7 @@ export function ItemCard({
   const { selected, toggle } = useSelection()
   const multiSelected = selected.has(item.id)
   const { openOverlay } = useNav()
+  const peekMeeting = useMeetingPeek()
   const { pushUndo } = useUndo()
   const project = projects.find((p) => p.id === item.projectId)
 
@@ -227,6 +235,9 @@ export function ItemCard({
     ({ item: s }) => s.status !== 'done' || (s.completedAt ?? '').slice(0, 10) === dayContext
   )
   const [subDraft, setSubDraft] = useState('')
+  // The collapsed card's own ＋: add a subtask without opening the editor.
+  const [quickSubOpen, setQuickSubOpen] = useState(false)
+  const [quickSubDraft, setQuickSubDraft] = useState('')
   const addSubtask = async (parentId: string, title: string): Promise<void> => {
     await mutate(async () => {
       const sub = await window.api.createItem({
@@ -268,6 +279,8 @@ export function ItemCard({
   // "Remove from calendar": counted only while the menu is open; with
   // several blocks on the schedule the first click arms, second fires.
   const [removeArmed, setRemoveArmed] = useState(false)
+  // "Delete task": always two-step — first click arms, second drops.
+  const [dropArmed, setDropArmed] = useState(false)
   const calInstances =
     useLiveQuery(
       () => (menu && isCheckable ? window.api.calendarInstanceCount(item.id) : Promise.resolve(0)),
@@ -287,7 +300,7 @@ export function ItemCard({
           : Promise.resolve([]),
       [menu !== null, menuMode]
     ) ?? []
-  // The task's existing meeting links (🎯 pills in the open editor).
+  // The task's existing meeting links (📅 chips in the open editor).
   const eventLinks = (
     useLiveQuery(
       () => (open ? window.api.linksFrom(item.id) : Promise.resolve([])),
@@ -297,6 +310,7 @@ export function ItemCard({
   useEffect(() => {
     if (!menu) {
       setRemoveArmed(false)
+      setDropArmed(false)
       setMenuMode('main')
     }
   }, [menu])
@@ -341,8 +355,24 @@ export function ItemCard({
   }
 
   return (
-    // Inside an .item-list, the 'open' class is what lifts the row
-    // being edited back into a real card.
+    // Inside an .item-list, the 'open' class marks the row being
+    // edited (a flush accent wash — it stays aligned with its
+    // neighbors, no inset card-within-a-card).
+    <>
+      {/* Spotlight: dim everything behind the open editor so the row
+          being edited is unmistakable. A sibling, not a child — inside
+          the card it would paint over the card's own background. On
+          mousedown (like the other collapse controls) so it beats the
+          title field's on-blur re-render; closing saves, same as Esc. */}
+      {open && (
+        <div
+          className="edit-scrim"
+          onMouseDown={(e) => {
+            e.preventDefault()
+            closeCard()
+          }}
+        />
+      )}
     <Card
       accentColor={project?.color}
       done={done}
@@ -352,13 +382,21 @@ export function ItemCard({
         .join(' ')}
     >
       <div
-        // Multi-selected: a soft wash, not a ring — rings box awkwardly
-        // inside flush list rows. The checked checkbox carries the rest.
-        style={
-          multiSelected
-            ? { background: 'var(--accent-soft)', margin: '-8px -13px', padding: '8px 13px' }
-            : undefined
-        }
+        // The whole collapsed card is the open affordance — a click
+        // anywhere that isn't a control (checkbox, buttons, fields)
+        // expands the editor, so nobody has to aim for the title.
+        style={!open ? { cursor: 'pointer' } : undefined}
+        onClick={(e) => {
+          if (open) return
+          const t = e.target as HTMLElement
+          if (t.closest('input, button, select, textarea, label, a')) return
+          if (e.metaKey || e.ctrlKey) {
+            if (isCheckable) toggle(item.id)
+            return
+          }
+          if (item.kind === 'page') openOverlay({ name: 'page', itemId: item.id })
+          else setOpen(true)
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Escape' && open) {
             e.stopPropagation()
@@ -372,416 +410,526 @@ export function ItemCard({
           setMenu({ x: e.clientX, y: e.clientY })
         }}
       >
-      {/* The header row of an open card collapses it again on click —
+        {/* The header row of an open card collapses it again on click —
           except on its interactive parts (checkbox, title field). On
           mousedown, like the other collapse controls, so it beats the
           title field's on-blur re-render. */}
-      <div
-        className="row"
-        style={open ? { cursor: 'pointer' } : undefined}
-        onClick={(e) => {
-          // ⌘-click (or ctrl-click) gathers this row into the
-          // multi-selection instead of opening it. Checkbox clicks
-          // never bubble here, so completing stays a single gesture.
-          if (!isCheckable || open) return
-          if (!(e.metaKey || e.ctrlKey)) return
-          e.preventDefault()
-          e.stopPropagation()
-          toggle(item.id)
-        }}
-        onMouseDown={(e) => {
-          if (!open) return
-          const target = e.target as HTMLElement
-          if (target.closest('input, button, select, textarea, label')) return
-          e.preventDefault()
-          closeCard()
-        }}
-      >
-        {isCheckable && checkboxSelects && (
-          // Selection checkbox: gathers the row instead of completing
-          // it. The accent outline says "this checks selection, not
-          // done" — the card's multi-selected ring confirms it.
-          <span
-            style={{
-              display: 'inline-flex',
-              borderRadius: 6,
-              outline: '1px solid var(--accent)',
-              outlineOffset: 1
-            }}
-          >
-            <Checkbox checked={multiSelected} onToggle={() => toggle(item.id)} />
-          </span>
+        <div
+          className="row card-header"
+          style={open ? { cursor: 'pointer' } : undefined}
+          onClick={(e) => {
+            // ⌘-click (or ctrl-click) gathers this row into the
+            // multi-selection instead of opening it. Checkbox clicks
+            // never bubble here, so completing stays a single gesture.
+            if (!isCheckable || open) return
+            if (!(e.metaKey || e.ctrlKey)) return
+            e.preventDefault()
+            e.stopPropagation()
+            toggle(item.id)
+          }}
+          onMouseDown={(e) => {
+            if (!open) return
+            const target = e.target as HTMLElement
+            if (target.closest('input, button, select, textarea, label')) return
+            e.preventDefault()
+            closeCard()
+          }}
+        >
+          {isCheckable && checkboxSelects && (
+            // Selection checkbox: gathers the row instead of completing
+            // it. The accent outline says "this checks selection, not
+            // done" — the card's multi-selected wash confirms it.
+            <span
+              style={{
+                display: 'inline-flex',
+                borderRadius: 6,
+                outline: '1px solid var(--accent)',
+                outlineOffset: 1
+              }}
+            >
+              <Checkbox checked={multiSelected} onToggle={() => toggle(item.id)} />
+            </span>
+          )}
+          {isCheckable && !checkboxSelects && (
+            <Checkbox
+              checked={done}
+              onToggle={() => {
+                const prev = item.status
+                patch({ status: done ? 'active' : ('done' as ItemStatus) })
+                if (!done) {
+                  pushUndo(`Completed “${shortTitle(item.title)}”`, async () => {
+                    await window.api.updateItem(item.id, { status: prev })
+                  })
+                }
+              }}
+            />
+          )}
+          {!isCheckable && <span aria-hidden>{KIND_ICON[item.kind]}</span>}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {open ? (
+              <div className="row">
+                <input
+                  autoFocus
+                  value={title}
+                  style={{ flex: 1 }}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={() => title !== item.title && patch({ title })}
+                  onKeyDown={(e) => {
+                    // ⌘⏎ / ⌃⏎ / ⇧⏎ save and close the card; plain Enter
+                    // just commits the title (blur), leaving the card open
+                    // so the notes and other fields stay editable.
+                    if (e.key !== 'Enter') return
+                    if (e.metaKey || e.ctrlKey || e.shiftKey) {
+                      e.preventDefault()
+                      closeCard()
+                    } else {
+                      ; (e.target as HTMLInputElement).blur()
+                    }
+                  }}
+                />
+                <button
+                  className="btn ghost"
+                  title="Collapse (Esc)"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    closeCard()
+                  }}
+                >
+                  ▴
+                </button>
+              </div>
+            ) : (
+              <button
+                className={`card-title${isCheckable ? ' plain' : ''}`}
+                style={{ display: 'flex', alignItems: 'center', width: '100%', textAlign: 'left' }}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey) return // bubbles to the row's multi-select
+                  // Pages open as a full document (floated overlay),
+                  // not an inline editor.
+                  if (item.kind === 'page') openOverlay({ name: 'page', itemId: item.id })
+                  else setOpen(true)
+                }}
+              >
+                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {item.title || <span style={{ color: 'var(--text-faint)' }}>Untitled</span>}
+                </span>
+                {/* Pinned to the right edge of the title row. */}
+                {item.content && (
+                  <span
+                    aria-hidden
+                    title="has notes"
+                    style={{ marginLeft: 'auto', paddingLeft: 6, fontSize: 12.5, opacity: 0.75, flexShrink: 0 }}
+                  >
+                    📝
+                  </span>
+                )}
+              </button>
+            )}
+            <div className="card-meta">
+              {item.starred && <span title="Starred — pinned in the sidebar">⭐</span>}
+              {showProject && project && (
+                <span className="pill" title={project.name}>
+                  <ProjectDot color={project.color} /> {projectLabel(project)}
+                </span>
+              )}
+              {showDate && item.scheduledDate && (
+                <span className="pill">{prettyDate(item.scheduledDate)}</span>
+              )}
+              {item.dueDate && <span className="pill">due {prettyDate(item.dueDate)}</span>}
+              {item.timeEstimateMinutes != null && (
+                <span className="pill">~{item.timeEstimateMinutes}m</span>
+              )}
+              {subtaskTree.length > 0 && (
+                <span className="pill subtask-count" title="subtasks">
+                  ☑ {subtasksDone}/{subtaskTree.length}
+                </span>
+              )}
+            </div>
+          </div>
+          {/* The main task's own ＋: add a subtask without opening the
+            editor — same gesture the subtask rows offer. Hidden until
+            the card is hovered. When open, the editor's own add-input
+            covers it. */}
+          {isCheckable && !open && (
+            <button
+              className="btn ghost small card-add-sub"
+              title="Add a subtask"
+              onClick={(e) => {
+                e.stopPropagation()
+                setQuickSubOpen(true)
+              }}
+            >
+              ＋
+            </button>
+          )}
+        </div>
+
+        {isCheckable && quickSubOpen && !open && (
+          <div style={{ marginTop: 8, marginLeft: 29 }}>
+            <CheckableInput
+              autoFocus
+              placeholder="Add a subtask…"
+              value={quickSubDraft}
+              onChange={(e) => setQuickSubDraft(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === 'Escape') {
+                  e.stopPropagation()
+                  setQuickSubOpen(false)
+                  setQuickSubDraft('')
+                }
+                if (e.key === 'Enter' && quickSubDraft.trim()) {
+                  await addSubtask(item.id, quickSubDraft.trim())
+                  setQuickSubDraft('')
+                }
+              }}
+            />
+          </div>
         )}
-        {isCheckable && !checkboxSelects && (
-          <Checkbox
-            checked={done}
-            onToggle={() => {
-              const prev = item.status
-              patch({ status: done ? 'active' : ('done' as ItemStatus) })
-              if (!done) {
-                pushUndo(`Completed “${shortTitle(item.title)}”`, async () => {
-                  await window.api.updateItem(item.id, { status: prev })
-                })
-              }
-            }}
-          />
+
+        {/* The subtask tree is always visible — check things off right
+          from the list, no need to open the card. */}
+        {isCheckable && visibleTree.length > 0 && (
+          <div className="subtasks" style={{ marginTop: 8 }}>
+            {visibleTree.map(({ item: sub, depth }) => (
+              <SubtaskRow
+                key={sub.id}
+                sub={sub}
+                depth={depth}
+                onToggle={toggleSubtask}
+                onDrop={dropSubtask}
+                onRename={(s, title) => mutate(() => window.api.updateItem(s.id, { title }))}
+                onAddChild={addSubtask}
+              />
+            ))}
+          </div>
         )}
-        {!isCheckable && <span aria-hidden>{KIND_ICON[item.kind]}</span>}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {open ? (
-            <div className="row">
-              <input
-                autoFocus
-                value={title}
-                style={{ flex: 1 }}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={() => title !== item.title && patch({ title })}
-                onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+
+        {open && (
+          // Indented to the title's column (checkbox 19px + row gap 10px)
+          // so the editor reads as one aligned block under the title.
+          <div className="stack" style={{ marginTop: 12, marginLeft: 29 }}>
+            {/* One notes surface that formats as you type (no separate
+              preview): markdown shortcuts become real formatting. */}
+            <RichEditor
+              key={item.id}
+              variant="compact"
+              initialHtml={itemBodyHtml(item)}
+              placeholder="Notes — type **bold**, # headings, - lists…"
+              onChange={onBodyChange}
+              onExit={closeCard}
+            />
+            {isCheckable && (
+              <div ref={subInputWrap}>
+                <CheckableInput
+                  placeholder="Add a subtask…"
+                  value={subDraft}
+                  onChange={(e) => setSubDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && subDraft.trim()) {
+                      addSubtask(item.id, subDraft.trim())
+                      setSubDraft('')
+                    }
+                  }}
+                />
+              </div>
+            )}
+            {/* One line: when to do it (the 5-day rolling window, or
+              someday) and which project. With many projects the picker
+              drops names to just the colored dots, and the whole tail
+              scrolls sideways rather than wrapping. */}
+            <div className="row" style={{ gap: 6 }}>
+              {(item.kind === 'task' || item.kind === 'prep') && (
+                <>
+                  {rollingDays().map((d) => (
+                    <button
+                      key={d.date}
+                      className={`btn small ${item.scheduledDate === d.date ? 'primary' : ''}`}
+                      style={{ flexShrink: 0 }}
+                      onClick={() => patch({ scheduledDate: d.date })}
+                    >
+                      {d.chip}
+                    </button>
+                  ))}
+                  <button
+                    className={`btn small ${item.scheduledDate === null ? 'primary' : ''}`}
+                    style={{ flexShrink: 0 }}
+                    title="No date — lives in the backlog until you pick a day"
+                    onClick={() => patch({ scheduledDate: null, scheduledTime: null, timeEstimateMinutes: null })}
+                  >
+                    someday
+                  </button>
+                  <span className="editor-divider" aria-hidden />
+                </>
+              )}
+              <div className="editor-projects">
+                <ProjectPicker
+                  expanded
+                  dotsOnly={projects.length > 3}
+                  value={item.projectId}
+                  onChange={(projectId) => patch({ projectId })}
+                />
+              </div>
+            </div>
+            {/* Which meetings this task preps. The name is a doorway —
+              clicking it peeks the meeting right here (or opens the
+              full view on screens without a peek panel); the ✕ unlinks
+              without touching the task itself. */}
+            {eventLinks.length > 0 && (
+              <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                {eventLinks.map((l) => (
+                  <span key={l.id} className="meeting-link">
+                    <button
+                      className="meeting-link-name"
+                      title="Peek at this meeting"
+                      onClick={() => {
+                        const m = {
+                          eventKey: l.toEventKey!,
+                          title: l.eventTitle ?? 'meeting',
+                          date: l.eventDate ?? ''
+                        }
+                        if (peekMeeting) peekMeeting(m)
+                        else openOverlay({ name: 'meeting', ...m })
+                      }}
+                    >
+                      📅 {l.eventDate && <span className="meeting-date">{mmdd(l.eventDate)}</span>}{' '}
+                      {l.eventTitle ?? 'meeting'}
+                    </button>
+                    <button
+                      className="btn ghost small"
+                      style={{ padding: '0 2px' }}
+                      title="No longer prep for this meeting"
+                      onClick={() =>
+                        // The due date came from this meeting — it goes
+                        // with the link (same rule as the context menu).
+                        mutate(async () => {
+                          await window.api.deleteLink(l.id)
+                          await window.api.updateItem(item.id, { dueDate: null })
+                        })
+                      }
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="row" style={{ flexWrap: 'wrap' }}>
+              <label className="pill">
+                do
+                <input
+                  type="date"
+                  value={item.scheduledDate ?? ''}
+                  onChange={(e) => patch({ scheduledDate: e.target.value || null })}
+                />
+              </label>
+              <label className="pill">
+                due
+                <input
+                  type="date"
+                  value={item.dueDate ?? ''}
+                  onChange={(e) => patch({ dueDate: e.target.value || null })}
+                />
+              </label>
+              {(item.kind === 'note' || item.kind === 'page') && (
+                <button
+                  className="btn ghost"
+                  title={item.starred ? 'Unstar' : 'Star — pin it to the sidebar'}
+                  onClick={() => patch({ starred: !item.starred })}
+                >
+                  {item.starred ? '⭐ starred' : '☆ star'}
+                </button>
+              )}
+              {/* Two-step: first click arms, second actually drops —
+                a stray click near Close can't discard the task. */}
+              <ConfirmButton
+                label="🗑"
+                confirmLabel="drop task"
+                title="Drop this item (it goes away, guilt-free)"
+                style={{ marginLeft: 'auto' }}
+                onConfirm={dropItem}
               />
               <button
                 className="btn ghost"
-                title="Collapse (Esc)"
                 onMouseDown={(e) => {
                   e.preventDefault()
                   closeCard()
                 }}
               >
-                ▴
+                Close
               </button>
             </div>
-          ) : (
-            <button
-              className="card-title"
-              style={{ display: 'block', width: '100%', textAlign: 'left' }}
-              onClick={(e) => {
-                if (e.metaKey || e.ctrlKey) return // bubbles to the row's multi-select
-                // Pages open as a full document (floated overlay),
-                // not an inline editor.
-                if (item.kind === 'page') openOverlay({ name: 'page', itemId: item.id })
-                else setOpen(true)
-              }}
-            >
-              {item.title || <span style={{ color: 'var(--text-faint)' }}>Untitled</span>}
-            </button>
-          )}
-          <div className="card-meta">
-            {item.starred && <span title="Starred — pinned in the sidebar">⭐</span>}
-            {showProject && project && (
-              <span className="pill">
-                <ProjectDot color={project.color} /> {project.name}
-              </span>
-            )}
-            {showDate && item.scheduledDate && (
-              <span className="pill">{prettyDate(item.scheduledDate)}</span>
-            )}
-            {item.dueDate && <span className="pill">due {prettyDate(item.dueDate)}</span>}
-            {item.timeEstimateMinutes != null && (
-              <span className="pill">~{item.timeEstimateMinutes}m</span>
-            )}
-            {subtaskTree.length > 0 && (
-              <span className="pill" title="subtasks">
-                ☑ {subtasksDone}/{subtaskTree.length}
-              </span>
-            )}
-            {/* Right-aligned so notes are spottable at a glance. */}
-            {!open && item.content && (
-              <span title="has notes" style={{ marginLeft: 'auto' }}>
-                📄
-              </span>
-            )}
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* The subtask tree is always visible — check things off right
-          from the list, no need to open the card. */}
-      {isCheckable && visibleTree.length > 0 && (
-        <div className="subtasks" style={{ marginTop: 8 }}>
-          {visibleTree.map(({ item: sub, depth }) => (
-            <SubtaskRow
-              key={sub.id}
-              sub={sub}
-              depth={depth}
-              onToggle={toggleSubtask}
-              onDrop={dropSubtask}
-              onRename={(s, title) => mutate(() => window.api.updateItem(s.id, { title }))}
-              onAddChild={addSubtask}
-            />
-          ))}
-        </div>
-      )}
-
-      {open && (
-        <div className="stack" style={{ marginTop: 12 }}>
-          {/* One notes surface that formats as you type (no separate
-              preview): markdown shortcuts become real formatting. */}
-          <RichEditor
-            key={item.id}
-            variant="compact"
-            initialHtml={itemBodyHtml(item)}
-            placeholder="Notes — type **bold**, # headings, - lists…"
-            onChange={onBodyChange}
-          />
-          {isCheckable && (
-            <div ref={subInputWrap}>
-              <CheckableInput
-                placeholder="Add a subtask…"
-                value={subDraft}
-                onChange={(e) => setSubDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && subDraft.trim()) {
-                    addSubtask(item.id, subDraft.trim())
-                    setSubDraft('')
-                  }
-                }}
-              />
-            </div>
-          )}
-          {/* When to do it: the 5-day rolling window, or someday. */}
-          {(item.kind === 'task' || item.kind === 'prep') && (
-            <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
-              {rollingDays().map((d) => (
+        {menu && (
+          <div
+            ref={menuRef}
+            style={{
+              position: 'fixed',
+              top: menu.y,
+              left: menu.x,
+              zIndex: 50,
+              display: 'flex',
+              flexDirection: 'column',
+              minWidth: 160,
+              padding: 4,
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              boxShadow: 'var(--shadow-lift)'
+            }}
+          >
+            {menuMode === 'prep' ? (
+              <>
                 <button
-                  key={d.date}
-                  className={`btn small ${item.scheduledDate === d.date ? 'primary' : ''}`}
-                  onClick={() => patch({ scheduledDate: d.date })}
+                  className="btn ghost small"
+                  style={{ justifyContent: 'flex-start', color: 'var(--text-soft)' }}
+                  onClick={() => setMenuMode('main')}
                 >
-                  {d.chip}
+                  ‹ back
                 </button>
-              ))}
-              <button
-                className={`btn small ${item.scheduledDate === null ? 'primary' : ''}`}
-                title="No date — lives in the backlog until you pick a day"
-                onClick={() => patch({ scheduledDate: null, scheduledTime: null, timeEstimateMinutes: null })}
-              >
-                someday
-              </button>
-            </div>
-          )}
-          <ProjectPicker
-            value={item.projectId}
-            onChange={(projectId) => patch({ projectId })}
-          />
-          {/* Which meetings this task preps — the ✕ unlinks without
-              touching the task itself. */}
-          {eventLinks.length > 0 && (
-            <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
-              {eventLinks.map((l) => (
-                <span key={l.id} className="pill" title={`Prep for ${l.eventTitle ?? 'meeting'}`}>
-                  🎯 {l.eventDate && <span className="meeting-date">{mmdd(l.eventDate)}</span>}{' '}
-                  {l.eventTitle ?? 'meeting'}
+                <div
+                  style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+                >
+                  {prepTargets.map((ev) => {
+                    // The meeting's label edge + wash — pick by color.
+                    const color = labels.of(ev)
+                    return (
+                      <button
+                        key={ev.eventKey}
+                        className="btn ghost small"
+                        style={{
+                          justifyContent: 'flex-start',
+                          flexShrink: 0,
+                          borderRadius: 4,
+                          borderLeft: `3px solid ${color?.hex ?? 'transparent'}`,
+                          ...(color
+                            ? { background: `color-mix(in srgb, ${color.hex} 10%, transparent)` }
+                            : {}),
+                          marginBottom: 2
+                        }}
+                        onClick={() => {
+                          setMenu(null)
+                          // The link is the whole relationship — the task keeps
+                          // its kind, day, and project; the meeting's prep list
+                          // and progress pick it up from here.
+                          void mutate(() => window.api.linkToEvent(item.id, ev, 'prep-for'))
+                        }}
+                      >
+                        <span className="meeting-date" style={{ marginRight: 6 }}>{mmdd(ev.date)}</span>
+                        {ev.title}
+                      </button>
+                    )
+                  })}
+                </div>
+                {prepTargets.length === 0 && (
+                  <span style={{ padding: '4px 8px', fontSize: 12.5, color: 'var(--text-faint)' }}>
+                    no meetings in the next two weeks
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  className="btn ghost small"
+                  style={{ justifyContent: 'flex-start' }}
+                  onClick={() => {
+                    setMenu(null)
+                    // Already open: the [open] effect won't refire — focus now.
+                    if (open) subInputWrap.current?.querySelector('input')?.focus()
+                    else {
+                      wantSubtaskFocus.current = true
+                      setOpen(true)
+                    }
+                  }}
+                >
+                  ＋ Add subtask
+                </button>
+                {unlinkId ? (
+                  // Under a meeting, the useful action is the inverse: cut
+                  // the link that put this card here. The due date came
+                  // from that meeting, so it goes with the link — which
+                  // is also why "Clear due date" hides here: clearing it
+                  // while still attached would just lie about the meeting.
                   <button
                     className="btn ghost small"
-                    style={{ padding: '0 2px', marginLeft: 2 }}
-                    title="No longer prep for this meeting"
-                    onClick={() => mutate(() => window.api.deleteLink(l.id))}
+                    style={{ justifyContent: 'flex-start' }}
+                    onClick={() => {
+                      setMenu(null)
+                      void mutate(async () => {
+                        await window.api.deleteLink(unlinkId)
+                        await window.api.updateItem(item.id, { dueDate: null })
+                      })
+                    }}
                   >
-                    ✕
+                    ✕ Remove from this meeting
                   </button>
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="row" style={{ flexWrap: 'wrap' }}>
-            <label className="pill">
-              do
-              <input
-                type="date"
-                value={item.scheduledDate ?? ''}
-                onChange={(e) => patch({ scheduledDate: e.target.value || null })}
-              />
-            </label>
-            <label className="pill">
-              due
-              <input
-                type="date"
-                value={item.dueDate ?? ''}
-                onChange={(e) => patch({ dueDate: e.target.value || null })}
-              />
-            </label>
-            {(item.kind === 'note' || item.kind === 'page') && (
-              <button
-                className="btn ghost"
-                title={item.starred ? 'Unstar' : 'Star — pin it to the sidebar'}
-                onClick={() => patch({ starred: !item.starred })}
-              >
-                {item.starred ? '⭐ starred' : '☆ star'}
-              </button>
+                ) : (
+                  <button
+                    className="btn ghost small"
+                    style={{ justifyContent: 'flex-start' }}
+                    onClick={() => setMenuMode('prep')}
+                  >
+                    📅 Prep for meeting…
+                  </button>
+                )}
+                {item.dueDate && !unlinkId && (
+                  <button
+                    className="btn ghost small"
+                    style={{ justifyContent: 'flex-start' }}
+                    onClick={() => {
+                      setMenu(null)
+                      patch({ dueDate: null })
+                    }}
+                  >
+                    ✕ Clear due date
+                  </button>
+                )}
+                {calInstances > 0 && (
+                  <button
+                    className="btn ghost small"
+                    style={{
+                      justifyContent: 'flex-start',
+                      ...(removeArmed ? { color: 'var(--danger)' } : {})
+                    }}
+                    onClick={() => {
+                      // Several blocks on the schedule → make sure it's meant.
+                      if (calInstances > 1 && !removeArmed) {
+                        setRemoveArmed(true)
+                        return
+                      }
+                      setMenu(null)
+                      void mutate(() => window.api.removeFromCalendar(item.id))
+                    }}
+                  >
+                    {removeArmed ? `Remove all ${calInstances} instances?` : '✕ Remove from calendar'}
+                  </button>
+                )}
+                <button
+                  className="btn ghost small"
+                  style={{
+                    justifyContent: 'flex-start',
+                    ...(dropArmed ? { color: 'var(--danger)', fontWeight: 700 } : {})
+                  }}
+                  onClick={() => {
+                    // Two-step, like the editor's 🗑 — a stray click at
+                    // the bottom of the menu can't discard the task.
+                    if (!dropArmed) {
+                      setDropArmed(true)
+                      return
+                    }
+                    setMenu(null)
+                    dropItem()
+                  }}
+                >
+                  {dropArmed ? '🗑 Confirm Delete' : '🗑 Delete'}
+                </button>
+              </>
             )}
-            <button
-              className="btn ghost"
-              title="Drop this item (it goes away, guilt-free)"
-              style={{ marginLeft: 'auto' }}
-              onClick={dropItem}
-            >
-              🗑 drop
-            </button>
-            <button
-              className="btn ghost"
-              onMouseDown={(e) => {
-                e.preventDefault()
-                closeCard()
-              }}
-            >
-              Close
-            </button>
           </div>
-        </div>
-      )}
-
-      {menu && (
-        <div
-          ref={menuRef}
-          style={{
-            position: 'fixed',
-            top: menu.y,
-            left: menu.x,
-            zIndex: 50,
-            display: 'flex',
-            flexDirection: 'column',
-            minWidth: 160,
-            padding: 4,
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: 8,
-            boxShadow: 'var(--shadow-lift)'
-          }}
-        >
-          {menuMode === 'prep' ? (
-            <>
-              <button
-                className="btn ghost small"
-                style={{ justifyContent: 'flex-start', color: 'var(--text-soft)' }}
-                onClick={() => setMenuMode('main')}
-              >
-                ‹ back
-              </button>
-              <div
-                style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
-              >
-                {prepTargets.map((ev) => {
-                  // The meeting's label edge + wash — pick by color.
-                  const color = labels.of(ev)
-                  return (
-                    <button
-                      key={ev.eventKey}
-                      className="btn ghost small"
-                      style={{
-                        justifyContent: 'flex-start',
-                        flexShrink: 0,
-                        borderRadius: 4,
-                        borderLeft: `3px solid ${color?.hex ?? 'transparent'}`,
-                        ...(color
-                          ? { background: `color-mix(in srgb, ${color.hex} 10%, transparent)` }
-                          : {}),
-                        marginBottom: 2
-                      }}
-                      onClick={() => {
-                        setMenu(null)
-                        // The link is the whole relationship — the task keeps
-                        // its kind, day, and project; the meeting's prep list
-                        // and progress pick it up from here.
-                        void mutate(() => window.api.linkToEvent(item.id, ev, 'prep-for'))
-                      }}
-                    >
-                      <span className="meeting-date" style={{ marginRight: 6 }}>{mmdd(ev.date)}</span>
-                      {ev.title}
-                    </button>
-                  )
-                })}
-              </div>
-              {prepTargets.length === 0 && (
-                <span style={{ padding: '4px 8px', fontSize: 12.5, color: 'var(--text-faint)' }}>
-                  no meetings in the next two weeks
-                </span>
-              )}
-            </>
-          ) : (
-            <>
-          <button
-            className="btn ghost small"
-            style={{ justifyContent: 'flex-start' }}
-            onClick={() => {
-              setMenu(null)
-              // Already open: the [open] effect won't refire — focus now.
-              if (open) subInputWrap.current?.querySelector('input')?.focus()
-              else {
-                wantSubtaskFocus.current = true
-                setOpen(true)
-              }
-            }}
-          >
-            ＋ Add subtask
-          </button>
-          {unlinkId ? (
-            // Under a meeting, the useful action is the inverse: cut
-            // the link that put this card here (task itself untouched).
-            <button
-              className="btn ghost small"
-              style={{ justifyContent: 'flex-start' }}
-              onClick={() => {
-                setMenu(null)
-                void mutate(() => window.api.deleteLink(unlinkId))
-              }}
-            >
-              ✕ Remove from this meeting
-            </button>
-          ) : (
-            <button
-              className="btn ghost small"
-              style={{ justifyContent: 'flex-start' }}
-              onClick={() => setMenuMode('prep')}
-            >
-              🎯 Prep for meeting…
-            </button>
-          )}
-          {item.dueDate && (
-            <button
-              className="btn ghost small"
-              style={{ justifyContent: 'flex-start' }}
-              onClick={() => {
-                setMenu(null)
-                patch({ dueDate: null })
-              }}
-            >
-              ✕ Clear due date
-            </button>
-          )}
-          {calInstances > 0 && (
-            <button
-              className="btn ghost small"
-              style={{
-                justifyContent: 'flex-start',
-                ...(removeArmed ? { color: 'var(--danger)' } : {})
-              }}
-              onClick={() => {
-                // Several blocks on the schedule → make sure it's meant.
-                if (calInstances > 1 && !removeArmed) {
-                  setRemoveArmed(true)
-                  return
-                }
-                setMenu(null)
-                void mutate(() => window.api.removeFromCalendar(item.id))
-              }}
-            >
-              {removeArmed ? `Remove all ${calInstances} instances?` : '✕ Remove from calendar'}
-            </button>
-          )}
-          <button
-            className="btn ghost small"
-            style={{ justifyContent: 'flex-start' }}
-            onClick={() => {
-              setMenu(null)
-              dropItem()
-            }}
-          >
-            🗑 Delete task
-          </button>
-            </>
-          )}
-        </div>
-      )}
+        )}
       </div>
     </Card>
+    </>
   )
 }

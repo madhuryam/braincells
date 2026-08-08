@@ -359,9 +359,22 @@ kbd.key {
     var(--bg-card);
 }
 
+/* Multi-selected: a soft accent wash over the whole card — not a
+   ring, which boxes awkwardly against the card's rounded corners.
+   The checked checkbox carries the rest. */
+.card.multi-selected {
+  background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--bg-card);
+}
+
 .card-title {
   font-weight: 600;
   line-height: 1.35;
+}
+
+/* Task/prep titles read as plain text, not headings — the checkbox and
+   row already carry the structure, so no need for the semibold weight. */
+.card-title.plain {
+  font-weight: 400;
 }
 
 .card-meta {
@@ -389,19 +402,42 @@ kbd.key {
   /* carried-over: quiet, never red */
 }
 
-/* ── Task lists: rows, not a stack of cards ──────────────────────── */
+/* The card's header row pins to the top, so the checkbox rides the
+   title's FIRST line — it never re-centers against the taller block
+   when meta pills add a second line below. (Doubled selector: the
+   generic `.row { align-items: center }` sits later in the file and
+   would win a single-class tie.) */
+.row.card-header {
+  align-items: flex-start;
+}
 
-/* One quiet container per list. Rows inside divide with hairlines
-   instead of each wearing full card chrome — only the row being
-   edited (.open) lifts back into a real card. */
+.card-header .checkbox {
+  /* optically on the title's ~19.6px first line box */
+  margin-top: 0.5px;
+}
+
+/* Open, the title is a padded input whose text line sits lower. */
+.card.open .card-header .checkbox {
+  margin-top: 9px;
+}
+
+.card-header .card-add-sub {
+  /* the ＋ is taller than the title line — recenter it on that line */
+  margin-top: -2px;
+}
+
+/* ── Task lists: one square block of back-to-back rows ───────────── */
+
+/* Deliberately square and flush: rows butt together with hairline
+   dividers, and each row's project-color edge joins into one
+   continuous spine down the block's left side. Rows stay plain —
+   no per-row wash — so the one being edited (.open, below) is the
+   only thing that colors in. */
 .item-list {
   display: flex;
   flex-direction: column;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  overflow: hidden;
-  /* accent edges and hovers clip to the corners */
 }
 
 .item-list:empty {
@@ -414,6 +450,7 @@ kbd.key {
 
 .item-list .card {
   background: transparent;
+  /* no wash — the accent edge alone carries the project color */
   border-radius: 0;
   box-shadow: none;
 }
@@ -424,22 +461,68 @@ kbd.key {
   border-left: 3.5px solid transparent;
 }
 
-.item-list .card.accented {
-  /* keep the project wash, on the row's transparent base */
-  background: linear-gradient(to right,
-      color-mix(in srgb, var(--card-accent, var(--accent)) 6%, transparent),
-      transparent 45%);
+/* Starred canvases: a warm gold left edge instead of a star glyph
+   crowding the title. Quiet, but unmistakably "pinned". */
+.item-list .card.starred-canvas {
+  border-left: 3.5px solid #e0a92e;
 }
 
 .item-list .card:not(.open):hover {
   background: var(--bg-hover);
 }
 
-/* Interactive rows inside a list keep the pointer but drop the card
-   lift — rows highlight, they don't levitate. */
+/* Today tab: round only the block's outer corners — the first row's
+   top and the last row's bottom — so each task group reads as one
+   cohesive, softly rounded block while the rows between stay flush.
+   (No overflow:hidden — the list is drag-sortable and clipping would
+   cut the card being dragged.) */
+.today-grid .item-list {
+  border-radius: 3px;
+}
+
+/* Drop the hairline dividers between task rows — the block reads as one
+   clean surface, no ruled lines. */
+.today-grid .item-list> *+* {
+  border-top: none;
+}
+
+/* The subtask tree is shown right under the row here, so the "☑ 0/4"
+   count is redundant. */
+.today-grid .subtask-count {
+  display: none;
+}
+
+/* No hover fill on task rows — the row stays flat until it's opened.
+   (Multi-selected rows keep their wash.) */
+.today-grid .item-list .card:not(.open):not(.multi-selected):hover {
+  background: transparent;
+}
+
+.today-grid .item-list> :first-child,
+.today-grid .item-list> :first-child .card,
+.today-grid .item-list> :first-child.card {
+  border-top-left-radius: 2px;
+  border-top-right-radius: 3px;
+}
+
+.today-grid .item-list> :last-child,
+.today-grid .item-list> :last-child .card,
+.today-grid .item-list> :last-child.card {
+  border-bottom-left-radius: 2px;
+  border-bottom-right-radius: 3px;
+}
+
+/* Interactive rows keep the pointer but drop the card lift — rows
+   highlight, they don't levitate. */
 .item-list .card.interactive:hover {
   transform: none;
   box-shadow: none;
+}
+
+/* Multi-selected rows: restate the wash over the row's transparent
+   base (the row rule above outranks the generic .multi-selected). */
+.item-list .card.multi-selected {
+  background: var(--accent-soft);
 }
 
 /* The fixed-width date column on meeting rows. */
@@ -463,11 +546,41 @@ kbd.key {
   min-width: 62px;
 }
 
+/* Spotlight for inline editing: everything behind the open editor
+   dims, so the row being edited is the one bright thing on screen.
+   Sits below the context menu (50) and the modal scrims (55+);
+   clicking it closes-and-saves the editor. */
+.edit-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: color-mix(in srgb, #000 16%, transparent);
+  animation: scrim-in 0.15s ease;
+  /* Clicks must dismiss, not drag the window (see .overlay-scrim). */
+  -webkit-app-region: no-drag;
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Above its scrim. (.card is already position: relative.) */
+.card.open {
+  z-index: 45;
+}
+
+/* The one row that colors in: the project wash marks the row being
+   edited, and only that row — its neighbors stay plain. It also gets
+   the lift shadow: against the dimmed page it reads as raised. */
 .item-list .card.open {
-  background: var(--bg-card);
-  border-radius: var(--radius-card);
+  background:
+    linear-gradient(to right,
+      color-mix(in srgb, var(--card-accent, var(--accent)) 6%, transparent),
+      transparent 45%),
+    var(--bg-card);
   box-shadow: var(--shadow-lift);
-  margin: 6px;
 }
 
 /* ── Small shared bits ───────────────────────────────────────────── */
@@ -825,7 +938,7 @@ kbd.key {
    project header — padding would inset the rows (and their accent
    edges) inside the container's own border. */
 .task-group-indent {
-  margin-left: 8px;
+  margin-left: 4px;
 }
 
 /* Subtask rows inside an expanded card. */
@@ -857,9 +970,30 @@ kbd.key {
 .subtask-row .btn {
   opacity: 0;
   transition: opacity 0.12s ease;
+  /* slim: these hover actions shouldn't eat the title's width */
+  padding: 3px 6px;
+}
+
+/* Pull the ＋ and ✕ closer together: counter most of the row's 9px
+   gap, leaving ~2px between the pair. */
+.subtask-row .btn+.btn {
+  margin-left: -7px;
 }
 
 .subtask-row:hover .btn {
+  opacity: 1;
+}
+
+/* The main task's add-subtask ＋: quiet until the card is hovered,
+   matching the subtask rows' hover actions. */
+.card-add-sub {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  padding: 3px 6px;
+  /* slim, like the subtask rows' actions */
+}
+
+.card:hover .card-add-sub {
   opacity: 1;
 }
 
@@ -874,6 +1008,58 @@ kbd.key {
 
 .day-toggle:hover {
   color: var(--text);
+}
+
+/* Day header: the collapse toggle plus a + to add a task on that day,
+   sitting right where the count used to. The toggle shrinks to its
+   label so + tucks in beside it. */
+.day-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Own the label's margin so the + aligns to the text line, not to
+     the toggle's asymmetric top/bottom margin. */
+  margin: 22px 0 10px;
+}
+
+.day-header .day-toggle {
+  width: auto;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+/* A peer of the label — same faint color, but bold so it reads as a
+   real affordance. */
+.day-add-btn {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-faint);
+  transition: color 0.12s ease;
+}
+
+.day-add-btn:hover {
+  color: var(--accent);
+}
+
+/* Inline "new task on this day" creator: title + buttons on top, the
+   full project chip set on its own line below. */
+.day-quick-add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+
+.day-quick-add-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.day-quick-add-row input {
+  flex: 1;
+  min-width: 0;
 }
 
 /* ── The Today timeline ──────────────────────────────────────────── */
@@ -1177,8 +1363,10 @@ kbd.key {
   border-radius: 9px;
   box-shadow: var(--shadow-card);
 }
+
 .rich-toolbar::-webkit-scrollbar {
-  display: none; /* it still pans; the bar under every toolbar was noise */
+  display: none;
+  /* it still pans; the bar under every toolbar was noise */
 }
 
 .rt-btn {
@@ -1226,6 +1414,7 @@ kbd.key {
   height: auto;
   border-radius: 6px;
 }
+
 .ProseMirror img.ProseMirror-selectednode {
   outline: 2px solid var(--accent);
 }
@@ -1313,6 +1502,23 @@ kbd.key {
 
 .detail-panel-header {
   margin-bottom: 12px;
+}
+
+/* Canvas title in the peek header: an h2 that's secretly editable. */
+.peek-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  border: none;
+  background: transparent;
+  padding: 2px 0;
+}
+
+.peek-title:focus {
+  border: none;
+  box-shadow: none;
 }
 
 /* Peeked meeting notes shouldn't demand the full-screen height. */
@@ -1639,6 +1845,72 @@ kbd.key {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+
+/* The open editor's when-and-where line: a thin rule between the day
+   chips and the project picker, and a sideways-scrolling tail so a
+   long project list never wraps the row. */
+.editor-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.editor-projects {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+/* A whisper of a scrollbar: 4px, thumb only. The global thumb rule's
+   transparent-border/content-box trick would leave 0 visible pixels
+   at this height, so restate a plain thumb. */
+.editor-projects::-webkit-scrollbar {
+  height: 4px;
+}
+
+.editor-projects::-webkit-scrollbar-thumb {
+  background: var(--border);
+  background-clip: border-box;
+  border: none;
+  border-radius: 2px;
+}
+
+.editor-projects .project-picker {
+  flex-wrap: nowrap;
+}
+
+.editor-projects .project-chip {
+  flex-shrink: 0;
+}
+
+/* A task's linked meeting: a flat tag, not a pill — the name is a
+   doorway (click to peek the meeting), so it reads as a link, with
+   the ✕ beside it to unlink. */
+.meeting-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px 1px 8px;
+  font-size: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.meeting-link-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.meeting-link-name:hover {
+  color: var(--accent);
+  text-decoration: underline;
 }
 
 .project-chip {

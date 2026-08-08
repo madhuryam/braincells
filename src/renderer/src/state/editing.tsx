@@ -1,9 +1,12 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 
 /**
- * Which item's inline editor is open — app-wide, at most one. Opening
- * a card anywhere collapses whichever other card was open, so screens
- * never fill up with half-edited editors.
+ * Which inline editor is open — app-wide, at most one. Opening a card
+ * anywhere collapses whichever other card was open, so screens never
+ * fill up with half-edited editors. Keys are opaque slot tokens, not
+ * item ids: each card instance brings its own (useId), so a task
+ * rendered in two places (Today's list and a meeting's prep list)
+ * expands only where it was clicked.
  */
 interface EditingContextValue {
   openId: string | null

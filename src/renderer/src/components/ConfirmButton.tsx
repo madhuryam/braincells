@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 
 /**
  * Two-step destructive action: the first click arms the button (it
@@ -12,6 +12,7 @@ export function ConfirmButton({
   title,
   tooltip,
   className = 'btn ghost',
+  style,
   onConfirm
 }: {
   label: string
@@ -20,6 +21,8 @@ export function ConfirmButton({
   /** Rich hover text via the CSS .tooltip mechanism (faster than title). */
   tooltip?: string
   className?: string
+  /** Layout escape hatch — e.g. marginLeft: 'auto' in a flex row. */
+  style?: CSSProperties
   onConfirm: () => void
 }): React.JSX.Element {
   const [armed, setArmed] = useState(false)
@@ -33,6 +36,7 @@ export function ConfirmButton({
     <button
       className={`${className} ${tooltip ? 'tooltip' : ''} ${armed ? 'confirm-armed' : ''}`}
       data-tooltip={tooltip}
+      style={style}
       title={title}
       onBlur={() => setArmed(false)}
       onClick={(e) => {

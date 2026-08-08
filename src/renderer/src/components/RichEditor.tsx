@@ -28,6 +28,12 @@ export interface RichEditorProps {
   placeholder?: string
   onChange: (html: string, plainText: string) => void
   /**
+   * Commit-and-exit: fired on ⌘⏎ / ⌃⏎ / ⇧⏎ from anywhere in the notes.
+   * The caller saves and closes its editor. When omitted these keys keep
+   * their default TipTap behavior (Shift+Enter → hard break, etc).
+   */
+  onExit?: () => void
+  /**
    * 'full' (default): the whole toolbar, for Pages.
    * 'compact': a slim toolbar and short height, for notes inside
    * cards and the meeting notes pane. Markdown-style shortcuts
@@ -108,9 +114,14 @@ export function RichEditor({
   initialHtml,
   placeholder,
   onChange,
+  onExit,
   variant = 'full',
   toolbar = true
 }: RichEditorProps): React.JSX.Element | null {
+  // Kept in a ref so the editor's keydown handler (built once) always
+  // sees the latest callback without rebuilding the editor.
+  const onExitRef = useRef(onExit)
+  onExitRef.current = onExit
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -125,6 +136,18 @@ export function RichEditor({
     ],
     content: initialHtml,
     editorProps: {
+      // Commit-and-exit when the caller wants it: ⌘⏎ / ⌃⏎ / ⇧⏎, or Esc.
+      // Handled here (not just via bubbling) because ProseMirror can
+      // consume the keydown before it reaches the card's own handler.
+      handleKeyDown: (_view, event): boolean => {
+        if (!onExitRef.current) return false
+        const commitEnter =
+          event.key === 'Enter' && (event.metaKey || event.ctrlKey || event.shiftKey)
+        if (!commitEnter && event.key !== 'Escape') return false
+        event.preventDefault()
+        onExitRef.current()
+        return true
+      },
       handlePaste: (view, event): boolean =>
         insertImageFiles(view, Array.from(event.clipboardData?.files ?? [])),
       handleDrop: (view, event, _slice, moved): boolean => {
