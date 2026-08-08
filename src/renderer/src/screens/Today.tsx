@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useLiveQuery, useMutate } from '../state/data'
+import { useEditing } from '../state/editing'
 import { useNav } from '../state/nav'
+import { MeetingPeekProvider } from '../state/peek'
 import { useUndo } from '../state/undo'
 import { Card } from '../components/Card'
 import { DetailPanel } from '../components/DetailPanel'
@@ -10,6 +12,7 @@ import { TaskPeek } from '../components/TaskPeek'
 import { Meeting } from './Meeting'
 import { ItemCard } from '../components/ItemCard'
 import { TaskGroups } from '../components/TaskGroups'
+import { ProjectPicker } from '../components/ProjectPicker'
 import { DraggableCard, DropZone } from '../components/dnd'
 import { Timeline } from '../components/Timeline'
 import { CheckableInput, Checkbox, EmptyState } from '../components/bits'
@@ -113,6 +116,14 @@ export function Today(): React.JSX.Element {
         )}
       </header>
 
+      {/* Cards deep in the lists can peek a linked meeting here beside
+          the schedule — same panel a clicked calendar event uses. */}
+      <MeetingPeekProvider
+        onPeek={(m) => {
+          setPeekTask(null)
+          setPeek(m)
+        }}
+      >
       <div className="today-grid">
         {/* Left column: tasks for the rolling 5-day window. (The old
             "Capture anything" input is gone — the task quick-add below
@@ -180,7 +191,9 @@ export function Today(): React.JSX.Element {
               </>
             )}
 
-            {carried.length > 0 && (
+            {/* A "right now" section like triage — it stays on real
+                today rather than following the ‹ › paging. */}
+            {date === today && carried.length > 0 && (
               <>
                 <div className="section-label row">
                   Carried over
@@ -278,6 +291,7 @@ export function Today(): React.JSX.Element {
           )}
         </section>
       </div>
+      </MeetingPeekProvider>
     </div>
   )
 }
@@ -342,18 +356,38 @@ function DoneSubtaskGroup({
 function DaySection({ day }: { day: RollingDay }): React.JSX.Element {
   const tasks = useLiveQuery(() => window.api.tasksFor(day.date), [day.date]) ?? []
   const [open, setOpen] = useState(true)
+  // The quick-add shares the app-wide editing slot, so at most one
+  // editor OR creator is ever open in the view — opening this collapses
+  // any expanded card (and any other day's creator), and vice versa.
+  const editing = useEditing()
+  const addKey = `quickadd:${day.date}`
+  const adding = editing.openId === addKey
+
+  // The + always reveals the day and drops focus into the creator.
+  const startAdd = (): void => {
+    setOpen(true)
+    editing.setOpenId(addKey)
+  }
+  const closeAdd = (): void => {
+    if (editing.openId === addKey) editing.setOpenId(null)
+  }
 
   return (
     <DropZone id={`list-${day.date}`} data={{ type: 'schedule', date: day.date }}>
-      <button className="section-label day-toggle" onClick={() => setOpen(!open)}>
-        {open ? '▾' : '▸'} {day.label}
-        <span className="pill">{tasks.length}</span>
-      </button>
+      <div className="day-header">
+        <button className="section-label day-toggle" onClick={() => setOpen(!open)}>
+          {open ? '▾' : '▸'} {day.label}
+        </button>
+        <button className="day-add-btn" title={`Add a task on ${day.label}`} onClick={startAdd}>
+          +
+        </button>
+      </div>
       {open && (
         <div>
           <DueStrip date={day.date} />
+          {adding && <DayQuickAdd date={day.date} onClose={closeAdd} />}
           <TaskGroups items={tasks} date={day.date} />
-          {tasks.length === 0 && (
+          {tasks.length === 0 && !adding && (
             <span style={{ color: 'var(--text-faint)', fontSize: 13, padding: '2px 0 8px', display: 'block' }}>
               Nothing yet — drop a card here.
             </span>
@@ -361,6 +395,60 @@ function DaySection({ day }: { day: RollingDay }): React.JSX.Element {
         </div>
       )}
     </DropZone>
+  )
+}
+
+/**
+ * Inline task creator scoped to one day: a title plus a project
+ * dropdown, so you can file the task while you type it. Stays open
+ * after each add (keeping the chosen project) for rapid entry; Esc or
+ * ✕ closes it. Enter with an empty box also closes.
+ */
+function DayQuickAdd({ date, onClose }: { date: string; onClose: () => void }): React.JSX.Element {
+  const mutate = useMutate()
+  const [title, setTitle] = useState('')
+  const [projectId, setProjectId] = useState<string | null>(null)
+
+  const submit = async (): Promise<void> => {
+    const t = title.trim()
+    if (!t) {
+      onClose()
+      return
+    }
+    await mutate(() =>
+      window.api.createItem({
+        kind: 'task',
+        title: t,
+        status: 'active',
+        scheduledDate: date,
+        projectId
+      })
+    )
+    setTitle('') // stay open for the next one; keep the chosen project
+  }
+
+  return (
+    <div className="day-quick-add">
+      <div className="day-quick-add-row">
+        <input
+          autoFocus
+          placeholder="New task…"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit()
+            if (e.key === 'Escape') onClose()
+          }}
+        />
+        <button className="btn primary" onClick={submit} disabled={!title.trim()}>
+          Add
+        </button>
+        <button className="btn ghost icon-btn" onClick={onClose} title="Done adding">
+          ✕
+        </button>
+      </div>
+      <ProjectPicker expanded value={projectId} onChange={setProjectId} />
+    </div>
   )
 }
 
