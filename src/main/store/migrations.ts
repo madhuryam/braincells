@@ -232,6 +232,12 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE items ADD COLUMN updated_at TEXT;
   UPDATE items SET updated_at = created_at;
+  `,
+
+  // 11: project nicknames — an optional shorter label that card pills
+  // display in place of the full name. NULL means "use the name".
+  `
+  ALTER TABLE projects ADD COLUMN nickname TEXT;
   `
 ]
 

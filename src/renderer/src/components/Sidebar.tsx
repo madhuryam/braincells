@@ -3,6 +3,7 @@ import { todayYmd } from '@shared/dates'
 import { useData, useLiveQuery } from '../state/data'
 import { useNav, type View } from '../state/nav'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { projectLabel } from '../format'
 import { ProjectDot } from './bits'
 import { DropZone, SortableProjectRow } from './dnd'
 import { HotkeysHelp, isTyping } from './HotkeysHelp'
@@ -136,7 +137,11 @@ export function Sidebar(): React.JSX.Element {
                 onClick={() => navigate({ name: 'project', projectId: p.id })}
               >
                 <ProjectDot color={p.color} />
-                <span>{p.name}</span>
+                {/* Names too long for this rail fall back to the
+                    nickname when one is set. */}
+                <span className="nav-label" title={p.name}>
+                  {p.name.length > 18 ? projectLabel(p) : p.name}
+                </span>
               </button>
             </SortableProjectRow>
           ))}

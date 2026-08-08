@@ -27,6 +27,17 @@ describe('projects', () => {
     expect(store.listProjects()).toHaveLength(0)
     expect(store.listProjects(true)).toHaveLength(1)
   })
+
+  it('sets and clears a nickname (null = back to the full name)', () => {
+    const p = store.createProject('Customer Success & DE General', '#e8590c')
+    expect(store.listProjects()[0].nickname).toBeNull()
+
+    store.updateProject(p.id, { nickname: 'CS/DE' })
+    expect(store.listProjects()[0].nickname).toBe('CS/DE')
+
+    store.updateProject(p.id, { nickname: null })
+    expect(store.listProjects()[0].nickname).toBeNull()
+  })
 })
 
 describe('item lifecycle', () => {

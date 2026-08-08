@@ -129,6 +129,7 @@ export class Store {
     const p: Project = {
       id: randomUUID(),
       name,
+      nickname: null, // set later from the Projects page, if ever
       color,
       status: 'active',
       createdAt: nowStamp()
@@ -141,9 +142,9 @@ export class Store {
     ).n
     this.db
       .prepare(
-        'INSERT INTO projects (id, name, color, status, created_at, sort_order) VALUES (?, ?, ?, ?, ?, ?)'
+        'INSERT INTO projects (id, name, nickname, color, status, created_at, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
       )
-      .run(p.id, p.name, p.color, p.status, p.createdAt, nextOrder)
+      .run(p.id, p.name, p.nickname, p.color, p.status, p.createdAt, nextOrder)
     return p
   }
 
@@ -151,7 +152,7 @@ export class Store {
     const where = includeArchived ? '' : "WHERE status = 'active'"
     return this.db
       .prepare(
-        `SELECT id, name, color, status, created_at AS createdAt FROM projects ${where} ORDER BY sort_order, name`
+        `SELECT id, name, nickname, color, status, created_at AS createdAt FROM projects ${where} ORDER BY sort_order, name`
       )
       .all() as Project[]
   }
@@ -164,11 +165,16 @@ export class Store {
     })()
   }
 
-  updateProject(id: string, patch: Partial<Pick<Project, 'name' | 'color' | 'status'>>): void {
+  updateProject(
+    id: string,
+    patch: Partial<Pick<Project, 'name' | 'nickname' | 'color' | 'status'>>
+  ): void {
     if (patch.name !== undefined) this.assertProjectNameFree(patch.name, id)
     const sets: string[] = []
     const vals: unknown[] = []
     if (patch.name !== undefined) (sets.push('name = ?'), vals.push(patch.name))
+    // nickname: null is meaningful — it clears back to "use the name".
+    if (patch.nickname !== undefined) (sets.push('nickname = ?'), vals.push(patch.nickname))
     if (patch.color !== undefined) (sets.push('color = ?'), vals.push(patch.color))
     if (patch.status !== undefined) (sets.push('status = ?'), vals.push(patch.status))
     if (sets.length === 0) return

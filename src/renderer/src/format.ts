@@ -1,4 +1,12 @@
 import { todayYmd, ymdAddDays } from '@shared/dates'
+import type { Project } from '@shared/types'
+
+/** What tight spots (pills, chips) call a project: its nickname when
+ *  one is set, the full name otherwise. Full-name surfaces (sidebar,
+ *  Projects page, project headers) don't use this. */
+export function projectLabel(p: Project): string {
+  return p.nickname?.trim() || p.name
+}
 
 /** 'today' / 'tomorrow' / 'yesterday' / 'Jun 12' — for date pills. */
 export function prettyDate(date: string): string {

@@ -13,8 +13,11 @@ export function registerStoreIpc(store: Store): void {
   ipcMain.handle('projects:create', (_e, name: string, color: string) => store.createProject(name, color))
   ipcMain.handle(
     'projects:update',
-    (_e, id: string, patch: { name?: string; color?: string; status?: ProjectStatus }) =>
-      store.updateProject(id, patch)
+    (
+      _e,
+      id: string,
+      patch: { name?: string; nickname?: string | null; color?: string; status?: ProjectStatus }
+    ) => store.updateProject(id, patch)
   )
   ipcMain.handle('projects:delete', (_e, id: string) => store.deleteProject(id))
   ipcMain.handle('projects:reorder', (_e, ids: string[]) => store.reorderProjects(ids))

@@ -104,6 +104,15 @@ export function Projects(): React.JSX.Element {
   const [nameError, setNameError] = useState<string | null>(null)
   // The project awaiting type-to-confirm deletion (active or archived).
   const [deleting, setDeleting] = useState<Project | null>(null)
+  // Inline nickname editing — the shorter label pills wear. One at a time.
+  const [nickFor, setNickFor] = useState<string | null>(null)
+  const [nickDraft, setNickDraft] = useState('')
+  const saveNick = (p: Project): void => {
+    setNickFor(null)
+    const v = nickDraft.trim()
+    if (v === (p.nickname ?? '')) return
+    void mutate(() => window.api.updateProject(p.id, { nickname: v || null }))
+  }
   // Archived projects stay reachable — a project is a bucket, not a bin.
   const allProjects = useLiveQuery(() => window.api.listProjects(true), []) ?? []
   const archived = allProjects.filter((p) => p.status === 'archived')
@@ -189,6 +198,34 @@ export function Projects(): React.JSX.Element {
             <div className="row">
               <ProjectDot color={p.color} />
               <span className="card-title">{p.name}</span>
+              {nickFor === p.id ? (
+                <input
+                  autoFocus
+                  placeholder="nickname"
+                  style={{ width: 130, fontSize: 12, padding: '3px 9px' }}
+                  value={nickDraft}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => setNickDraft(e.target.value)}
+                  onBlur={() => saveNick(p)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                    if (e.key === 'Escape') setNickFor(null) // unmounts before blur can save
+                  }}
+                />
+              ) : (
+                <button
+                  className="btn ghost small tooltip"
+                  style={p.nickname ? undefined : { color: 'var(--text-faint)' }}
+                  data-tooltip="Nickname — pills and chips show this instead of the full name"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setNickDraft(p.nickname ?? '')
+                    setNickFor(p.id)
+                  }}
+                >
+                  {p.nickname ? `“${p.nickname}”` : '＋ nickname'}
+                </button>
+              )}
               <button
                 className="btn ghost tooltip"
                 style={{ marginLeft: 'auto' }}

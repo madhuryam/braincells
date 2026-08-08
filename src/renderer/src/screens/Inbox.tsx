@@ -5,7 +5,7 @@ import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useSelection } from '../state/selection'
 import { shortTitle, useUndo } from '../state/undo'
-import { prettyDate, rollingDays } from '../format'
+import { prettyDate, projectLabel, rollingDays } from '../format'
 import { ItemCard } from '../components/ItemCard'
 import { Card } from '../components/Card'
 import { DraggableCard } from '../components/dnd'
@@ -198,8 +198,8 @@ export function Inbox(): React.JSX.Element {
           <b>Assign to which project?</b>
           <div className="row" style={{ flexWrap: 'wrap' }}>
             {projects.map((p, i) => (
-              <span key={p.id} className="pill">
-                <b>{i + 1}</b> {p.name}
+              <span key={p.id} className="pill" title={p.name}>
+                <b>{i + 1}</b> {projectLabel(p)}
               </span>
             ))}
             {projects.length === 0 && <span>No projects yet — press any key.</span>}

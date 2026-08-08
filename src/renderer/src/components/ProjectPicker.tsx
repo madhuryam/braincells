@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import type { Project } from '@shared/types'
 import { useData, useMutate } from '../state/data'
+import { projectLabel } from '../format'
 import { randomProjectColor } from '../palette'
 import { ProjectDot } from './bits'
 
@@ -14,10 +15,18 @@ import { ProjectDot } from './bits'
  */
 export function ProjectPicker({
   value,
-  onChange
+  onChange,
+  expanded = false,
+  dotsOnly = false
 }: {
   value: string | null
   onChange: (projectId: string | null) => void
+  /** Skip the collapsed single-badge rest state — always show the full
+   *  chip set. For roomy contexts like the quick-add row. */
+  expanded?: boolean
+  /** Chips drop their names and show just the colored dots (name in
+   *  the tooltip) — for tight rows sharing a line with other controls. */
+  dotsOnly?: boolean
 }): React.JSX.Element {
   const { projects } = useData()
   const mutate = useMutate()
@@ -38,7 +47,7 @@ export function ProjectPicker({
   }
 
   const pick = (projectId: string | null): void => {
-    setOpen(false)
+    if (!expanded) setOpen(false)
     onChange(projectId)
   }
 
@@ -71,7 +80,7 @@ export function ProjectPicker({
     )
   }
 
-  if (!open) {
+  if (!open && !expanded) {
     const selected = projects.find((p) => p.id === value)
     return (
       <div className="project-picker">
@@ -82,11 +91,11 @@ export function ProjectPicker({
             title="Change project"
             onClick={() => setOpen(true)}
           >
-            <ProjectDot color={selected.color} /> {selected.name}
+            <ProjectDot color={selected.color} /> {projectLabel(selected)}
           </button>
         ) : (
           <button className="project-chip" title="Assign a project" onClick={() => setOpen(true)}>
-            no project
+            none
           </button>
         )}
       </div>
@@ -98,23 +107,41 @@ export function ProjectPicker({
       className="project-picker"
       onBlur={(e) => {
         // Focus left the picker entirely (not moved between chips) → collapse.
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false)
+        // In expanded mode there's nothing to collapse to.
+        if (!expanded && !e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false)
       }}
     >
       <button
         className={`project-chip ${value === null ? 'selected' : ''}`}
+        title="no project"
         onClick={() => pick(null)}
       >
-        no project
+        {dotsOnly ? (
+          // A dashed ring: the "none" of dots.
+          <span
+            aria-hidden
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              border: '1.5px dashed var(--text-faint)',
+              display: 'inline-block'
+            }}
+          />
+        ) : (
+          'none'
+        )}
       </button>
       {projects.map((p) => (
         <button
           key={p.id}
           className={`project-chip ${value === p.id ? 'selected' : ''}`}
           style={{ '--chip-color': p.color } as CSSProperties}
+          title={p.name}
           onClick={() => pick(p.id)}
         >
-          <ProjectDot color={p.color} /> {p.name}
+          <ProjectDot color={p.color} />
+          {!dotsOnly && ` ${projectLabel(p)}`}
         </button>
       ))}
     </div>

@@ -42,6 +42,8 @@ export interface Item {
 export interface Project {
   id: string
   name: string
+  /** Optional shorter label for tight spots (card pills); falls back to name. */
+  nickname: string | null
   color: string // hex accent color, carries through the whole UI
   status: ProjectStatus
   createdAt: string

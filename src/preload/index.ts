@@ -47,7 +47,7 @@ const api = {
     invoke('projects:create', name, color),
   updateProject: (
     id: string,
-    patch: { name?: string; color?: string; status?: ProjectStatus }
+    patch: { name?: string; nickname?: string | null; color?: string; status?: ProjectStatus }
   ): Promise<void> => invoke('projects:update', id, patch),
   deleteProject: (id: string): Promise<void> => invoke('projects:delete', id),
   reorderProjects: (ids: string[]): Promise<void> => invoke('projects:reorder', ids),
