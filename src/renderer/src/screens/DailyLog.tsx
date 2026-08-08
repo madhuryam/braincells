@@ -5,6 +5,7 @@ import { todayYmd, ymdAddDays } from '@shared/dates'
 import type { CalendarEvent } from '@shared/types'
 import { useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
+import { MeetingPeekProvider } from '../state/peek'
 import { Card } from '../components/Card'
 import { AllDayBar } from '../components/AllDayBar'
 import { DetailPanel } from '../components/DetailPanel'
@@ -95,6 +96,11 @@ export function DailyLog(): React.JSX.Element {
         </span>
       </header>
 
+      {/* A task's 📅 meeting chip peeks that meeting in the right-hand
+          panel — the same slot day-block clicks use. */}
+      <MeetingPeekProvider
+        onPeek={(m) => setDetail({ kind: 'meeting', eventKey: m.eventKey, title: m.title, date: m.date })}
+      >
       <div className="log-split">
         <div className="log-main">
           {days.map((d) => (
@@ -110,23 +116,20 @@ export function DailyLog(): React.JSX.Element {
           ))}
         </div>
 
-        {detail && (
-          <DetailPanel
-            title={detail.kind === 'meeting' ? detail.title : undefined}
-            onOpenFull={
-              detail.kind === 'meeting'
-                ? () =>
-                  openOverlay({
-                    name: 'meeting',
-                    eventKey: detail.eventKey,
-                    title: detail.title,
-                    date: detail.date
-                  })
-                : undefined
-            }
-            onClose={() => setDetail(null)}
-          >
-            {detail.kind === 'meeting' ? (
+        {detail &&
+          (detail.kind === 'meeting' ? (
+            <DetailPanel
+              title={detail.title}
+              onOpenFull={() =>
+                openOverlay({
+                  name: 'meeting',
+                  eventKey: detail.eventKey,
+                  title: detail.title,
+                  date: detail.date
+                })
+              }
+              onClose={() => setDetail(null)}
+            >
               <Meeting
                 key={detail.eventKey}
                 embedded
@@ -134,12 +137,15 @@ export function DailyLog(): React.JSX.Element {
                 title={detail.title}
                 date={detail.date}
               />
-            ) : (
-              <ItemDetail key={detail.itemId} itemId={detail.itemId} />
-            )}
-          </DetailPanel>
-        )}
+            </DetailPanel>
+          ) : (
+            // ItemDetail owns the header row (title · star · open · ✕).
+            <DetailPanel>
+              <ItemDetail key={detail.itemId} itemId={detail.itemId} onClose={() => setDetail(null)} />
+            </DetailPanel>
+          ))}
       </div>
+      </MeetingPeekProvider>
     </div>
   )
 }

@@ -4,6 +4,7 @@ import type { Item } from '@shared/types'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
+import { MeetingPeekProvider } from '../state/peek'
 import { Card } from '../components/Card'
 import { DetailPanel } from '../components/DetailPanel'
 import { ItemCard } from '../components/ItemCard'
@@ -27,9 +28,12 @@ type Detail =
  */
 function CanvasRow({ item, onOpen }: { item: Item; onOpen: () => void }): React.JSX.Element {
   return (
-    <Card interactive onClick={onOpen}>
+    <Card
+      interactive
+      className={item.starred ? 'starred-canvas' : undefined}
+      onClick={onOpen}
+    >
       <div className="row">
-        <span aria-hidden>{item.starred ? '⭐' : '📄'}</span>
         <span className="card-title">{item.title || 'Untitled canvas'}</span>
       </div>
     </Card>
@@ -194,6 +198,11 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
         <p style={{ margin: '0 0 12px', color: 'var(--danger)', fontSize: 13 }}>{nameError}</p>
       )}
 
+      {/* A task's 📅 meeting chip peeks that meeting in the right-hand
+          panel — the same slot meeting rows use. */}
+      <MeetingPeekProvider
+        onPeek={(m) => setDetail({ kind: 'meeting', eventKey: m.eventKey, title: m.title, date: m.date })}
+      >
       <div className="log-split">
       <div className="log-main">
       <div className="row" style={{ marginBottom: 18 }}>
@@ -343,22 +352,19 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
       </div>
 
       {detail ? (
-        <DetailPanel
-          title={detail.kind === 'meeting' ? detail.title : undefined}
-          onOpenFull={
-            detail.kind === 'meeting'
-              ? () =>
-                  openOverlay({
-                    name: 'meeting',
-                    eventKey: detail.eventKey,
-                    title: detail.title,
-                    date: detail.date
-                  })
-              : undefined
-          }
-          onClose={() => setDetail(null)}
-        >
-          {detail.kind === 'meeting' ? (
+        detail.kind === 'meeting' ? (
+          <DetailPanel
+            title={detail.title}
+            onOpenFull={() =>
+              openOverlay({
+                name: 'meeting',
+                eventKey: detail.eventKey,
+                title: detail.title,
+                date: detail.date
+              })
+            }
+            onClose={() => setDetail(null)}
+          >
             <Meeting
               key={detail.eventKey}
               embedded
@@ -366,10 +372,13 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
               title={detail.title}
               date={detail.date}
             />
-          ) : (
-            <ItemDetail key={detail.itemId} itemId={detail.itemId} />
-          )}
-        </DetailPanel>
+          </DetailPanel>
+        ) : (
+          // ItemDetail owns the header row (title · star · open · ✕).
+          <DetailPanel>
+            <ItemDetail key={detail.itemId} itemId={detail.itemId} onClose={() => setDetail(null)} />
+          </DetailPanel>
+        )
       ) : (
         <ProjectOverview
           projectId={projectId}
@@ -384,6 +393,7 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
         />
       )}
       </div>
+      </MeetingPeekProvider>
     </div>
   )
 }
@@ -454,7 +464,6 @@ function ProjectOverview({
             <div className="section-sublabel">⭐ Starred canvases</div>
             {starred.map((p) => (
               <button key={p.id} className="nav-item" onClick={() => onPeekItem(p.id)}>
-                <span aria-hidden>📄</span>
                 <span>{p.title || 'Untitled canvas'}</span>
               </button>
             ))}

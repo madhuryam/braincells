@@ -4,6 +4,7 @@ import { useNav } from '../state/nav'
 import { ConfirmButton } from '../components/ConfirmButton'
 import { RichEditor } from '../components/RichEditor'
 import { BackButton, ProjectDot } from '../components/bits'
+import { projectLabel } from '../format'
 
 /**
  * A Page: a full-fledged writing surface attached to a project — the
@@ -13,7 +14,7 @@ import { BackButton, ProjectDot } from '../components/bits'
  */
 export function Page({ itemId }: { itemId: string }): React.JSX.Element {
   const item = useLiveQuery(() => window.api.getItem(itemId), [itemId])
-  const { projects } = useData()
+  const { projects, bump } = useData()
   const { closeOverlay } = useNav()
   const mutate = useMutate()
 
@@ -42,13 +43,14 @@ export function Page({ itemId }: { itemId: string }): React.JSX.Element {
   }
   useEffect(
     () => () => {
-      // Flush whatever is still pending when navigating away.
+      // Flush whatever is still pending when navigating away, then
+      // bump — the peek this overlay covered refetches the new body.
       window.clearTimeout(timer.current)
       const p = pending.current
       pending.current = null
-      if (p) window.api.updateItem(itemId, { richContent: p.html, content: p.text })
+      if (p) window.api.updateItem(itemId, { richContent: p.html, content: p.text }).then(bump)
     },
-    [itemId]
+    [itemId, bump]
   )
 
   if (!item) return <div className="canvas">Canvas not found.</div>
@@ -71,7 +73,7 @@ export function Page({ itemId }: { itemId: string }): React.JSX.Element {
         />
         {project && (
           <span className="pill">
-            <ProjectDot color={project.color} /> {project.name}
+            <ProjectDot color={project.color} /> {projectLabel(project)}
           </span>
         )}
         <button
