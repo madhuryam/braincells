@@ -22,7 +22,7 @@ import { ampm } from '../format'
 type CalendarMode = 'demo' | 'google' | 'off'
 
 export function Settings(): React.JSX.Element {
-  const { theme, setTheme } = useData()
+  const { theme, setTheme, showDuePill, showTimePill, setShowDuePill, setShowTimePill } = useData()
   const mutate = useMutate()
   const mode = useLiveQuery(() => window.api.getSetting<CalendarMode>('calendarMode'), []) ?? 'demo'
   const google = useLiveQuery(() => window.api.googleStatus(), [])
@@ -96,6 +96,31 @@ export function Settings(): React.JSX.Element {
               </button>
             ))}
           </div>
+        </Card>
+
+        <Card className="stack">
+          <h2>Task cards</h2>
+          <p style={{ margin: 0, color: 'var(--text-soft)' }}>
+            The little pills a task shows. Turn off what you'd rather not see.
+          </p>
+          <label className="row" style={{ gap: 8, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              style={{ width: 16, height: 16, padding: 0, accentColor: 'var(--accent)' }}
+              checked={showDuePill}
+              onChange={(e) => setShowDuePill(e.target.checked)}
+            />
+            Show the due-date pill
+          </label>
+          <label className="row" style={{ gap: 8, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              style={{ width: 16, height: 16, padding: 0, accentColor: 'var(--accent)' }}
+              checked={showTimePill}
+              onChange={(e) => setShowTimePill(e.target.checked)}
+            />
+            Show the time-on-calendar pill
+          </label>
         </Card>
 
         <Card className="stack">

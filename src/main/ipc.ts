@@ -116,6 +116,7 @@ export function registerStoreIpc(store: Store): void {
   )
   ipcMain.handle('localEvents:delete', (_e, id: string) => store.deleteLocalEvent(id))
   ipcMain.handle('items:calendarInstanceCount', (_e, id: string) => store.calendarInstanceCount(id))
+  ipcMain.handle('items:calendarMinutes', (_e, id: string) => store.calendarMinutes(id))
   ipcMain.handle('items:removeFromCalendar', (_e, id: string) => store.removeFromCalendar(id))
   ipcMain.handle('localEvents:for', (_e, date: string) => store.localEventsFor(date))
 

@@ -145,6 +145,7 @@ const api = {
   ): Promise<LocalEvent | null> => invoke('localEvents:update', id, patch),
   deleteLocalEvent: (id: string): Promise<void> => invoke('localEvents:delete', id),
   calendarInstanceCount: (id: string): Promise<number> => invoke('items:calendarInstanceCount', id),
+  calendarMinutes: (id: string): Promise<number> => invoke('items:calendarMinutes', id),
   removeFromCalendar: (id: string): Promise<void> => invoke('items:removeFromCalendar', id),
   localEventsFor: (date: string): Promise<LocalEvent[]> => invoke('localEvents:for', date),
 

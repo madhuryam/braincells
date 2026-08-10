@@ -177,7 +177,7 @@ export function ItemCard({
   }
   const [title, setTitle] = useState(item.title)
   const mutate = useMutate()
-  const { projects } = useData()
+  const { projects, showDuePill, showTimePill } = useData()
   const { selected, toggle } = useSelection()
   const multiSelected = selected.has(item.id)
   const { openOverlay } = useNav()
@@ -227,6 +227,18 @@ export function ItemCard({
       () => (isCheckable ? window.api.subtaskTreeOf(item.id) : Promise.resolve([])),
       [item.id, isCheckable]
     ) ?? []
+
+  // Total time on the calendar — every block for this task summed, not
+  // just its first slot. Only queried when there's a block to measure;
+  // the item's own estimate stands in until it resolves.
+  const calendarMinutes =
+    useLiveQuery(
+      () =>
+        item.timeEstimateMinutes != null
+          ? window.api.calendarMinutes(item.id)
+          : Promise.resolve(null),
+      [item.id, item.timeEstimateMinutes]
+    ) ?? item.timeEstimateMinutes
   const subtasksDone = subtaskTree.filter(({ item: s }) => s.status === 'done').length
   // A finished subtask stays (struck through) only in the list of the
   // day it was completed; everywhere else the card shows what's left.
@@ -579,7 +591,9 @@ export function ItemCard({
               {showDate && item.scheduledDate && (
                 <span className="pill">{prettyDate(item.scheduledDate)}</span>
               )}
-              {item.dueDate && <span className="pill">due {prettyDate(item.dueDate)}</span>}
+              {showDuePill && item.dueDate && (
+                <span className="pill">due {prettyDate(item.dueDate)}</span>
+              )}
               {openBlockers.length > 0 && (
                 <span
                   className="pill"
@@ -589,8 +603,8 @@ export function ItemCard({
                   ⛔ blocked
                 </span>
               )}
-              {item.timeEstimateMinutes != null && (
-                <span className="pill">~{item.timeEstimateMinutes}m</span>
+              {showTimePill && item.timeEstimateMinutes != null && (
+                <span className="pill">~{calendarMinutes}m</span>
               )}
               {subtaskTree.length > 0 && (
                 <span className="pill subtask-count" title="subtasks">

@@ -1021,6 +1021,24 @@ export class Store {
     return blocks.n + (item?.scheduledTime ? 1 : 0)
   }
 
+  /**
+   * Total minutes a task holds on the calendar: its own block
+   * (timeEstimateMinutes) plus every linked local block's length. A task
+   * blocked twice — 30m then 15m — reads 45m, not just its first slot.
+   */
+  calendarMinutes(itemId: string): number {
+    const item = this.getItem(itemId)
+    const toMin = (t: string): number => {
+      const [h, m] = t.split(':').map(Number)
+      return h * 60 + m
+    }
+    const rows = this.db
+      .prepare('SELECT start_time AS s, end_time AS e FROM local_events WHERE item_id = ?')
+      .all(itemId) as { s: string; e: string }[]
+    const blocks = rows.reduce((sum, r) => sum + Math.max(0, toMin(r.e) - toMin(r.s)), 0)
+    return (item?.timeEstimateMinutes ?? 0) + blocks
+  }
+
   /** Take a task off the calendar entirely: slot and linked blocks. */
   removeFromCalendar(itemId: string): void {
     this.db.transaction(() => {

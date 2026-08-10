@@ -50,6 +50,11 @@ interface DataContextValue {
   setTheme: (t: ThemeId) => void
   /** Flip into the dark theme and back to the last light one. */
   toggleDark: () => void
+  /** Card pills the user can hide: due date, and time-on-calendar. */
+  showDuePill: boolean
+  showTimePill: boolean
+  setShowDuePill: (v: boolean) => void
+  setShowTimePill: (v: boolean) => void
 }
 
 const DataContext = createContext<DataContextValue | null>(null)
@@ -60,6 +65,9 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
   const [starred, setStarred] = useState<Item[]>([])
   const [theme, setThemeState] = useState<ThemeId>('slate')
   const [dark, setDark] = useState(false)
+  // Pills default on; a stored `false` hides them.
+  const [showDuePill, setShowDuePillState] = useState(true)
+  const [showTimePill, setShowTimePillState] = useState(true)
 
   const bump = useCallback(() => setVersion((v) => v + 1), [])
 
@@ -83,6 +91,24 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
       // anything else (old 'light', unset) stays on paper
     })
   }, [])
+  // Pill visibility: load once, then live via the setters below.
+  useEffect(() => {
+    window.api.getSetting<boolean>('showDuePill').then((v) => {
+      if (v === false) setShowDuePillState(false)
+    })
+    window.api.getSetting<boolean>('showTimePill').then((v) => {
+      if (v === false) setShowTimePillState(false)
+    })
+  }, [])
+  const setShowDuePill = useCallback((v: boolean) => {
+    setShowDuePillState(v)
+    window.api.setSetting('showDuePill', v)
+  }, [])
+  const setShowTimePill = useCallback((v: boolean) => {
+    setShowTimePillState(v)
+    window.api.setSetting('showTimePill', v)
+  }, [])
+
   // Remembered so the sidebar moon can flip back to *your* light theme.
   const lastLight = useRef<ThemeId>('slate')
   useEffect(() => {
@@ -110,7 +136,20 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
 
   return (
     <DataContext.Provider
-      value={{ version, bump, projects, starred, theme, dark, setTheme, toggleDark }}
+      value={{
+        version,
+        bump,
+        projects,
+        starred,
+        theme,
+        dark,
+        setTheme,
+        toggleDark,
+        showDuePill,
+        showTimePill,
+        setShowDuePill,
+        setShowTimePill
+      }}
     >
       {children}
     </DataContext.Provider>
