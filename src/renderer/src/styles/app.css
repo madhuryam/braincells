@@ -576,15 +576,10 @@ kbd.key {
   z-index: 45;
 }
 
-/* The one row that colors in: the project wash marks the row being
-   edited, and only that row — its neighbors stay plain. It also gets
-   the lift shadow: against the dimmed page it reads as raised. */
+/* The row being edited stays a plain card — the lift shadow alone marks
+   it as raised against the dimmed page. */
 .item-list .card.open {
-  background:
-    linear-gradient(to right,
-      color-mix(in srgb, var(--card-accent, var(--accent)) 6%, transparent),
-      transparent 45%),
-    var(--bg-card);
+  background: var(--bg-card);
   box-shadow: var(--shadow-lift);
 }
 

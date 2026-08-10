@@ -12,7 +12,7 @@ import { Card } from './Card'
 import { CheckableInput, Checkbox, ProjectDot } from './bits'
 import { ConfirmButton } from './ConfirmButton'
 import { ProjectPicker } from './ProjectPicker'
-import { RichEditor } from './RichEditor'
+import { RichEditor, type RichEditorHandle } from './RichEditor'
 import { itemBodyHtml } from '../richtext'
 import { KIND_ICON, mmdd, prettyDate, projectLabel, rollingDays } from './../format'
 
@@ -373,6 +373,8 @@ export function ItemCard({
   // input on the frame it mounts (after the title field's autoFocus).
   const wantSubtaskFocus = useRef(false)
   const subInputWrap = useRef<HTMLDivElement>(null)
+  // ⏎ from the title jumps the caret straight into the notes.
+  const notesRef = useRef<RichEditorHandle>(null)
   useEffect(() => {
     if (!open || !wantSubtaskFocus.current) return
     wantSubtaskFocus.current = false
@@ -521,15 +523,12 @@ export function ItemCard({
                   onBlur={() => title !== item.title && patch({ title })}
                   onKeyDown={(e) => {
                     // ⌘⏎ / ⌃⏎ / ⇧⏎ save and close the card; plain Enter
-                    // just commits the title (blur), leaving the card open
-                    // so the notes and other fields stay editable.
+                    // commits the title and drops the caret into the notes
+                    // (focusing there blurs this field, which saves).
                     if (e.key !== 'Enter') return
-                    if (e.metaKey || e.ctrlKey || e.shiftKey) {
-                      e.preventDefault()
-                      closeCard()
-                    } else {
-                      ; (e.target as HTMLInputElement).blur()
-                    }
+                    e.preventDefault()
+                    if (e.metaKey || e.ctrlKey || e.shiftKey) closeCard()
+                    else notesRef.current?.focus()
                   }}
                 />
                 <button
@@ -666,6 +665,7 @@ export function ItemCard({
               preview): markdown shortcuts become real formatting. */}
             <RichEditor
               key={item.id}
+              ref={notesRef}
               variant="compact"
               initialHtml={itemBodyHtml(item)}
               placeholder="Notes — type **bold**, # headings, - lists…"

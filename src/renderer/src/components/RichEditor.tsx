@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { forwardRef, useImperativeHandle, useRef } from 'react'
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Image as ImageExtension } from '@tiptap/extension-image'
@@ -28,9 +28,10 @@ export interface RichEditorProps {
   placeholder?: string
   onChange: (html: string, plainText: string) => void
   /**
-   * Commit-and-exit: fired on ⌘⏎ / ⌃⏎ / ⇧⏎ from anywhere in the notes.
-   * The caller saves and closes its editor. When omitted these keys keep
-   * their default TipTap behavior (Shift+Enter → hard break, etc).
+   * Commit-and-exit: fired on plain ⏎ (and Esc) from anywhere in the
+   * notes — the caller saves and closes its editor. ⇧⏎ stays inside,
+   * making a newline. When omitted, ⏎ keeps its default TipTap
+   * behavior (new paragraph / next list item).
    */
   onExit?: () => void
   /**
@@ -44,6 +45,11 @@ export interface RichEditorProps {
   /** false hides the toolbar entirely (markdown shortcuts still work) —
    *  for tight surfaces like the detail-panel peek. Default true. */
   toolbar?: boolean
+}
+
+/** Imperative handle: move focus (caret at end) into the notes. */
+export interface RichEditorHandle {
+  focus: () => void
 }
 
 // Images embed as base64 data URIs inside the stored HTML, so the whole
@@ -110,14 +116,10 @@ const FONTS: Array<[label: string, css: string]> = [
   ['Rounded', 'ui-rounded, "SF Pro Rounded", "Comic Sans MS", cursive']
 ]
 
-export function RichEditor({
-  initialHtml,
-  placeholder,
-  onChange,
-  onExit,
-  variant = 'full',
-  toolbar = true
-}: RichEditorProps): React.JSX.Element | null {
+export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function RichEditor(
+  { initialHtml, placeholder, onChange, onExit, variant = 'full', toolbar = true },
+  ref
+): React.JSX.Element | null {
   // Kept in a ref so the editor's keydown handler (built once) always
   // sees the latest callback without rebuilding the editor.
   const onExitRef = useRef(onExit)
@@ -136,14 +138,15 @@ export function RichEditor({
     ],
     content: initialHtml,
     editorProps: {
-      // Commit-and-exit when the caller wants it: ⌘⏎ / ⌃⏎ / ⇧⏎, or Esc.
-      // Handled here (not just via bubbling) because ProseMirror can
-      // consume the keydown before it reaches the card's own handler.
+      // Commit-and-exit when the caller wants it: plain ⏎ (or Esc)
+      // closes; ⇧⏎ is the "stay inside" newline. Handled here (not
+      // just via bubbling) because ProseMirror consumes the keydown
+      // before it reaches the card's own handler.
       handleKeyDown: (_view, event): boolean => {
         if (!onExitRef.current) return false
-        const commitEnter =
-          event.key === 'Enter' && (event.metaKey || event.ctrlKey || event.shiftKey)
-        if (!commitEnter && event.key !== 'Escape') return false
+        const exits =
+          (event.key === 'Enter' && !event.shiftKey) || event.key === 'Escape'
+        if (!exits) return false
         event.preventDefault()
         onExitRef.current()
         return true
@@ -161,6 +164,9 @@ export function RichEditor({
     onUpdate: ({ editor }) => onChange(editor.getHTML(), editor.getText())
   })
 
+  // Let callers drop the caret into the notes (e.g. ⏎ from the title).
+  useImperativeHandle(ref, () => ({ focus: () => editor?.commands.focus('end') }), [editor])
+
   if (!editor) return null
   return (
     <div className={`rich-editor ${variant}`}>
@@ -168,7 +174,7 @@ export function RichEditor({
       <EditorContent editor={editor} />
     </div>
   )
-}
+})
 
 function Toolbar({ editor, compact }: { editor: Editor; compact: boolean }): React.JSX.Element {
   // Re-renders the buttons as the selection moves, so active marks light up.
