@@ -148,6 +148,20 @@ export function Sidebar(): React.JSX.Element {
         </SortableContext>
       )}
 
+      {/* Collapsed rail: dot-only rows so a project is still one click
+          away. Reordering (drag) lives on the expanded sidebar. */}
+      {collapsed &&
+        projects.map((p) => (
+          <button
+            key={p.id}
+            className={`nav-item nav-item-dot ${view.name === 'project' && view.projectId === p.id ? 'active' : ''}`}
+            title={p.name}
+            onClick={() => navigate({ name: 'project', projectId: p.id })}
+          >
+            <ProjectDot color={p.color} />
+          </button>
+        ))}
+
       {/* When collapsed, only the expand button remains — the footer
           used to overflow the 64px rail, leaving it unclickable. */}
       <div className="sidebar-footer">

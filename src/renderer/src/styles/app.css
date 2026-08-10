@@ -241,6 +241,11 @@ kbd.key {
   padding-left: 22px;
 }
 
+/* Collapsed rail: center the lone project dot in the 64px column. */
+.nav-item-dot {
+  justify-content: center;
+}
+
 /* Starred rows: dot + name, with the kind icon pinned to the far end.
    The name takes the slack and ellipsis-truncates when it's too long. */
 .nav-label {
