@@ -80,7 +80,7 @@ function SubtaskRow({
         {editing ? (
           <input
             autoFocus
-            style={{ flex: 1, minWidth: 0, fontSize: 13.5, padding: '3px 8px' }}
+            style={{ flex: 1, minWidth: 0, fontSize: 14.5, padding: '3px 8px' }}
             value={titleDraft}
             onChange={(e) => setTitleDraft(e.target.value)}
             onBlur={() => {
@@ -251,7 +251,14 @@ export function ItemCard({
   }
   const toggleSubtask = (sub: Item): void => {
     const wasDone = sub.status === 'done'
-    mutate(() => window.api.updateItem(sub.id, { status: wasDone ? 'active' : 'done' }))
+    // Past-day views backdate, same as the card's own checkbox.
+    const backdate = !wasDone && contextDate && contextDate < todayYmd()
+    mutate(() =>
+      window.api.updateItem(sub.id, {
+        status: wasDone ? 'active' : 'done',
+        ...(backdate ? { completedAt: contextDate } : {})
+      })
+    )
     if (!wasDone) {
       pushUndo(`Completed “${shortTitle(sub.title)}”`, async () => {
         await window.api.updateItem(sub.id, { status: 'active' })
@@ -455,7 +462,15 @@ export function ItemCard({
               checked={done}
               onToggle={() => {
                 const prev = item.status
-                patch({ status: done ? 'active' : ('done' as ItemStatus) })
+                // Checking off while viewing a past day records the
+                // completion on THAT day — you're logging what already
+                // happened, not doing it now. (Future days stamp now:
+                // nothing gets done in the future.)
+                const backdate = !done && contextDate && contextDate < todayYmd()
+                patch({
+                  status: done ? 'active' : ('done' as ItemStatus),
+                  ...(backdate ? { completedAt: contextDate } : {})
+                })
                 if (!done) {
                   pushUndo(`Completed “${shortTitle(item.title)}”`, async () => {
                     await window.api.updateItem(item.id, { status: prev })
@@ -518,7 +533,7 @@ export function ItemCard({
                   <span
                     aria-hidden
                     title="has notes"
-                    style={{ marginLeft: 'auto', paddingLeft: 6, fontSize: 12.5, opacity: 0.75, flexShrink: 0 }}
+                    style={{ marginLeft: 'auto', paddingLeft: 6, fontSize: 13.5, opacity: 0.75, flexShrink: 0 }}
                   >
                     📝
                   </span>
@@ -730,6 +745,19 @@ export function ItemCard({
                   onChange={(e) => patch({ dueDate: e.target.value || null })}
                 />
               </label>
+              {done && (
+                <label className="pill">
+                  done on
+                  <input
+                    type="date"
+                    value={(item.completedAt ?? '').slice(0, 10)}
+                    max={todayYmd()}
+                    // Clearing the field is a no-op — a done task always
+                    // has a completion day; uncheck it instead.
+                    onChange={(e) => e.target.value && patch({ completedAt: e.target.value })}
+                  />
+                </label>
+              )}
               {(item.kind === 'note' || item.kind === 'page') && (
                 <button
                   className="btn ghost"
@@ -823,7 +851,7 @@ export function ItemCard({
                   })}
                 </div>
                 {prepTargets.length === 0 && (
-                  <span style={{ padding: '4px 8px', fontSize: 12.5, color: 'var(--text-faint)' }}>
+                  <span style={{ padding: '4px 8px', fontSize: 13.5, color: 'var(--text-faint)' }}>
                     no meetings in the next two weeks
                   </span>
                 )}

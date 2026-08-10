@@ -125,6 +125,27 @@ describe('item lifecycle', () => {
     expect(store.completedOn(ymdAddDays(today, -1))).toHaveLength(0)
   })
 
+  it('backdates a completion: explicit completedAt lands (at noon) on that day', () => {
+    const yesterday = ymdAddDays(today, -1)
+    const item = store.createItem({ kind: 'task', title: 't', status: 'active' })
+
+    // Done "as of" yesterday — one patch, the past-day checkbox path.
+    const done = store.updateItem(item.id, { status: 'done', completedAt: yesterday })!
+    expect(done.completedAt).toBe(`${yesterday} 12:00:00`)
+    expect(store.completedOn(yesterday).map((i) => i.id)).toEqual([item.id])
+    expect(store.completedOn(today)).toHaveLength(0)
+
+    // Moving an existing completion — the "done on" editor path.
+    const moved = store.updateItem(item.id, { completedAt: today })!
+    expect(moved.completedAt).toBe(`${today} 12:00:00`)
+    expect(store.completedOn(yesterday)).toHaveLength(0)
+
+    // completedAt on a non-done item is ignored, and reopening still clears.
+    const reopened = store.updateItem(item.id, { status: 'active', completedAt: yesterday })!
+    expect(reopened.completedAt).toBeNull()
+    const untouched = store.updateItem(item.id, { completedAt: yesterday })!
+    expect(untouched.completedAt).toBeNull()
+  })
 })
 
 describe('Today / This Week / carried over', () => {

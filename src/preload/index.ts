@@ -30,7 +30,8 @@ export interface NewItem {
   scheduledTime?: string | null
   timeEstimateMinutes?: number | null
 }
-export type ItemPatch = Partial<Omit<Item, 'id' | 'createdAt' | 'completedAt'>>
+// completedAt rides along only to backdate a completion ("done on").
+export type ItemPatch = Partial<Omit<Item, 'id' | 'createdAt'>>
 export interface LinkedItem {
   link: Link
   item: Item

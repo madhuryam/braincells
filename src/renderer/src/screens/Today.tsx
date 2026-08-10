@@ -178,7 +178,10 @@ export function Today(): React.JSX.Element {
                   <div className="item-list">
                     <AnimatePresence initial={false}>
                       {doneStandalone.map((item) => (
-                        <ItemCard key={item.id} item={item} showDate={false} />
+                        // contextDate: ticking a leftover subtask inside a
+                        // done card on a past day's view logs it on THAT
+                        // day, like every other checkbox on the page.
+                        <ItemCard key={item.id} item={item} showDate={false} contextDate={date} />
                       ))}
                     </AnimatePresence>
                     {/* Subtasks finished this day, under their parent's
@@ -388,7 +391,7 @@ function DaySection({ day }: { day: RollingDay }): React.JSX.Element {
           {adding && <DayQuickAdd date={day.date} onClose={closeAdd} />}
           <TaskGroups items={tasks} date={day.date} />
           {tasks.length === 0 && !adding && (
-            <span style={{ color: 'var(--text-faint)', fontSize: 13, padding: '2px 0 8px', display: 'block' }}>
+            <span style={{ color: 'var(--text-faint)', fontSize: 14, padding: '2px 0 8px', display: 'block' }}>
               Nothing yet — drop a card here.
             </span>
           )}

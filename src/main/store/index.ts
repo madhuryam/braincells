@@ -32,8 +32,12 @@ export interface NewItem {
   timeEstimateMinutes?: number | null
 }
 
-/** Fields a caller may change on an existing item. */
-export type ItemPatch = Partial<Omit<Item, 'id' | 'createdAt' | 'completedAt'>>
+/**
+ * Fields a caller may change on an existing item. completedAt is
+ * normally managed by the status transition in updateItem; a patch
+ * carries it explicitly only to backdate a completion ("done on").
+ */
+export type ItemPatch = Partial<Omit<Item, 'id' | 'createdAt'>>
 
 export interface LinkedItem {
   link: Link
@@ -307,7 +311,10 @@ export class Store {
 
   /**
    * Patch any editable fields. Completion timestamps are managed here:
-   * moving to 'done' stamps completedAt; leaving 'done' clears it.
+   * moving to 'done' stamps completedAt; leaving 'done' clears it. A
+   * patch may carry completedAt explicitly to backdate a completion —
+   * honored only while the item is (or is becoming) done, and a bare
+   * 'YYYY-MM-DD' lands at noon so it sorts sanely within its day.
    */
   updateItem(id: string, patch: ItemPatch): Item | null {
     const existing = this.getItem(id)
@@ -338,11 +345,19 @@ export class Store {
         vals.push(typeof v === 'boolean' ? (v ? 1 : 0) : v)
       }
     }
+    const explicitDone =
+      patch.completedAt && patch.completedAt.length === 10
+        ? `${patch.completedAt} 12:00:00`
+        : patch.completedAt
     if (patch.status === 'done' && existing.status !== 'done') {
       sets.push('completed_at = ?')
-      vals.push(nowStamp())
+      vals.push(explicitDone ?? nowStamp())
     } else if (patch.status && patch.status !== 'done' && existing.status === 'done') {
       sets.push('completed_at = NULL')
+    } else if (explicitDone && (patch.status ?? existing.status) === 'done') {
+      // Moving an existing completion to another day.
+      sets.push('completed_at = ?')
+      vals.push(explicitDone)
     }
     // A section is meaningless outside its project: moving the item to
     // another project clears its section unless the patch places it in
