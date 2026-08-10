@@ -149,6 +149,16 @@ describe('item lifecycle', () => {
 })
 
 describe('Today / This Week / carried over', () => {
+  it('scheduledBlocks keeps done tasks on the day’s timeline (untimed ones stay off)', () => {
+    const blocked = store.createItem({
+      kind: 'task', title: 'blocked', status: 'active', scheduledDate: today, scheduledTime: '09:00'
+    })
+    store.createItem({ kind: 'task', title: 'no time', status: 'active', scheduledDate: today })
+    store.updateItem(blocked.id, { status: 'done' })
+    expect(store.scheduledBlocks(today).map((i) => i.id)).toEqual([blocked.id])
+  })
+
+
   it('splits tasks by scheduled date relative to today', () => {
     const yesterday = store.createItem({
       kind: 'task', title: 'old', status: 'active', scheduledDate: ymdAddDays(today, -1)

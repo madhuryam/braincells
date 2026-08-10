@@ -1261,17 +1261,20 @@ kbd.key {
   opacity: 0.55;
 }
 
+/* Time-blocked tasks dress like local blocks — one visual language
+   for "this time is spoken for": a gray body with the task's project
+   color on the left edge only (gray edge when unfiled). Blocks stay
+   suggestions: click to peek, drag to move/resize. */
 .timeline-task {
   position: absolute;
   overflow: hidden;
   font-size: 13px;
   font-weight: 600;
-  background: var(--accent-soft);
-  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--local-event) 14%, var(--bg-card));
+  border-left: 3.5px solid var(--local-event);
   border-radius: 6px;
   padding: 3px 8px;
   cursor: grab;
-  /* blocks are suggestions — click to peek, drag to move/resize */
 }
 
 .timeline-task:active {
@@ -1279,13 +1282,18 @@ kbd.key {
 }
 
 .timeline-task:hover {
-  border-style: solid;
-  background: color-mix(in srgb, var(--accent) 22%, var(--bg-card));
+  background: color-mix(in srgb, var(--local-event) 24%, var(--bg-card));
 }
 
+/* Done stays on the schedule as the day's record — just very quiet. */
 .timeline-task.done {
-  opacity: 0.5;
-  border-style: solid;
+  opacity: 0.25;
+}
+
+.timeline-task .le-time {
+  color: var(--text-soft);
+  font-weight: 500;
+  font-size: 12px;
 }
 
 .timeline-task.missed {

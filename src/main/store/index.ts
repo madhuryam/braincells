@@ -410,6 +410,23 @@ export class Store {
       .map(rowToItem)
   }
 
+  /**
+   * Tasks blocked onto this day's timeline (a time as well as a date)
+   * — open AND done, because a finished block stays on the calendar
+   * (faded) as the day's record rather than vanishing.
+   */
+  scheduledBlocks(date: string): Item[] {
+    return this.db
+      .prepare(
+        `SELECT ${ITEM_COLS} FROM items
+         WHERE kind = 'task' AND status IN ('active', 'done')
+           AND scheduled_date = ? AND scheduled_time IS NOT NULL
+         ORDER BY scheduled_time`
+      )
+      .all(date)
+      .map(rowToItem)
+  }
+
   /** Active tasks scheduled after `date`, within the next 7 days. */
   tasksThisWeek(date: string): Item[] {
     return this.db

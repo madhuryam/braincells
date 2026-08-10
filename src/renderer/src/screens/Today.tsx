@@ -284,7 +284,7 @@ export function Today(): React.JSX.Element {
                 onOpenFull={() => openOverlay({ name: 'page', itemId: peekTask })}
                 onClose={() => setPeekTask(null)}
               >
-                <TaskPeek key={peekTask} itemId={peekTask} />
+                <TaskPeek key={peekTask} itemId={peekTask} onClose={closePeeks} />
               </DetailPanel>
             </div>
           )}

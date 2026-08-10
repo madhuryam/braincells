@@ -62,8 +62,10 @@ function layoutColumns(
  * The day's schedule (SPEC §4.1): calendar events, time-blocked tasks,
  * and local time blocks, positioned by time. The window defaults to
  * 7am–8pm (configurable in Settings) and scrolls. Click or drag out a
- * range on empty space to create a local block — stored only in the
- * local database, never written to Google.
+ * range on empty space to create a TASK in that slot — it lands in the
+ * day's list (under "No project" until told otherwise) and occupies
+ * the drawn time here, same as a task dragged in. Nothing is ever
+ * written to Google.
  */
 export function Timeline({
   date,
@@ -77,7 +79,9 @@ export function Timeline({
   onPeekTask?: (itemId: string) => void
 }): React.JSX.Element {
   const events = useLiveQuery(() => window.api.calendarEvents(date, date), [date]) ?? []
-  const tasks = useLiveQuery(() => window.api.tasksFor(date), [date]) ?? []
+  // Open AND done — a checked-off block stays (faded) as the record
+  // of the day rather than vanishing off the schedule.
+  const blocks = useLiveQuery(() => window.api.scheduledBlocks(date), [date]) ?? []
   const locals = useLiveQuery(() => window.api.localEventsFor(date), [date]) ?? []
   const eventKeys = events.map((e) => e.eventKey).join(',')
   const prep = useLiveQuery(() => window.api.prepProgress(events.map((e) => e.eventKey)), [eventKeys]) ?? []
@@ -110,7 +114,6 @@ export function Timeline({
   const timelineRef = useRef<HTMLDivElement>(null)
 
   const timed = events.filter((e) => e.startTime)
-  const blocks = tasks.filter((t) => t.scheduledTime)
 
   // The visible window: the configured bounds (default 7am–8pm),
   // stretched if anything falls outside them.
@@ -159,7 +162,7 @@ export function Timeline({
     return { left: `${(p.col / p.cols) * 100}%`, width: `calc(${100 / p.cols}% - 4px)` }
   }
 
-  // Click or drag out a range on empty timeline → a new local block.
+  // Click or drag out a range on empty timeline → a new task there.
   const onMouseDown = (e: React.MouseEvent): void => {
     if (e.button !== 0) return
     const target = e.target as HTMLElement
@@ -367,7 +370,6 @@ export function Timeline({
               return editingId === l.id ? (
                 <LocalEventEditor
                   key={l.id}
-                  date={date}
                   ev={l}
                   top={Math.max(0, Math.min(y(start), totalHeight - 150))}
                   onClose={() => setEditingId(null)}
@@ -404,17 +406,25 @@ export function Timeline({
               )
             })}
 
-            {/* time-blocked tasks */}
+            {/* time-blocked tasks — dressed like local blocks (one
+                visual language for "this time is spoken for"): gray
+                body, the project's color only on the left edge */}
             {blocks.map((t) => {
               const td = taskDrag?.id === t.id ? taskDrag : null
               const start = td ? td.start : toMin(t.scheduledTime!)
               const dur = td ? td.end - td.start : t.timeEstimateMinutes ?? 30
               const missed = isToday && start + dur < nowMins && t.status === 'active'
+              const proj = projects.find((p) => p.id === t.projectId)
               return (
                 <div
                   key={t.id}
                   className={`timeline-task ${t.status === 'done' ? 'done' : ''} ${missed ? 'missed' : ''}`}
-                  style={{ top: y(start), height: Math.max(dur * PX_PER_MIN, 26), ...colStyle(`t-${t.id}`) }}
+                  style={{
+                    top: y(start),
+                    height: Math.max(dur * PX_PER_MIN, 26),
+                    ...colStyle(`t-${t.id}`),
+                    ...(proj ? { borderLeftColor: proj.color } : {})
+                  }}
                   title={
                     missed
                       ? 'Missed the block — no big deal, it’s still on your list'
@@ -423,15 +433,19 @@ export function Timeline({
                   onMouseDown={(e) => startTaskDrag(e, t, 'move')}
                 >
                   {t.status === 'done' ? '✓ ' : ''}
-                  {t.title}
+                  {t.title}{' '}
+                  <span className="le-time">
+                    {ampm(toHHMM(start))}–{ampm(toHHMM(start + dur))}
+                  </span>
                   <div className="le-handle bottom" onMouseDown={(e) => startTaskDrag(e, t, 'end')} />
                 </div>
               )
             })}
 
-            {/* a just-drawn block being named — not yet in the database */}
+            {/* a just-drawn range being named — it becomes a TASK in
+                this slot (and on this day's list) once it has a title */}
             {pending && (
-              <LocalEventEditor
+              <TaskDraftEditor
                 key={`pending-${pending.start}-${pending.end}`}
                 date={date}
                 initialStart={toHHMM(pending.start)}
@@ -463,40 +477,27 @@ export function Timeline({
 }
 
 /**
- * Inline editor for a local block. Fields keep local React state —
- * each change saves, but the round-tripped save can never revert
- * in-flight keystrokes. Call sites key this component by event id, so
- * opening a different block remounts it with freshly seeded state.
- *
- * Without `ev` it edits an unsaved draft: the database row is created
- * on the first keystroke that gives it a name, and closing while
- * still unnamed simply discards the draft — no name, no event.
+ * Inline editor for an existing local block. Fields keep local React
+ * state — each change saves, but the round-tripped save can never
+ * revert in-flight keystrokes. Call sites key this component by event
+ * id, so opening a different block remounts it with freshly seeded
+ * state. (New click-drawn ranges go through TaskDraftEditor instead —
+ * drawing on the calendar makes tasks now, not local blocks.)
  */
 function LocalEventEditor({
-  date,
   ev,
-  initialStart,
-  initialEnd,
   top,
   onClose
 }: {
-  date: string
-  ev?: LocalEvent
-  initialStart?: string
-  initialEnd?: string
+  ev: LocalEvent
   top: number
   onClose: () => void
 }): React.JSX.Element {
   const mutate = useMutate()
-  const [title, setTitle] = useState(ev?.title ?? '')
-  const [start, setStart] = useState(ev?.startTime ?? initialStart ?? '09:00')
-  const [end, setEnd] = useState(ev?.endTime ?? initialEnd ?? '09:30')
-  const [projectId, setProjectId] = useState<string | null>(ev?.projectId ?? null)
-
-  // The id, once the block is real. For drafts, creation happens at
-  // most once (guarded by a promise so rapid keystrokes can't race).
-  const idRef = useRef<string | null>(ev?.id ?? null)
-  const creating = useRef<Promise<void> | null>(null)
+  const [title, setTitle] = useState(ev.title)
+  const [start, setStart] = useState(ev.startTime)
+  const [end, setEnd] = useState(ev.endTime)
+  const [projectId, setProjectId] = useState<string | null>(ev.projectId)
 
   const save = (patch: {
     title?: string
@@ -504,32 +505,11 @@ function LocalEventEditor({
     endTime?: string
     projectId?: string | null
   }): void => {
-    const fields = {
-      title: patch.title ?? title,
-      startTime: patch.startTime ?? start,
-      endTime: patch.endTime ?? end,
-      projectId: patch.projectId !== undefined ? patch.projectId : projectId
-    }
-    void mutate(async () => {
-      if (creating.current) await creating.current
-      if (idRef.current) {
-        await window.api.updateLocalEvent(idRef.current, patch)
-      } else if (fields.title.trim() !== '') {
-        creating.current = window.api
-          .createLocalEvent({ date, ...fields })
-          .then((created) => {
-            idRef.current = created.id
-          })
-        await creating.current
-      }
-    })
+    void mutate(() => window.api.updateLocalEvent(ev.id, patch))
   }
 
   const remove = (): void => {
-    void mutate(async () => {
-      if (creating.current) await creating.current // don't leak an in-flight create
-      if (idRef.current) await window.api.deleteLocalEvent(idRef.current)
-    })
+    void mutate(() => window.api.deleteLocalEvent(ev.id))
     onClose()
   }
 
@@ -571,6 +551,145 @@ function LocalEventEditor({
           onChange={(e) => {
             setEnd(e.target.value)
             if (e.target.value) save({ endTime: e.target.value })
+          }}
+        />
+        <button className="btn ghost small" style={{ marginLeft: 'auto' }} onClick={remove}>
+          🗑 delete
+        </button>
+        <button className="btn small primary" onClick={onClose}>
+          Done
+        </button>
+      </div>
+      <ProjectPicker
+        value={projectId}
+        onChange={(v) => {
+          setProjectId(v)
+          save({ projectId: v })
+        }}
+      />
+    </div>
+  )
+}
+
+/**
+ * The editor a click-drawn range opens. It creates a TASK — not a
+ * local block — so what you type lands on this day's list (under "No
+ * project" unless the picker files it) AND occupies the drawn slot
+ * here, same as a task dragged onto the timeline. The item is created
+ * on the first keystroke that names it (guarded so rapid keystrokes
+ * can't race); closing while still unnamed discards the draft — no
+ * title, no task.
+ */
+function TaskDraftEditor({
+  date,
+  initialStart,
+  initialEnd,
+  top,
+  onClose
+}: {
+  date: string
+  initialStart: string
+  initialEnd: string
+  top: number
+  onClose: () => void
+}): React.JSX.Element {
+  const mutate = useMutate()
+  const [title, setTitle] = useState('')
+  const [start, setStart] = useState(initialStart)
+  const [end, setEnd] = useState(initialEnd)
+  const [projectId, setProjectId] = useState<string | null>(null)
+  const idRef = useRef<string | null>(null)
+  const creating = useRef<Promise<void> | null>(null)
+
+  const save = (patch: {
+    title?: string
+    start?: string
+    end?: string
+    projectId?: string | null
+  }): void => {
+    const f = {
+      title: patch.title ?? title,
+      start: patch.start ?? start,
+      end: patch.end ?? end,
+      projectId: patch.projectId !== undefined ? patch.projectId : projectId
+    }
+    // The drawn range maps onto the task's block fields: a start time
+    // plus a duration — the same pair a drag-in drop sets.
+    const duration = Math.max(SLOT_MIN, toMin(f.end) - toMin(f.start))
+    void mutate(async () => {
+      if (creating.current) await creating.current
+      if (idRef.current) {
+        await window.api.updateItem(idRef.current, {
+          title: f.title,
+          projectId: f.projectId,
+          scheduledTime: f.start,
+          timeEstimateMinutes: duration
+        })
+      } else if (f.title.trim() !== '') {
+        creating.current = window.api
+          .createItem({
+            kind: 'task',
+            title: f.title,
+            status: 'active',
+            projectId: f.projectId,
+            scheduledDate: date,
+            scheduledTime: f.start,
+            timeEstimateMinutes: duration
+          })
+          .then((created) => {
+            idRef.current = created.id
+          })
+        await creating.current
+      }
+    })
+  }
+
+  const remove = (): void => {
+    void mutate(async () => {
+      if (creating.current) await creating.current // don't leak an in-flight create
+      if (idRef.current) await window.api.deleteItem(idRef.current)
+    })
+    onClose()
+  }
+
+  return (
+    <div
+      className="local-event-editor"
+      style={{ top }}
+      onMouseDown={(e) => e.stopPropagation()}
+      // Enter anywhere in the editor = Done; Escape closes. Either way
+      // a still-unnamed draft is simply never created.
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === 'Escape') onClose()
+      }}
+    >
+      <input
+        autoFocus
+        placeholder="New task for this time…"
+        value={title}
+        onChange={(e) => {
+          setTitle(e.target.value)
+          save({ title: e.target.value })
+        }}
+      />
+      <div className="row">
+        <input
+          type="time"
+          step={SLOT_MIN * 60}
+          value={start}
+          onChange={(e) => {
+            setStart(e.target.value)
+            if (e.target.value) save({ start: e.target.value })
+          }}
+        />
+        <span>–</span>
+        <input
+          type="time"
+          step={SLOT_MIN * 60}
+          value={end}
+          onChange={(e) => {
+            setEnd(e.target.value)
+            if (e.target.value) save({ end: e.target.value })
           }}
         />
         <button className="btn ghost small" style={{ marginLeft: 'auto' }} onClick={remove}>
@@ -684,11 +803,11 @@ function EventBlock({
     >
       <div className="row" style={{ gap: 6 }}>
         <b>{event.title}</b>
-        <span style={{ color: soft, fontSize: 12 }}>
+        <span style={{ color: soft, fontSize: 13 }}>
           {ampm(event.startTime!)}
           {event.endTime ? `–${ampm(event.endTime)}` : ''}
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: soft }}>
+        <span style={{ marginLeft: 'auto', fontSize: 13, color: soft }}>
           notes ↗
         </span>
       </div>
@@ -697,7 +816,7 @@ function EventBlock({
           <span style={{ flex: 1 }}>
             <ProgressBar done={prepDone} total={prepTotal} />
           </span>
-          <span style={{ fontSize: 11.5, color: soft }}>
+          <span style={{ fontSize: 12.5, color: soft }}>
             {prepDone} of {prepTotal} prep
           </span>
         </div>

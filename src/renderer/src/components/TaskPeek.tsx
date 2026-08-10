@@ -15,7 +15,15 @@ const durLabel = (m: number): string => (m < 60 ? `${m} min` : `${m / 60} hr`)
  * full page, so the item has exactly one editing surface (no clobbering
  * between the list card and a second editor).
  */
-export function TaskPeek({ itemId }: { itemId: string }): React.JSX.Element | null {
+export function TaskPeek({
+  itemId,
+  onClose
+}: {
+  itemId: string
+  /** Called when the task leaves the calendar — the block this peek
+   *  belongs to is gone, so the panel goes with it. */
+  onClose?: () => void
+}): React.JSX.Element | null {
   const item = useLiveQuery(() => window.api.getItem(itemId), [itemId])
   const mutate = useMutate()
   if (!item) return null
@@ -64,7 +72,10 @@ export function TaskPeek({ itemId }: { itemId: string }): React.JSX.Element | nu
           className="btn ghost small"
           style={{ marginLeft: 'auto' }}
           title="Keep the task, take it off the calendar"
-          onClick={() => patch({ scheduledTime: null, timeEstimateMinutes: null })}
+          onClick={() => {
+            void patch({ scheduledTime: null, timeEstimateMinutes: null })
+            onClose?.()
+          }}
         >
           ✕ off calendar
         </button>

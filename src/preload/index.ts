@@ -86,6 +86,7 @@ const api = {
   unfiledNotes: (): Promise<Item[]> => invoke('inbox:unfiledNotes'),
   recentCompleted: (limit?: number): Promise<Item[]> => invoke('inbox:recentCompleted', limit),
   tasksFor: (date: string): Promise<Item[]> => invoke('today:tasks', date),
+  scheduledBlocks: (date: string): Promise<Item[]> => invoke('today:blocks', date),
   tasksThisWeek: (date: string): Promise<Item[]> => invoke('today:week', date),
   carriedOver: (date: string): Promise<Item[]> => invoke('today:carriedOver', date),
   tasksDueOn: (date: string): Promise<Item[]> => invoke('today:dueOn', date),
