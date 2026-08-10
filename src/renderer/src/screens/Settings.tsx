@@ -210,7 +210,7 @@ export function Settings(): React.JSX.Element {
                 </div>
               ) : (
                 <>
-                  <p style={{ margin: 0, color: 'var(--text-soft)', fontSize: 13 }}>
+                  <p style={{ margin: 0, color: 'var(--text-soft)', fontSize: 14 }}>
                     One-time setup: in console.cloud.google.com create an OAuth client of type
                     “Desktop app”, enable the Google Calendar API, and paste the credentials
                     here. They are stored only in your local database.

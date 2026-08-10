@@ -31,7 +31,7 @@
 }
 
 .sidebar-brand {
-  font-size: 28px;
+  font-size: 29px;
   font-weight: 600;
   letter-spacing: 0.035em;
   padding: 2px 10px 12px;
@@ -54,7 +54,7 @@
 }
 
 .sidebar-time {
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 400;
   letter-spacing: 0.02em;
   line-height: 1.1;
@@ -65,7 +65,7 @@
 }
 
 .sidebar-date {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
   color: var(--text-soft);
 }
@@ -80,7 +80,7 @@
   pointer-events: none;
   background: var(--text);
   color: var(--bg);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   line-height: 1.5;
   padding: 5px 10px;
@@ -137,7 +137,7 @@
   align-items: center;
   gap: 10px;
   padding: 3.5px 0;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .hotkey-keys {
@@ -150,7 +150,7 @@
 
 kbd.key {
   font-family: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   color: var(--text-soft);
   background: var(--bg-sunken);
@@ -180,7 +180,7 @@ kbd.key {
   right: 0;
   background: var(--text);
   color: var(--bg);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   padding: 4px 9px;
   border-radius: 4px;
@@ -206,7 +206,7 @@ kbd.key {
 }
 
 .nav-item .nav-icon {
-  font-size: 18px;
+  font-size: 19px;
   width: 24px;
   text-align: center;
   flex-shrink: 0;
@@ -215,7 +215,7 @@ kbd.key {
 /* Doubled selector so this outranks the later `.btn { font-size }`
    rule — with a single class the order of rules silently won it. */
 .btn.icon-btn {
-  font-size: 20px;
+  font-size: 21px;
   /* matches the sidebar nav icons */
   line-height: 1;
   padding: 8px 11px;
@@ -252,7 +252,7 @@ kbd.key {
 .nav-icon-end {
   flex-shrink: 0;
   margin-left: auto;
-  font-size: 14px;
+  font-size: 15px;
   opacity: 0.75;
 }
 
@@ -261,14 +261,14 @@ kbd.key {
   background: var(--gradient-accent);
   color: #fff;
   border-radius: var(--radius-pill);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   padding: 1px 8px;
 }
 
 .nav-section {
   margin: 14px 10px 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -382,7 +382,7 @@ kbd.key {
   align-items: center;
   gap: 8px;
   margin-top: 3px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-soft);
 }
 
@@ -528,7 +528,7 @@ kbd.key {
 /* The fixed-width date column on meeting rows. */
 .meeting-date {
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-soft);
   flex-shrink: 0;
@@ -539,7 +539,7 @@ kbd.key {
    vs "12:45 PM". */
 .meeting-time {
   font-variant-numeric: tabular-nums;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-soft);
   flex-shrink: 0;
@@ -591,7 +591,7 @@ kbd.key {
   gap: 5px;
   border-radius: var(--radius-pill);
   padding: 2px 9px;
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   background: var(--bg-sunken);
   color: var(--text-soft);
@@ -604,7 +604,7 @@ kbd.key {
   border-radius: 7px;
   padding: 7px 13px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 14px;
   background: var(--bg-sunken);
   color: var(--text);
   transition: filter 0.12s ease, transform 0.08s ease;
@@ -626,7 +626,7 @@ kbd.key {
 
 .btn.small {
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .btn.ghost {
@@ -650,7 +650,7 @@ kbd.key {
   justify-content: center;
   transition: all 0.12s ease;
   color: transparent;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .checkbox:hover {
@@ -714,7 +714,7 @@ kbd.key {
 
 .check-input .input-icon {
   opacity: 0.5;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .check-input:focus-within .input-icon {
@@ -765,13 +765,13 @@ kbd.key {
 }
 
 .empty-state .art {
-  font-size: 44px;
+  font-size: 45px;
   display: block;
   margin-bottom: 10px;
 }
 
 .section-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -795,7 +795,7 @@ kbd.key {
   box-shadow: var(--shadow-lift);
   padding: 9px 12px 9px 18px;
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: 14.5px;
 }
 
 /* ── Drag & drop ─────────────────────────────────────────────────── */
@@ -830,7 +830,7 @@ kbd.key {
 
 .capture-window input {
   width: 100%;
-  font-size: 17px;
+  font-size: 18px;
   border: none;
   box-shadow: none;
   background: transparent;
@@ -894,7 +894,7 @@ kbd.key {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
   margin: 0 0 6px;
@@ -916,7 +916,7 @@ kbd.key {
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-soft);
   opacity: 0.4;
@@ -959,7 +959,7 @@ kbd.key {
 .subtask-row .subtask-title {
   flex: 1;
   min-width: 0;
-  font-size: 13.5px;
+  font-size: 14.5px;
 }
 
 .subtask-row .subtask-title.done {
@@ -1031,7 +1031,7 @@ kbd.key {
 /* A peer of the label — same faint color, but bold so it reads as a
    real affordance. */
 .day-add-btn {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   line-height: 1;
   color: var(--text-faint);
@@ -1130,7 +1130,7 @@ kbd.key {
   position: absolute;
   top: -9px;
   left: 0;
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--text-faint);
   background: var(--bg);
   padding-right: 6px;
@@ -1179,7 +1179,7 @@ kbd.key {
 .timeline-task {
   position: absolute;
   overflow: hidden;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   background: var(--accent-soft);
   border: 1px dashed var(--accent);
@@ -1212,7 +1212,7 @@ kbd.key {
 .local-event {
   position: absolute;
   overflow: hidden;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   background: color-mix(in srgb, var(--local-event) 14%, var(--bg-card));
   border-left: 3.5px solid var(--local-event);
@@ -1227,7 +1227,7 @@ kbd.key {
 .local-event .le-time {
   color: var(--text-soft);
   font-weight: 500;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .local-event-editor {
@@ -1288,7 +1288,7 @@ kbd.key {
   background: var(--accent-soft);
   border: 1.5px dashed var(--accent);
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   padding: 1px 8px;
   pointer-events: none;
@@ -1330,7 +1330,7 @@ kbd.key {
 
 .page-title {
   flex: 1;
-  font-size: 24px;
+  font-size: 25px;
   font-weight: 750;
   letter-spacing: -0.02em;
   border: none;
@@ -1373,7 +1373,7 @@ kbd.key {
   min-width: 30px;
   padding: 5px 8px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 650;
   color: var(--text-soft);
 }
@@ -1397,14 +1397,14 @@ kbd.key {
 
 .rt-font {
   padding: 4px 8px;
-  font-size: 12.5px;
+  font-size: 13.5px;
 }
 
 .rich-editor .ProseMirror {
   outline: none;
   min-height: 55vh;
   line-height: 1.65;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 /* Pasted/attached images: never wider than the pane, gently rounded.
@@ -1425,7 +1425,7 @@ kbd.key {
   min-height: 88px;
   max-height: 38vh;
   overflow-y: auto;
-  font-size: 14px;
+  font-size: 15px;
   background: var(--bg-sunken);
   border-radius: 7px;
   padding: 10px 12px;
@@ -1442,7 +1442,7 @@ kbd.key {
 
 .rt-hint {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-faint);
 }
 
@@ -1508,7 +1508,7 @@ kbd.key {
 .peek-title {
   flex: 1;
   min-width: 0;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.02em;
   border: none;
@@ -1566,7 +1566,7 @@ kbd.key {
   background: var(--bg-sunken);
   border-radius: 7px;
   padding: 12px;
-  font-size: 13px;
+  font-size: 14px;
   overflow-x: auto;
 }
 
@@ -1637,7 +1637,7 @@ kbd.key {
   grid-template-columns: repeat(7, 1fr);
   gap: 6px;
   margin-bottom: 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1694,7 +1694,7 @@ kbd.key {
 }
 
 .cal-daynum {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-soft);
 }
@@ -1710,7 +1710,7 @@ kbd.key {
   display: block;
   width: 100%;
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.3;
   padding: 2px 6px;
@@ -1743,7 +1743,7 @@ kbd.key {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-soft);
 }
 
@@ -1763,7 +1763,7 @@ kbd.key {
 }
 
 .allday-chip {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-soft);
   background: var(--bg-sunken);
@@ -1893,7 +1893,7 @@ kbd.key {
   align-items: center;
   gap: 2px;
   padding: 1px 4px 1px 8px;
-  font-size: 12px;
+  font-size: 13px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -1917,7 +1917,7 @@ kbd.key {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-soft);
   background: var(--bg-card);
@@ -1948,7 +1948,7 @@ kbd.key {
 
 .label-grip {
   color: var(--text-faint);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1;
   padding: 6px 0;
   cursor: grab;
@@ -1966,7 +1966,7 @@ kbd.key {
 
 .label-row .label-hex {
   font-family: ui-monospace, monospace;
-  font-size: 12px;
+  font-size: 13px;
   padding: 6px 8px;
 }
 
@@ -1975,7 +1975,7 @@ kbd.key {
 .label-row .label-hint {
   grid-column: 1 / -1;
   margin: -3px 0 5px 66px;
-  font-size: 11.5px;
+  font-size: 12.5px;
   color: var(--text-soft);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2001,7 +2001,7 @@ kbd.key {
 /* A quieter heading inside a section (Upcoming/Previous meetings). */
 .section-sublabel {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -2016,7 +2016,7 @@ kbd.key {
 
 /* Inline project rename: an h1 that's secretly editable. */
 .project-name-input {
-  font-size: 26px;
+  font-size: 27px;
   font-weight: 600;
   letter-spacing: -0.02em;
   padding: 0 6px;

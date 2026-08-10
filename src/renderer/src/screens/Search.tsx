@@ -29,7 +29,7 @@ export function Search(): React.JSX.Element {
       <input
         id="search-input"
         autoFocus
-        style={{ width: '100%', marginBottom: 16, fontSize: 16 }}
+        style={{ width: '100%', marginBottom: 16, fontSize: 17 }}
         placeholder="Search everything — titles, notes, journal entries…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}

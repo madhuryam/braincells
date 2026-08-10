@@ -63,7 +63,7 @@ function DeleteProjectModal({
             ✕
           </button>
         </div>
-        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-soft)' }}>
+        <p style={{ margin: '0 0 12px', fontSize: 14, color: 'var(--text-soft)' }}>
           Its tasks, notes, and meetings still exist, but float under ‘No project’. Archive
           instead to keep them associated.
         </p>
@@ -164,7 +164,7 @@ export function Projects(): React.JSX.Element {
             Create
           </button>
         </div>
-        {nameError && <p style={{ margin: 0, color: 'var(--danger)', fontSize: 13 }}>{nameError}</p>}
+        {nameError && <p style={{ margin: 0, color: 'var(--danger)', fontSize: 14 }}>{nameError}</p>}
         <div className="row">
           {PROJECT_COLORS.map((c) => (
             <button
@@ -202,7 +202,7 @@ export function Projects(): React.JSX.Element {
                 <input
                   autoFocus
                   placeholder="nickname"
-                  style={{ width: 130, fontSize: 12, padding: '3px 9px' }}
+                  style={{ width: 130, fontSize: 13, padding: '3px 9px' }}
                   value={nickDraft}
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => setNickDraft(e.target.value)}

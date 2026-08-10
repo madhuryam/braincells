@@ -59,7 +59,7 @@ export function ProjectPicker({
           <input
             autoFocus
             placeholder="First project’s name…"
-            style={{ fontSize: 12, padding: '3px 10px' }}
+            style={{ fontSize: 13, padding: '3px 10px' }}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={() => setAdding(false)}

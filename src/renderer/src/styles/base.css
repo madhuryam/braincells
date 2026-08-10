@@ -15,7 +15,7 @@ body,
 
 body {
   font-family: var(--font-sans);
-  font-size: 14.5px;
+  font-size: 15.5px;
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
@@ -32,13 +32,13 @@ h3 {
 }
 
 h1 {
-  font-size: 26px;
+  font-size: 27px;
 }
 h2 {
-  font-size: 17px;
+  font-size: 18px;
 }
 h3 {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 button {
@@ -87,7 +87,7 @@ select:focus {
 .markdown {
   max-width: 62ch;
   line-height: 1.65;
-  font-size: 15px;
+  font-size: 16px;
 }
 .markdown h1,
 .markdown h2,

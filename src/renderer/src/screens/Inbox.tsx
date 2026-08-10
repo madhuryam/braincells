@@ -308,7 +308,7 @@ function ItemSection({
       </button>
       {open && (
         <>
-          <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--text-faint)' }}>{hint}</p>
+          <p style={{ margin: '0 0 10px', fontSize: 13.5, color: 'var(--text-faint)' }}>{hint}</p>
           <div className="item-list">
             <AnimatePresence initial={false}>
               {items.map((item) => (

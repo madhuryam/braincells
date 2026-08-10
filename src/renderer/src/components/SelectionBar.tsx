@@ -53,7 +53,7 @@ export function SelectionBar(): React.JSX.Element | null {
         boxShadow: 'var(--shadow-lift)'
       }}
     >
-      <b style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{selected.size} selected</b>
+      <b style={{ fontSize: 14, whiteSpace: 'nowrap' }}>{selected.size} selected</b>
       {rollingDays().map((d) => (
         <button
           key={d.date}
