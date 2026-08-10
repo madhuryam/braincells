@@ -40,6 +40,67 @@ describe('projects', () => {
   })
 })
 
+describe('sections', () => {
+  it('creates in order, renames, and reorders', () => {
+    const p = store.createProject('Roadmap', '#e8590c')
+    const testing = store.createSection(p.id, 'Testing')
+    const features = store.createSection(p.id, 'Features')
+    expect(store.listSections(p.id).map((s) => s.name)).toEqual(['Testing', 'Features'])
+
+    store.renameSection(testing.id, 'QA')
+    expect(store.listSections(p.id)[0].name).toBe('QA')
+
+    store.reorderSections([features.id, testing.id])
+    expect(store.listSections(p.id).map((s) => s.name)).toEqual(['Features', 'QA'])
+  })
+
+  it('sections are per-project', () => {
+    const a = store.createProject('A', '#111111')
+    const b = store.createProject('B', '#222222')
+    store.createSection(a.id, 'only in A')
+    expect(store.listSections(a.id)).toHaveLength(1)
+    expect(store.listSections(b.id)).toHaveLength(0)
+  })
+
+  it('deleting a section unfiles its tasks — the tasks survive', () => {
+    const p = store.createProject('Roadmap', '#e8590c')
+    const s = store.createSection(p.id, 'Testing')
+    const item = store.createItem({ kind: 'task', title: 't', status: 'active', projectId: p.id })
+    store.updateItem(item.id, { sectionId: s.id })
+    expect(store.getItem(item.id)!.sectionId).toBe(s.id)
+
+    store.deleteSection(s.id)
+    const after = store.getItem(item.id)!
+    expect(after.sectionId).toBeNull()
+    expect(after.projectId).toBe(p.id)
+  })
+
+  it('deleting a project takes its sections with it', () => {
+    const p = store.createProject('Roadmap', '#e8590c')
+    store.createSection(p.id, 'Testing')
+    store.deleteProject(p.id)
+    expect(store.listSections(p.id)).toHaveLength(0)
+  })
+
+  it('moving an item to another project clears its section', () => {
+    const a = store.createProject('A', '#111111')
+    const b = store.createProject('B', '#222222')
+    const s = store.createSection(a.id, 'Testing')
+    const item = store.createItem({ kind: 'task', title: 't', status: 'active', projectId: a.id })
+    store.updateItem(item.id, { sectionId: s.id })
+
+    // Plain project move (sidebar drop, picker): section goes.
+    const moved = store.updateItem(item.id, { projectId: b.id })!
+    expect(moved.sectionId).toBeNull()
+
+    // But a patch that places it in a section explicitly is honored.
+    const sB = store.createSection(b.id, 'Inbound')
+    store.updateItem(item.id, { projectId: a.id })
+    const placed = store.updateItem(item.id, { projectId: b.id, sectionId: sB.id })!
+    expect(placed.sectionId).toBe(sB.id)
+  })
+})
+
 describe('item lifecycle', () => {
   it('captures default to the inbox with no required decisions', () => {
     const item = store.createItem({ kind: 'task', title: 'call dentist' })
@@ -63,6 +124,7 @@ describe('item lifecycle', () => {
     expect(store.completedOn(today).map((i) => i.id)).toEqual([item.id])
     expect(store.completedOn(ymdAddDays(today, -1))).toHaveLength(0)
   })
+
 })
 
 describe('Today / This Week / carried over', () => {

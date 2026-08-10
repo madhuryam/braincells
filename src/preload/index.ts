@@ -10,7 +10,8 @@ import type {
   Meeting,
   PrepProgress,
   Project,
-  ProjectStatus
+  ProjectStatus,
+  Section
 } from '../shared/types'
 
 // Re-declared here (rather than imported from src/main) because preload
@@ -22,6 +23,8 @@ export interface NewItem {
   richContent?: string | null
   status?: ItemStatus
   projectId?: string | null
+  /** Only meaningful with a projectId — the project page's per-section adder sets it. */
+  sectionId?: string | null
   dueDate?: string | null
   scheduledDate?: string | null
   scheduledTime?: string | null
@@ -51,6 +54,14 @@ const api = {
   ): Promise<void> => invoke('projects:update', id, patch),
   deleteProject: (id: string): Promise<void> => invoke('projects:delete', id),
   reorderProjects: (ids: string[]): Promise<void> => invoke('projects:reorder', ids),
+
+  // Sections (buckets inside a project)
+  listSections: (projectId: string): Promise<Section[]> => invoke('sections:list', projectId),
+  createSection: (projectId: string, name: string): Promise<Section> =>
+    invoke('sections:create', projectId, name),
+  renameSection: (id: string, name: string): Promise<void> => invoke('sections:rename', id, name),
+  reorderSections: (ids: string[]): Promise<void> => invoke('sections:reorder', ids),
+  deleteSection: (id: string): Promise<void> => invoke('sections:delete', id),
 
   // Items
   createItem: (item: NewItem): Promise<Item> => invoke('items:create', item),

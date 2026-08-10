@@ -238,6 +238,24 @@ const MIGRATIONS: string[] = [
   // display in place of the full name. NULL means "use the name".
   `
   ALTER TABLE projects ADD COLUMN nickname TEXT;
+  `,
+
+  // 12: sections — named, reorderable buckets inside one project that
+  // tasks file into on the project page. Deleting a section unfiles
+  // its tasks (SET NULL — the tasks survive); deleting a project takes
+  // its sections with it (CASCADE — a section is meaningless without
+  // its project).
+  `
+  CREATE TABLE sections (
+    id         TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name       TEXT NOT NULL,
+    sort_order REAL NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX idx_sections_project ON sections(project_id);
+
+  ALTER TABLE items ADD COLUMN section_id TEXT REFERENCES sections(id) ON DELETE SET NULL;
   `
 ]
 

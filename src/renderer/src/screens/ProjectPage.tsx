@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { AnimatePresence } from 'framer-motion'
 import type { Item } from '@shared/types'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useData, useLiveQuery, useMutate } from '../state/data'
@@ -9,8 +8,8 @@ import { Card } from '../components/Card'
 import { DetailPanel } from '../components/DetailPanel'
 import { ItemCard } from '../components/ItemCard'
 import { ItemDetail } from '../components/ItemDetail'
-import { DraggableCard } from '../components/dnd'
 import { MeetingRow } from '../components/MeetingRow'
+import { SectionGroups } from '../components/SectionGroups'
 import { Meeting } from './Meeting'
 import { BackButton, CheckableInput, EmptyState, ProgressBar, ProjectDot } from '../components/bits'
 import { PROJECT_COLORS } from '../palette'
@@ -47,7 +46,9 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   const project = projects.find((p) => p.id === projectId)
   const items = useLiveQuery(() => window.api.projectItems(projectId), [projectId])
   const meetings = useLiveQuery(() => window.api.meetingsForProject(projectId), [projectId]) ?? []
+  const sections = useLiveQuery(() => window.api.listSections(projectId), [projectId]) ?? []
   const [draft, setDraft] = useState('')
+  const [addingSection, setAddingSection] = useState(false)
   const [showDone, setShowDone] = useState(false)
   // Canvases and To-dos collapse like Meetings/Done, but start open —
   // they're the reason you came to the project.
@@ -195,7 +196,7 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
         </div>
       )}
       {nameError && (
-        <p style={{ margin: '0 0 12px', color: 'var(--danger)', fontSize: 13 }}>{nameError}</p>
+        <p style={{ margin: '0 0 12px', color: 'var(--danger)', fontSize: 14 }}>{nameError}</p>
       )}
 
       {/* A task's 📅 meeting chip peeks that meeting in the right-hand
@@ -246,28 +247,46 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
             </button>
           )}
           {pages.length === 0 && (
-            <span className="project-section" style={{ color: 'var(--text-faint)', fontSize: 13, display: 'block' }}>
+            <span className="project-section" style={{ color: 'var(--text-faint)', fontSize: 14, display: 'block' }}>
               No canvases yet — a canvas is a full document for brain-dumping knowledge.
             </span>
           )}
         </>
       )}
 
-      {/* One vertical section per kind of thing — no masonry mixing. */}
-      {todos.length > 0 && (
+      {/* One vertical section per kind of thing — no masonry mixing.
+          To-dos can be separated further into the project's sections
+          (SectionGroups); the block also shows when only empty
+          sections remain, so they stay manageable. */}
+      {(todos.length > 0 || sections.length > 0) && (
         <>
-          <button className="section-label day-toggle" onClick={() => setTodosOpen(!todosOpen)}>
-            {todosOpen ? '▾' : '▸'} To-dos
-          </button>
+          <div className="row">
+            <button
+              className="section-label day-toggle"
+              style={{ width: 'auto' }} // sit beside the ＋ button, not over it
+              onClick={() => setTodosOpen(!todosOpen)}
+            >
+              {todosOpen ? '▾' : '▸'} To-dos
+            </button>
+            <button
+              className="btn ghost"
+              onClick={() => {
+                setAddingSection(true)
+                setTodosOpen(true) // the name input lives inside the fold
+              }}
+            >
+              ＋ add section
+            </button>
+          </div>
           {todosOpen && (
-            <div className="item-list project-section">
-              <AnimatePresence initial={false}>
-                {todos.map((item) => (
-                  <DraggableCard key={item.id} item={item}>
-                    <ItemCard item={item} showProject={false} />
-                  </DraggableCard>
-                ))}
-              </AnimatePresence>
+            <div className="project-section">
+              <SectionGroups
+                projectId={projectId}
+                sections={sections}
+                todos={todos}
+                addingSection={addingSection}
+                onCloseAddSection={() => setAddingSection(false)}
+              />
             </div>
           )}
         </>
@@ -318,7 +337,7 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
                       ))}
                     </div>
                     {list.length === 0 && (
-                      <span style={{ color: 'var(--text-faint)', fontSize: 13 }}>
+                      <span style={{ color: 'var(--text-faint)', fontSize: 14 }}>
                         no {meetingsTab} meetings
                       </span>
                     )}
@@ -448,7 +467,7 @@ function ProjectOverview({
           <div className="section-sublabel">Tasks</div>
           <div className="stack" style={{ gap: 6, marginTop: 4 }}>
             <ProgressBar done={doneCount} total={doneCount + openTodos} />
-            <span style={{ fontSize: 12.5, color: 'var(--text-soft)' }}>
+            <span style={{ fontSize: 13.5, color: 'var(--text-soft)' }}>
               {openTodos} open · {doneCount} done
             </span>
           </div>
@@ -518,14 +537,14 @@ function MeetingWidget({
     const doneCount = rows.filter((r) => r.item.status === 'done').length
     return (
       <div>
-        <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-faint)' }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-faint)' }}>
           {label} {doneCount}/{rows.length}
         </div>
         {rows.slice(0, 3).map((r) => (
           <div
             key={r.item.id}
             style={{
-              fontSize: 12.5,
+              fontSize: 13.5,
               color: 'var(--text-soft)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -555,7 +574,7 @@ function MeetingWidget({
           <button className="btn ghost small" disabled={i === 0} onClick={() => setIdx(i - 1)}>
             ‹
           </button>
-          <span style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>
+          <span style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>
             {i + 1}/{meetings.length}
           </span>
           <button
@@ -597,7 +616,7 @@ function MeetingWidget({
               📝
             </span>
           ) : (
-            <span style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>no notes</span>
+            <span style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>no notes</span>
           ))}
       </button>
       {linked && (linked.prep.length > 0 || linked.followUps.length > 0) && (
@@ -673,7 +692,7 @@ function ActivitySparkline({ done }: { done: Item[] }): React.JSX.Element {
         })}
       </svg>
       <span
-        style={{ fontSize: 12, color: 'var(--text-faint)' }}
+        style={{ fontSize: 13, color: 'var(--text-faint)' }}
         title={`${total} done in the last 8 weeks`}
       >
         {thisWeek} this week
@@ -748,7 +767,7 @@ function Scratchpad({ projectId }: { projectId: string }): React.JSX.Element | n
         color: 'var(--text)',
         borderRadius: 7,
         font: 'inherit',
-        fontSize: 13,
+        fontSize: 14,
         resize: 'vertical'
       }}
     />

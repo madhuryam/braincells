@@ -150,6 +150,7 @@ export function DropZone({
     | { type: 'project'; projectId: string }
     | { type: 'schedule'; date: string }
     | { type: 'project-schedule'; projectId: string | null; date: string }
+    | { type: 'section'; projectId: string; sectionId: string | null; date?: string }
     | { type: 'timeblock'; date: string; time: string }
     | { type: 'event-prep'; event: CalendarEvent }
   children: ReactNode
@@ -231,6 +232,7 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
       | {
           type?: string
           projectId?: string
+          sectionId?: string | null
           date?: string
           time?: string
           event?: CalendarEvent
@@ -298,6 +300,22 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
       return
     }
 
+    // A section block: file the card into that section (sectionId
+    // null = the leading unsectioned block). On a day list the block
+    // also carries its date — the drop keeps the card on that day.
+    if (overData?.type === 'section' && overData.projectId) {
+      mutate(() =>
+        window.api.updateItem(item.id, {
+          kind: 'task',
+          projectId: overData.projectId,
+          sectionId: overData.sectionId ?? null,
+          ...(overData.date ? { scheduledDate: overData.date } : {}),
+          ...(item.status === 'inbox' ? { status: 'active' as const } : {})
+        })
+      )
+      return
+    }
+
     // A project block inside a day list: file it there, same day.
     if (overData?.type === 'project-schedule' && overData.date) {
       mutate(() =>
@@ -344,7 +362,7 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
     }
 
     // Dropped directly onto a card in another list: adopt that card's
-    // home — same day, same project block.
+    // home — same day, same project block, same section.
     if (overData?.item && over.id !== active.id) {
       const target = overData.item
       mutate(() =>
@@ -352,6 +370,7 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
           kind: 'task',
           scheduledDate: target.scheduledDate,
           projectId: target.projectId,
+          sectionId: target.sectionId,
           ...(item.status === 'inbox' ? { status: 'active' as const } : {})
         })
       )

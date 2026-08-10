@@ -12,7 +12,8 @@ import type {
   LocalEvent,
   Meeting,
   PrepProgress,
-  Project
+  Project,
+  Section
 } from '../../shared/types'
 
 /** Fields a caller may set when creating an item. Everything else gets a default. */
@@ -23,6 +24,8 @@ export interface NewItem {
   richContent?: string | null
   status?: ItemStatus
   projectId?: string | null
+  /** Only meaningful with a projectId — the project page's per-section adder sets it. */
+  sectionId?: string | null
   dueDate?: string | null
   scheduledDate?: string | null
   scheduledTime?: string | null
@@ -38,8 +41,8 @@ export interface LinkedItem {
 }
 
 // Column lists are written out once so every query returns identical shapes.
-const ITEM_COLS = `id, kind, title, content, rich_content, status, project_id, due_date,
-  scheduled_date, scheduled_time, time_estimate_minutes, sort_order, starred,
+const ITEM_COLS = `id, kind, title, content, rich_content, status, project_id, section_id,
+  due_date, scheduled_date, scheduled_time, time_estimate_minutes, sort_order, starred,
   created_at, updated_at, completed_at`
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -52,6 +55,7 @@ function rowToItem(r: any): Item {
     richContent: r.rich_content,
     status: r.status,
     projectId: r.project_id,
+    sectionId: r.section_id,
     dueDate: r.due_date,
     scheduledDate: r.scheduled_date,
     scheduledTime: r.scheduled_time,
@@ -184,9 +188,63 @@ export class Store {
   /**
    * Deleting a project never deletes content: items and meeting
    * assignments fall back to "No project" via ON DELETE SET NULL.
+   * (Its sections DO go with it — they're structure, not content —
+   * and their items unfile via the section FK's own SET NULL.)
    */
   deleteProject(id: string): void {
     this.db.prepare('DELETE FROM projects WHERE id = ?').run(id)
+  }
+
+  // ── Sections (named buckets inside one project) ─────────────────────
+
+  listSections(projectId: string): Section[] {
+    return this.db
+      .prepare(
+        `SELECT id, project_id AS projectId, name, sort_order AS sortOrder,
+           created_at AS createdAt
+         FROM sections WHERE project_id = ? ORDER BY sort_order, created_at`
+      )
+      .all(projectId) as Section[]
+  }
+
+  createSection(projectId: string, name: string): Section {
+    // New sections land at the end of the project's ordering (same
+    // convention as createProject).
+    const nextOrder = (
+      this.db
+        .prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM sections WHERE project_id = ?')
+        .get(projectId) as { n: number }
+    ).n
+    const s: Section = {
+      id: randomUUID(),
+      projectId,
+      name,
+      sortOrder: nextOrder,
+      createdAt: nowStamp()
+    }
+    this.db
+      .prepare(
+        'INSERT INTO sections (id, project_id, name, sort_order, created_at) VALUES (?, ?, ?, ?, ?)'
+      )
+      .run(s.id, s.projectId, s.name, s.sortOrder, s.createdAt)
+    return s
+  }
+
+  renameSection(id: string, name: string): void {
+    this.db.prepare('UPDATE sections SET name = ? WHERE id = ?').run(name, id)
+  }
+
+  /** Persist a new section order: sort_order follows the given id list. */
+  reorderSections(ids: string[]): void {
+    const stmt = this.db.prepare('UPDATE sections SET sort_order = ? WHERE id = ?')
+    this.db.transaction(() => {
+      ids.forEach((id, i) => stmt.run(i, id))
+    })()
+  }
+
+  /** Deleting a section unfiles its tasks (SET NULL) — never deletes them. */
+  deleteSection(id: string): void {
+    this.db.prepare('DELETE FROM sections WHERE id = ?').run(id)
   }
 
   // ── Items ───────────────────────────────────────────────────────────
@@ -200,6 +258,7 @@ export class Store {
       richContent: n.richContent ?? null,
       status: n.status ?? 'inbox',
       projectId: n.projectId ?? null,
+      sectionId: n.sectionId ?? null,
       dueDate: n.dueDate ?? null,
       scheduledDate: n.scheduledDate ?? null,
       scheduledTime: n.scheduledTime ?? null,
@@ -212,7 +271,7 @@ export class Store {
     }
     this.db
       .prepare(
-        `INSERT INTO items (${ITEM_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO items (${ITEM_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         item.id,
@@ -222,6 +281,7 @@ export class Store {
         item.richContent,
         item.status,
         item.projectId,
+        item.sectionId,
         item.dueDate,
         item.scheduledDate,
         item.scheduledTime,
@@ -260,6 +320,7 @@ export class Store {
       richContent: 'rich_content',
       status: 'status',
       projectId: 'project_id',
+      sectionId: 'section_id',
       dueDate: 'due_date',
       scheduledDate: 'scheduled_date',
       scheduledTime: 'scheduled_time',
@@ -282,6 +343,17 @@ export class Store {
       vals.push(nowStamp())
     } else if (patch.status && patch.status !== 'done' && existing.status === 'done') {
       sets.push('completed_at = NULL')
+    }
+    // A section is meaningless outside its project: moving the item to
+    // another project clears its section unless the patch places it in
+    // one explicitly — so every "file into project X" path (sidebar
+    // drop, triage, the picker) can stay ignorant of sections.
+    if (
+      patch.projectId !== undefined &&
+      patch.projectId !== existing.projectId &&
+      patch.sectionId === undefined
+    ) {
+      sets.push('section_id = NULL')
     }
     if (sets.length > 0) {
       // Every real edit refreshes recency ("most recently edited").

@@ -22,6 +22,15 @@ export function registerStoreIpc(store: Store): void {
   ipcMain.handle('projects:delete', (_e, id: string) => store.deleteProject(id))
   ipcMain.handle('projects:reorder', (_e, ids: string[]) => store.reorderProjects(ids))
 
+  // Sections (buckets inside a project)
+  ipcMain.handle('sections:list', (_e, projectId: string) => store.listSections(projectId))
+  ipcMain.handle('sections:create', (_e, projectId: string, name: string) =>
+    store.createSection(projectId, name)
+  )
+  ipcMain.handle('sections:rename', (_e, id: string, name: string) => store.renameSection(id, name))
+  ipcMain.handle('sections:reorder', (_e, ids: string[]) => store.reorderSections(ids))
+  ipcMain.handle('sections:delete', (_e, id: string) => store.deleteSection(id))
+
   // Items
   ipcMain.handle('items:create', (_e, item: NewItem) => store.createItem(item))
   ipcMain.handle('items:get', (_e, id: string) => store.getItem(id))

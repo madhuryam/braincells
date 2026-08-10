@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import type { Item, Project } from '@shared/types'
-import { useData, useMutate } from '../state/data'
+import type { Item, Project, Section } from '@shared/types'
+import { useData, useLiveQuery, useMutate } from '../state/data'
 import { ItemCard } from './ItemCard'
 import { DraggableCard, DropZone, SortableCard, usePendingOrder } from './dnd'
 import { CheckableInput, ProjectDot } from './bits'
+import { NewSectionInput } from './SectionGroups'
 
 interface TaskGroupsProps {
   items: Item[]
@@ -27,6 +28,12 @@ interface TaskGroupsProps {
  */
 export function TaskGroups({ items, date, sortable = false, footer }: TaskGroupsProps): React.JSX.Element {
   const { projects } = useData()
+  // Sections for every project, so each block can separate its tasks
+  // under the same section names as the project's own page.
+  const sectionsByProject = useLiveQuery(async () => {
+    const lists = await Promise.all(projects.map((p) => window.api.listSections(p.id)))
+    return new Map(projects.map((p, i) => [p.id, lists[i]]))
+  }, [projects])
   // A busy project can fold away so the rest of the day is scannable.
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const toggle = (key: string): void =>
@@ -38,8 +45,10 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
     })
   // The project whose inline "add a task" input is open, if any.
   const [adding, setAdding] = useState<string | null>(null)
-  const openAdder = (key: string): void => {
-    setAdding((cur) => (cur === key ? null : key))
+  // Same, for the "＋ section" name input (creates a section in that
+  // project — the grouping lives on its project page).
+  const [addingSection, setAddingSection] = useState<string | null>(null)
+  const unfold = (key: string): void =>
     // Adding to a folded block would type into nothing — unfold it.
     setCollapsed((prev) => {
       if (!prev.has(key)) return prev
@@ -47,6 +56,13 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
       next.delete(key)
       return next
     })
+  const openAdder = (key: string): void => {
+    setAdding((cur) => (cur === key ? null : key))
+    unfold(key)
+  }
+  const openSectionAdder = (key: string): void => {
+    setAddingSection((cur) => (cur === key ? null : key))
+    unfold(key)
   }
 
   // While a drag-reorder is persisting, `items` still carries the old DB
@@ -79,11 +95,31 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
   return (
     <>
       {groups.map((group, gi) => {
-        const ids = group.items.map((i) => i.id)
-        const cards = (
+        // The same shape as the project page: one slice per section,
+        // then unfiled tasks (set apart by a gap, not a header), then
+        // the day's empty sections — kept visible at the bottom so
+        // they stay available as drop targets. Sort within each slice
+        // is untouched.
+        const sections = group.project ? (sectionsByProject?.get(group.project.id) ?? []) : []
+        const known = new Set(sections.map((s) => s.id))
+        const filled: Array<{ section: Section | null; items: Item[] }> = []
+        const empty: Array<{ section: Section | null; items: Item[] }> = []
+        for (const s of sections) {
+          const inSection = group.items.filter((i) => i.sectionId === s.id)
+          ;(inSection.length > 0 ? filled : empty).push({ section: s, items: inSection })
+        }
+        const unfiled = group.items.filter((i) => !i.sectionId || !known.has(i.sectionId))
+        const subgroups = [
+          ...filled,
+          ...(unfiled.length > 0 ? [{ section: null, items: unfiled }] : []),
+          ...empty
+        ]
+        const sectioned = sections.length > 0
+
+        const cardsFor = (list: Item[], ids: string[]): React.JSX.Element => (
           <div className={`item-list ${showHeaders ? 'task-group-indent' : ''}`}>
             <AnimatePresence initial={false}>
-              {group.items.map((item) =>
+              {list.map((item) =>
                 sortable ? (
                   <SortableCard key={item.id} item={item} sortableIds={ids}>
                     <ItemCard item={item} showProject={false} showDate={false} contextDate={date} />
@@ -97,13 +133,46 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
             </AnimatePresence>
           </div>
         )
-        const body = sortable ? (
-          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-            {cards}
-          </SortableContext>
-        ) : (
-          cards
-        )
+
+        const body = subgroups.map((sg) => {
+          const ids = sg.items.map((i) => i.id)
+          const cards = cardsFor(sg.items, ids)
+          // Reorders stay within one slice; dragging across slices is
+          // a cross-list drop and files into the target's section.
+          const listed = sortable ? (
+            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+              {cards}
+            </SortableContext>
+          ) : (
+            cards
+          )
+          // No sections in play: exactly the old flat block.
+          if (!sectioned) return <Fragment key="flat">{listed}</Fragment>
+          // The gap only earns its keep when sections actually sit above.
+          const gap = !sg.section && filled.length > 0 ? ' unsectioned' : ''
+          return (
+            <DropZone
+              key={sg.section?.id ?? 'none'}
+              id={`sec-${date}-${group.key}-${sg.section?.id ?? 'none'}`}
+              data={{
+                type: 'section',
+                projectId: group.project!.id,
+                sectionId: sg.section?.id ?? null,
+                date
+              }}
+              className={`task-subgroup${gap}`}
+            >
+              {sg.section && (
+                <div
+                  className={`section-subhead ${sg.items.length === 0 ? 'empty ' : ''}${showHeaders ? 'task-group-indent' : ''}`}
+                >
+                  {sg.section.name}
+                </div>
+              )}
+              {sg.items.length > 0 && listed}
+            </DropZone>
+          )
+        })
         return (
           <DropZone
             key={group.key}
@@ -140,10 +209,32 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
                   </span>
                 )}
                 {collapsed.has(group.key) && <span className="pill">{group.items.length}</span>}
+                {group.project && (
+                  <span
+                    className="task-group-add task-group-add-section"
+                    role="button"
+                    aria-label={`Add a section to ${group.project.name}`}
+                    title={`Add a section to ${group.project.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openSectionAdder(group.key)
+                    }}
+                  >
+                    ＋ section
+                  </span>
+                )}
               </button>
             )}
             {(!showHeaders || !collapsed.has(group.key)) && (
               <>
+                {addingSection === group.key && group.project && (
+                  <div className={showHeaders ? 'task-group-indent' : undefined}>
+                    <NewSectionInput
+                      projectId={group.project.id}
+                      onClose={() => setAddingSection(null)}
+                    />
+                  </div>
+                )}
                 {adding === group.key && (
                   <div className={showHeaders ? 'task-group-indent' : undefined}>
                     <GroupAdder

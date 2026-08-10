@@ -23,6 +23,9 @@ export interface Item {
   richContent: string | null
   status: ItemStatus
   projectId: string | null
+  /** Optional section within the project (null = unfiled). Cleared
+   *  automatically when the item moves to another project. */
+  sectionId: string | null
   dueDate: string | null
   /** Powers the Today list and time blocks. */
   scheduledDate: string | null
@@ -46,6 +49,20 @@ export interface Project {
   nickname: string | null
   color: string // hex accent color, carries through the whole UI
   status: ProjectStatus
+  createdAt: string
+}
+
+/**
+ * A named bucket inside one project ("Testing", "Customer", …) that
+ * tasks are filed into on the project page — flat separation, not
+ * hierarchy. Sections are real objects: creatable, renameable,
+ * reorderable, and allowed to be empty.
+ */
+export interface Section {
+  id: string
+  projectId: string
+  name: string
+  sortOrder: number
   createdAt: string
 }
 

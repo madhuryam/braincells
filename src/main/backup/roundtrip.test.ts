@@ -58,6 +58,11 @@ function seedEverything(store: Store): void {
   // Archive a third of them.
   for (const p of projects) if (r() < 0.33) store.updateProject(p.id, { status: 'archived' })
 
+  // ── Sections: a few buckets on some projects ───────────────────────
+  const sections = projects
+    .filter(() => r() < 0.3)
+    .map((p) => store.createSection(p.id, pick(r, NASTY)))
+
   const kinds = ['task', 'note', 'journal', 'prep', 'page'] as const
   const statuses = ['inbox', 'active', 'done', 'dropped'] as const
 
@@ -80,6 +85,11 @@ function seedEverything(store: Store): void {
     })
     // Mutate a slice so starred / sortOrder / completedAt get exercised.
     if (r() < 0.2) store.updateItem(created.id, { starred: true })
+    if (r() < 0.15 && sections.length > 0) {
+      // File into a section of the item's own project (when it has one).
+      const s = sections.find((sec) => sec.projectId === created.projectId)
+      if (s) store.updateItem(created.id, { sectionId: s.id })
+    }
     if (r() < 0.3) store.updateItem(created.id, { sortOrder: r() * 1000 })
     if (created.status === 'done' || r() < 0.15)
       store.updateItem(created.id, { status: 'done' }) // sets completedAt
@@ -164,6 +174,7 @@ function seedEverything(store: Store): void {
 // databases can be compared column-for-column.
 const USER_TABLES: Array<[table: string, orderBy: string]> = [
   ['projects', 'id'],
+  ['sections', 'id'],
   ['items', 'id'],
   ['links', 'id'],
   ['meetings', 'event_key'],

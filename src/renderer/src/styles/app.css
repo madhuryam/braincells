@@ -899,6 +899,9 @@ kbd.key {
   display: flex;
   align-items: center;
   gap: 7px;
+  /* Full row, not shrink-wrapped: the trailing actions ("＋ section",
+     rename/move/delete) push to the real right edge via margin-left. */
+  width: 100%;
   font-size: 15px;
   font-weight: 700;
   color: var(--text);
@@ -939,11 +942,88 @@ kbd.key {
   color: var(--text);
 }
 
+/* The "＋ section" variant sits at the header's far edge and needs
+   room for its word. Same quiet hover behavior as the plain ＋. */
+.task-group-add-section {
+  margin-left: auto;
+  width: auto;
+  padding: 0 7px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* A section's slice of a day's project block: a quiet name over its
+   cards — separation only; managing sections lives on the project page. */
+.task-subgroup {
+  margin-bottom: 2px;
+}
+
+/* Unsectioned tasks trail the sectioned ones — no header of their
+   own, just a clear gap so they don't read as part of the section
+   above. One rule per host: day blocks and the project page. */
+.task-subgroup.unsectioned {
+  margin-top: 14px;
+}
+
+.task-group.unsectioned {
+  margin-top: 16px;
+}
+
+.section-subhead {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-soft);
+  margin: 8px 0 5px;
+}
+
+/* An empty section (nothing due this day) recedes — it's there as a
+   drop target, not a demand for attention. */
+.section-subhead.empty {
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
 /* Margin, not padding: the whole list container shifts under its
    project header — padding would inset the rows (and their accent
    edges) inside the container's own border. */
 .task-group-indent {
   margin-left: 4px;
+}
+
+/* Section header actions (rename · move · delete): pushed to the far
+   edge and invisible until the header is hovered (or one of them is
+   focused), so headers stay calm at rest. */
+.section-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.task-group-header:hover .section-actions,
+.section-actions:focus-within {
+  opacity: 1;
+}
+
+/* Inline section rename / "new section" name entry: types like the
+   header text it replaces, not like a form field. */
+.section-name-input {
+  font: inherit;
+  font-weight: 700;
+  padding: 1px 4px;
+  background: transparent;
+  min-width: 0;
+}
+
+/* The new-section input sits after the last block, where the section
+   it creates will appear. */
+.section-name-input.new-section {
+  display: block;
+  margin: 2px 0 10px;
 }
 
 /* Subtask rows inside an expanded card. */
