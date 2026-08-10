@@ -47,7 +47,7 @@ export function CaptureWindow(): React.JSX.Element {
     <div className="capture-window">
       <input
         autoFocus
-        placeholder="Brain dump → inbox. Return to save."
+        placeholder="Brain dump → Today’s intake. Return to save."
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {

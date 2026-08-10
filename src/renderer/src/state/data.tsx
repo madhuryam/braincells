@@ -43,7 +43,6 @@ interface DataContextValue {
   bump: () => void
   /** Loaded centrally because the sidebar shows them on every screen. */
   projects: Project[]
-  inboxCount: number
   starred: Item[]
   theme: ThemeId
   /** Whether the active theme is a dark one. */
@@ -58,7 +57,6 @@ const DataContext = createContext<DataContextValue | null>(null)
 export function DataProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const [version, setVersion] = useState(0)
   const [projects, setProjects] = useState<Project[]>([])
-  const [inboxCount, setInboxCount] = useState(0)
   const [starred, setStarred] = useState<Item[]>([])
   const [theme, setThemeState] = useState<ThemeId>('slate')
   const [dark, setDark] = useState(false)
@@ -71,7 +69,6 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
 
   useEffect(() => {
     window.api.listProjects().then(setProjects)
-    window.api.inboxCount().then(setInboxCount)
     window.api.starredItems().then(setStarred)
   }, [version])
 
@@ -113,7 +110,7 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
 
   return (
     <DataContext.Provider
-      value={{ version, bump, projects, inboxCount, starred, theme, dark, setTheme, toggleDark }}
+      value={{ version, bump, projects, starred, theme, dark, setTheme, toggleDark }}
     >
       {children}
     </DataContext.Provider>

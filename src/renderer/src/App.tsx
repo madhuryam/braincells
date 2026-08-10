@@ -9,9 +9,7 @@ import { Sidebar } from './components/Sidebar'
 import { SelectionBar } from './components/SelectionBar'
 import { TooltipProvider } from './components/Tooltip'
 import { AppDnd } from './components/dnd'
-import { isTyping } from './components/HotkeysHelp'
 import { Today } from './screens/Today'
-import { Inbox } from './screens/Inbox'
 import { Projects } from './screens/Projects'
 import { ProjectPage } from './screens/ProjectPage'
 import { Settings } from './screens/Settings'
@@ -50,8 +48,6 @@ function ScreenBody({ view }: { view: ReturnType<typeof useNav>['view'] }): Reac
   switch (view.name) {
     case 'today':
       return <Today />
-    case 'inbox':
-      return <Inbox />
     case 'projects':
       return <Projects />
     case 'project':
@@ -118,16 +114,16 @@ function Overlay(): React.JSX.Element | null {
   )
 }
 
-/** App-wide shortcuts. ⌘N: jump to Inbox and focus quick capture. */
+/** App-wide shortcuts. ⌘N: jump to Today and start capturing. */
 function Shortcuts(): null {
   const { navigate } = useNav()
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.metaKey && e.key.toLowerCase() === 'n') {
         e.preventDefault()
-        navigate({ name: 'inbox' })
-        // Focus after the Inbox screen has rendered.
-        requestAnimationFrame(() => document.getElementById('inbox-capture')?.focus())
+        navigate({ name: 'today' })
+        // Focus after the Today screen has rendered.
+        requestAnimationFrame(() => document.getElementById('quick-capture')?.focus())
       }
       if (e.metaKey && e.key.toLowerCase() === 't') {
         e.preventDefault()
@@ -137,12 +133,6 @@ function Shortcuts(): null {
         e.preventDefault()
         navigate({ name: 'search' })
         requestAnimationFrame(() => document.getElementById('search-input')?.focus())
-      }
-      // ⌘I → Inbox, but not while typing — the notes editor keeps ⌘I
-      // for italics.
-      if (e.metaKey && e.key.toLowerCase() === 'i' && !isTyping(e)) {
-        e.preventDefault()
-        navigate({ name: 'inbox' })
       }
       // ⌘, → Settings (the macOS-standard preferences shortcut).
       if (e.metaKey && e.key === ',') {

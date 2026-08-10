@@ -8,7 +8,6 @@ import { createContext, useCallback, useContext, useState, type ReactNode } from
  */
 export type View =
   | { name: 'today' }
-  | { name: 'inbox' }
   | { name: 'projects' }
   | { name: 'project'; projectId: string }
   | { name: 'meeting'; eventKey: string; title: string; date: string }

@@ -16,25 +16,13 @@ const SECTIONS: Array<{ title: string; rows: Row[] }> = [
     title: 'Anywhere',
     rows: [
       { keys: ['⌥', 'Space'], what: 'Quick capture — even outside the app' },
-      { keys: ['⌘', 'N'], what: 'Jump to Inbox and start capturing' },
+      { keys: ['⌘', 'N'], what: 'Jump to Today and start capturing' },
       { keys: ['⌘', 'T'], what: 'Go to Today' },
       { keys: ['⌘', 'K'], what: 'Search everything' },
-      { keys: ['⌘', 'I'], what: 'Go to Inbox' },
       { keys: ['⌘', ','], what: 'Open Settings' },
       { keys: ['⌘', 'Z'], what: 'Undo (drops, sweeps, check-offs)' },
       { keys: ['Esc'], what: 'Close the floating view / side panel' },
       { keys: ['?'], what: 'This cheat-sheet' }
-    ]
-  },
-  {
-    title: 'Inbox triage (item selected)',
-    rows: [
-      { keys: ['↓', '↑'], what: 'Next / previous item (also j / k)' },
-      { keys: ['1', '…', '5'], what: 'Do it that day (today … +4)' },
-      { keys: ['0'], what: 'Someday — active, no date' },
-      { keys: ['P', '1–9'], what: 'File into project №' },
-      { keys: ['M', '1–9'], what: 'Prep for today’s meeting №' },
-      { keys: ['X'], what: 'Drop it, guilt-free' }
     ]
   },
   {

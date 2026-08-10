@@ -41,9 +41,14 @@ export function Today(): React.JSX.Element {
   const doneGroups = [...new Map(doneSubs.map((d) => [d.rootId, d.rootTitle])).entries()]
   const carried = useLiveQuery(() => window.api.carriedOver(today), [today]) ?? []
   const [showDone, setShowDone] = useState(true)
-  const inboxCount = useLiveQuery(() => window.api.inboxCount(), []) ?? 0
+  // 📥 Intake: unfiled captures (⌥Space dumps, meeting follow-ups) to
+  // categorize from right here — the Inbox tab is gone.
+  const intake = useLiveQuery(() => window.api.inboxItems(), []) ?? []
+  // Undated active tasks, parked at the very bottom of the page.
+  const backlog = useLiveQuery(() => window.api.backlogTasks(), []) ?? []
+  const [showBacklog, setShowBacklog] = useState(false)
   const mutate = useMutate()
-  const { navigate, openOverlay } = useNav()
+  const { openOverlay } = useNav()
   const { pushUndo } = useUndo()
   const [taskDraft, setTaskDraft] = useState('')
   // Everything shows by default — "Show fewer" is the opt-in trim,
@@ -108,11 +113,6 @@ export function Today(): React.JSX.Element {
             ›
           </button>
         </span>
-        {inboxCount > 0 && (
-          <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => navigate({ name: 'inbox' })}>
-            📥 {inboxCount} to triage
-          </button>
-        )}
       </header>
 
       {/* Cards deep in the lists can peek a linked meeting here beside
@@ -236,6 +236,29 @@ export function Today(): React.JSX.Element {
 
           </div>
 
+          {/* 📥 Intake: unfiled captures and meeting follow-ups waiting
+            for a home. Checkboxes gather a selection (the floating bar
+            schedules several at once); drag one onto a sidebar project
+            or a day below, or open it and file it — it leaves here the
+            moment it's claimed. */}
+          {intake.length > 0 && (
+            <>
+              <div className="section-label coming-up row">
+                📥 Intake
+                <span className="pill">{intake.length}</span>
+              </div>
+              <div className="item-list">
+                <AnimatePresence initial={false}>
+                  {intake.map((item) => (
+                    <DraggableCard key={item.id} item={item}>
+                      <ItemCard item={item} checkboxSelects />
+                    </DraggableCard>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </>
+          )}
+
           {/* The rest of the 5-day window, one collapsible group per day. */}
           <div className="section-label coming-up">Coming up</div>
           {rollingDays()
@@ -243,6 +266,31 @@ export function Today(): React.JSX.Element {
             .map((day) => (
               <DaySection key={day.date} day={day} />
             ))}
+
+          {/* Undated tasks sink to the very bottom, folded — around,
+            not in the way, until one gets dragged onto a day. */}
+          {backlog.length > 0 && (
+            <>
+              <button
+                className="section-label day-toggle coming-up"
+                onClick={() => setShowBacklog(!showBacklog)}
+              >
+                {showBacklog ? '▾' : '▸'} Backlog
+                <span className="pill">{backlog.length}</span>
+              </button>
+              {showBacklog && (
+                <div className="item-list">
+                  <AnimatePresence initial={false}>
+                    {backlog.map((item) => (
+                      <DraggableCard key={item.id} item={item}>
+                        <ItemCard item={item} />
+                      </DraggableCard>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+            </>
+          )}
         </section>
 
         {/* Right column: the chosen day's schedule (events + time blocks). */}

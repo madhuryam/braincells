@@ -109,6 +109,19 @@ describe('item lifecycle', () => {
     expect(store.inboxCount()).toBe(1)
   })
 
+  it('an inbox item graduates to active when given a day or a project', () => {
+    const byDay = store.createItem({ kind: 'task', title: 'schedule me' })
+    expect(store.updateItem(byDay.id, { scheduledDate: today })!.status).toBe('active')
+
+    const p = store.createProject('Roadmap', '#333')
+    const byProject = store.createItem({ kind: 'task', title: 'file me' })
+    expect(store.updateItem(byProject.id, { projectId: p.id })!.status).toBe('active')
+
+    // A plain edit (title, notes) is not a categorization — it stays.
+    const untouched = store.createItem({ kind: 'task', title: 'just renamed' })
+    expect(store.updateItem(untouched.id, { title: 'renamed' })!.status).toBe('inbox')
+  })
+
   it('stamps completedAt on done, clears it when reopened', () => {
     const item = store.createItem({ kind: 'task', title: 't', status: 'active' })
     const done = store.updateItem(item.id, { status: 'done' })!

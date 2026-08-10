@@ -359,6 +359,16 @@ export class Store {
       sets.push('completed_at = ?')
       vals.push(explicitDone)
     }
+    // Intake triage: giving an inbox item a day or a project IS the
+    // categorization — it graduates to active unless the patch says
+    // otherwise, so no UI path has to remember to flip the status.
+    if (
+      patch.status === undefined &&
+      existing.status === 'inbox' &&
+      (patch.scheduledDate || patch.projectId)
+    ) {
+      sets.push(`status = 'active'`)
+    }
     // A section is meaningless outside its project: moving the item to
     // another project clears its section unless the patch places it in
     // one explicitly — so every "file into project X" path (sidebar

@@ -74,7 +74,7 @@ function NavItem({
 export function Sidebar(): React.JSX.Element {
   // `dark` comes from context state (not the DOM attribute) so the
   // toggle button always re-renders in step with the actual theme.
-  const { projects, inboxCount, dark, toggleDark } = useData()
+  const { projects, dark, toggleDark } = useData()
   const { view, navigate } = useNav()
   const [collapsed, setCollapsed] = useState(false)
   const [keysOpen, setKeysOpen] = useState(false)
@@ -97,13 +97,6 @@ export function Sidebar(): React.JSX.Element {
       <div className="sidebar-brand">{collapsed ? 'b.' : 'braincells'}</div>
       {!collapsed && <Clock />}
 
-      <NavItem
-        view={{ name: 'inbox' }}
-        icon="📨"
-        label="Inbox"
-        badge={inboxCount}
-        isActive={view.name === 'inbox'}
-      />
       {/* Dropping any card on "Today" schedules it for today. */}
       <DropZone id="nav-today" data={{ type: 'schedule', date: todayYmd() }}>
         <NavItem view={{ name: 'today' }} icon="📅" label="Today" isActive={view.name === 'today'} />

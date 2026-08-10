@@ -699,16 +699,33 @@ export function ItemCard({
                       key={d.date}
                       className={`btn small ${item.scheduledDate === d.date ? 'primary' : ''}`}
                       style={{ flexShrink: 0 }}
-                      onClick={() => patch({ scheduledDate: d.date })}
+                      // Scheduling an intake item is triage — it graduates
+                      // to active, same as dragging it onto a day.
+                      onClick={() =>
+                        patch({
+                          scheduledDate: d.date,
+                          ...(item.status === 'inbox' ? { status: 'active' as ItemStatus } : {})
+                        })
+                      }
                     >
                       {d.chip}
                     </button>
                   ))}
                   <button
-                    className={`btn small ${item.scheduledDate === null ? 'primary' : ''}`}
+                    // Highlighted only once the item is really parked in the
+                    // backlog — an untriaged intake item (also dateless) must
+                    // not read as auto-assigned to someday.
+                    className={`btn small ${item.scheduledDate === null && item.status !== 'inbox' ? 'primary' : ''}`}
                     style={{ flexShrink: 0 }}
                     title="No date — lives in the backlog until you pick a day"
-                    onClick={() => patch({ scheduledDate: null, scheduledTime: null, timeEstimateMinutes: null })}
+                    onClick={() =>
+                      patch({
+                        scheduledDate: null,
+                        scheduledTime: null,
+                        timeEstimateMinutes: null,
+                        ...(item.status === 'inbox' ? { status: 'active' as ItemStatus } : {})
+                      })
+                    }
                   >
                     someday
                   </button>
