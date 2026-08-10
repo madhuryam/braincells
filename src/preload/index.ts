@@ -106,6 +106,8 @@ const api = {
     invoke('links:linkToEvent', fromId, event, role),
   deleteLink: (id: string): Promise<void> => invoke('links:delete', id),
   linksFrom: (itemId: string): Promise<Link[]> => invoke('links:from', itemId),
+  blockersOf: (itemId: string): Promise<LinkedItem[]> => invoke('links:blockersOf', itemId),
+  blockedTaskIds: (): Promise<string[]> => invoke('items:blockedIds'),
   itemsForEvent: (eventKey: string, role?: LinkRole): Promise<LinkedItem[]> =>
     invoke('links:itemsForEvent', eventKey, role),
   prepProgress: (eventKeys: string[]): Promise<PrepProgress[]> =>

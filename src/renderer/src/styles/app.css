@@ -952,6 +952,22 @@ kbd.key {
   white-space: nowrap;
 }
 
+/* The per-block blocked-tasks filter (⛔ n): click to show them
+   inline, in their normal section slots. Unlike the quiet ＋ it's
+   readable at rest — hidden tasks are information. */
+.task-group-blocked {
+  width: auto;
+  padding: 0 7px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+.task-group-blocked.on {
+  background: var(--accent-soft);
+  opacity: 1;
+}
+
 /* A section's slice of a day's project block: a quiet name over its
    cards — separation only; managing sections lives on the project page. */
 .task-subgroup {

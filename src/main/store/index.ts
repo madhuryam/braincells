@@ -732,6 +732,50 @@ export class Store {
       .map(rowToLink)
   }
 
+  /**
+   * The tasks this one waits on ('blocked-by' links), each with its
+   * link so the chip's ✕ can sever it. Finished blockers stay listed
+   * (struck through in the UI) — only open ones actually block.
+   */
+  blockersOf(itemId: string): LinkedItem[] {
+    const rows = this.db
+      .prepare(
+        `SELECT l.id AS link_id, l.from_item_id, l.to_item_id, l.to_event_key,
+                l.role, l.event_title, l.event_date, l.created_at AS link_created_at,
+                i.*
+         FROM links l JOIN items i ON i.id = l.to_item_id
+         WHERE l.from_item_id = ? AND l.role = 'blocked-by' AND i.status != 'dropped'
+         ORDER BY l.created_at`
+      )
+      .all(itemId) as any[]
+    return rows.map((r) => ({
+      link: {
+        id: r.link_id,
+        fromItemId: r.from_item_id,
+        toItemId: r.to_item_id,
+        toEventKey: r.to_event_key,
+        role: r.role,
+        eventTitle: r.event_title,
+        eventDate: r.event_date,
+        createdAt: r.link_created_at
+      },
+      item: rowToItem(r)
+    }))
+  }
+
+  /** Ids of every task still waiting on an unfinished blocker. */
+  blockedTaskIds(): string[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT DISTINCT l.from_item_id AS id
+           FROM links l JOIN items b ON b.id = l.to_item_id
+           WHERE l.role = 'blocked-by' AND b.status IN ('active', 'inbox')`
+        )
+        .all() as Array<{ id: string }>
+    ).map((r) => r.id)
+  }
+
   /** Items attached to a calendar event, optionally filtered by role. */
   itemsForEvent(eventKey: string, role?: LinkRole): LinkedItem[] {
     const roleClause = role ? 'AND l.role = ?' : ''

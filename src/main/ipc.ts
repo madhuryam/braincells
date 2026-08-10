@@ -68,6 +68,8 @@ export function registerStoreIpc(store: Store): void {
   )
   ipcMain.handle('links:delete', (_e, id: string) => store.deleteLink(id))
   ipcMain.handle('links:from', (_e, itemId: string) => store.linksFrom(itemId))
+  ipcMain.handle('links:blockersOf', (_e, itemId: string) => store.blockersOf(itemId))
+  ipcMain.handle('items:blockedIds', () => store.blockedTaskIds())
   ipcMain.handle('links:itemsForEvent', (_e, eventKey: string, role?: LinkRole) =>
     store.itemsForEvent(eventKey, role)
   )

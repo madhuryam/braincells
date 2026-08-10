@@ -148,6 +148,28 @@ describe('item lifecycle', () => {
   })
 })
 
+describe('blocked tasks', () => {
+  it('a task is blocked while its blocker is open, freed when it finishes', () => {
+    const blocker = store.createItem({ kind: 'task', title: 'ship the API', status: 'active' })
+    const waiting = store.createItem({ kind: 'task', title: 'write docs', status: 'active' })
+    store.linkItems(waiting.id, blocker.id, 'blocked-by')
+
+    expect(store.blockedTaskIds()).toContain(waiting.id)
+    expect(store.blockersOf(waiting.id).map((b) => b.item.id)).toEqual([blocker.id])
+
+    // Finishing the blocker unblocks — the link itself stays as history.
+    store.updateItem(blocker.id, { status: 'done' })
+    expect(store.blockedTaskIds()).not.toContain(waiting.id)
+    expect(store.blockersOf(waiting.id)).toHaveLength(1)
+
+    // Cutting the link also unblocks (an open blocker again first).
+    store.updateItem(blocker.id, { status: 'active' })
+    expect(store.blockedTaskIds()).toContain(waiting.id)
+    store.deleteLink(store.blockersOf(waiting.id)[0].link.id)
+    expect(store.blockedTaskIds()).not.toContain(waiting.id)
+  })
+})
+
 describe('Today / This Week / carried over', () => {
   it('scheduledBlocks keeps done tasks on the day’s timeline (untimed ones stay off)', () => {
     const blocked = store.createItem({

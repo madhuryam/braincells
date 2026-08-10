@@ -281,8 +281,10 @@ export function ItemCard({
 
   // Right-click menu (task/prep only): a small in-app menu at the cursor.
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  // 'prep' swaps the menu body for the upcoming-meetings picker.
-  const [menuMode, setMenuMode] = useState<'main' | 'prep'>('main')
+  // 'prep' swaps the menu body for the upcoming-meetings picker;
+  // 'blocked' for the blocking-task search.
+  const [menuMode, setMenuMode] = useState<'main' | 'prep' | 'blocked'>('main')
+  const [blockQuery, setBlockQuery] = useState('')
   // "Remove from calendar": counted only while the menu is open; with
   // several blocks on the schedule the first click arms, second fires.
   const [removeArmed, setRemoveArmed] = useState(false)
@@ -314,11 +316,39 @@ export function ItemCard({
       [open, item.id]
     ) ?? []
   ).filter((l) => l.role === 'prep-for' && l.toEventKey)
+  // What this task waits on (⛔). Loaded whenever the card is checkable:
+  // the collapsed card wears a "blocked" pill, the open editor the chips.
+  const blockers =
+    useLiveQuery(
+      () => (isCheckable ? window.api.blockersOf(item.id) : Promise.resolve([])),
+      [item.id, isCheckable]
+    ) ?? []
+  const openBlockers = blockers.filter(
+    (b) => b.item.status === 'active' || b.item.status === 'inbox'
+  )
+  // Candidate blockers as you type: open tasks matching the search,
+  // minus this task itself and anything already linked.
+  const blockTargets = (
+    useLiveQuery(
+      () =>
+        menu && menuMode === 'blocked' && blockQuery.trim()
+          ? window.api.search(blockQuery)
+          : Promise.resolve([] as Item[]),
+      [menu !== null, menuMode, blockQuery]
+    ) ?? []
+  ).filter(
+    (t) =>
+      t.kind === 'task' &&
+      (t.status === 'active' || t.status === 'inbox') &&
+      t.id !== item.id &&
+      !blockers.some((b) => b.item.id === t.id)
+  )
   useEffect(() => {
     if (!menu) {
       setRemoveArmed(false)
       setDropArmed(false)
       setMenuMode('main')
+      setBlockQuery('')
     }
   }, [menu])
   const menuRef = useRef<HTMLDivElement>(null)
@@ -551,6 +581,15 @@ export function ItemCard({
                 <span className="pill">{prettyDate(item.scheduledDate)}</span>
               )}
               {item.dueDate && <span className="pill">due {prettyDate(item.dueDate)}</span>}
+              {openBlockers.length > 0 && (
+                <span
+                  className="pill"
+                  style={{ color: 'var(--danger)' }}
+                  title={`Blocked by: ${openBlockers.map((b) => b.item.title).join(', ')}`}
+                >
+                  ⛔ blocked
+                </span>
+              )}
               {item.timeEstimateMinutes != null && (
                 <span className="pill">~{item.timeEstimateMinutes}m</span>
               )}
@@ -685,6 +724,37 @@ export function ItemCard({
                 />
               </div>
             </div>
+            {/* What this task waits on. Done blockers stay, struck
+              through — the history of what gated this — and the ✕
+              severs just the dependency, never the other task. */}
+            {blockers.length > 0 && (
+              <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-faint)' }}>
+                  ⛔ blocked by
+                </span>
+                {blockers.map((b) => (
+                  <span
+                    key={b.link.id}
+                    className="pill"
+                    style={
+                      b.item.status === 'done'
+                        ? { textDecoration: 'line-through', opacity: 0.6 }
+                        : undefined
+                    }
+                  >
+                    {b.item.title || 'Untitled'}
+                    <button
+                      className="btn ghost small"
+                      style={{ padding: '0 2px' }}
+                      title="Unblock — remove this dependency"
+                      onClick={() => mutate(() => window.api.deleteLink(b.link.id))}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             {/* Which meetings this task preps. The name is a doorway —
               clicking it peeks the meeting right here (or opens the
               full view on screens without a peek panel); the ✕ unlinks
@@ -856,6 +926,47 @@ export function ItemCard({
                   </span>
                 )}
               </>
+            ) : menuMode === 'blocked' ? (
+              <>
+                <button
+                  className="btn ghost small"
+                  style={{ justifyContent: 'flex-start', color: 'var(--text-soft)' }}
+                  onClick={() => setMenuMode('main')}
+                >
+                  ‹ back
+                </button>
+                <input
+                  autoFocus
+                  placeholder="Search open tasks…"
+                  value={blockQuery}
+                  onChange={(e) => setBlockQuery(e.target.value)}
+                  style={{ margin: '2px 4px 6px', fontSize: 13.5, minWidth: 220 }}
+                />
+                <div
+                  style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}
+                >
+                  {blockTargets.map((t) => (
+                    <button
+                      key={t.id}
+                      className="btn ghost small"
+                      style={{ justifyContent: 'flex-start', flexShrink: 0 }}
+                      onClick={() => {
+                        setMenu(null)
+                        // The link is the whole relationship: this task
+                        // waits until t is done (or the link is cut).
+                        void mutate(() => window.api.linkItems(item.id, t.id, 'blocked-by'))
+                      }}
+                    >
+                      {t.title || 'Untitled'}
+                    </button>
+                  ))}
+                  {blockQuery.trim() !== '' && blockTargets.length === 0 && (
+                    <span style={{ padding: '4px 8px', fontSize: 13.5, color: 'var(--text-faint)' }}>
+                      no open tasks match
+                    </span>
+                  )}
+                </div>
+              </>
             ) : (
               <>
                 <button
@@ -901,6 +1012,13 @@ export function ItemCard({
                     📅 Prep for meeting…
                   </button>
                 )}
+                <button
+                  className="btn ghost small"
+                  style={{ justifyContent: 'flex-start' }}
+                  onClick={() => setMenuMode('blocked')}
+                >
+                  ⛔ Blocked by…
+                </button>
                 {item.dueDate && !unlinkId && (
                   <button
                     className="btn ghost small"

@@ -34,6 +34,18 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
     const lists = await Promise.all(projects.map((p) => window.api.listSections(p.id)))
     return new Map(projects.map((p, i) => [p.id, lists[i]]))
   }, [projects])
+  // Tasks waiting on another task hide by default; each block's ⛔
+  // chip says how many are tucked away and toggles them back inline
+  // (they render in their normal section slots, wearing their pill).
+  const blockedSet = new Set(useLiveQuery(() => window.api.blockedTaskIds(), []) ?? [])
+  const [blockedShown, setBlockedShown] = useState<Set<string>>(new Set())
+  const toggleBlockedShown = (key: string): void =>
+    setBlockedShown((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   // A busy project can fold away so the rest of the day is scannable.
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const toggle = (key: string): void =>
@@ -95,6 +107,14 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
   return (
     <>
       {groups.map((group, gi) => {
+        // Blocked tasks stay filtered out until this block's ⛔ chip
+        // reveals them — hidden, they still hold the group open so the
+        // chip has somewhere to live.
+        const blockedIn = group.items.filter((i) => blockedSet.has(i.id))
+        const shown = blockedShown.has(group.key)
+          ? group.items
+          : group.items.filter((i) => !blockedSet.has(i.id))
+
         // The same shape as the project page: one slice per section,
         // then unfiled tasks (set apart by a gap, not a header), then
         // the day's empty sections — kept visible at the bottom so
@@ -105,16 +125,36 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
         const filled: Array<{ section: Section | null; items: Item[] }> = []
         const empty: Array<{ section: Section | null; items: Item[] }> = []
         for (const s of sections) {
-          const inSection = group.items.filter((i) => i.sectionId === s.id)
+          const inSection = shown.filter((i) => i.sectionId === s.id)
           ;(inSection.length > 0 ? filled : empty).push({ section: s, items: inSection })
         }
-        const unfiled = group.items.filter((i) => !i.sectionId || !known.has(i.sectionId))
+        const unfiled = shown.filter((i) => !i.sectionId || !known.has(i.sectionId))
         const subgroups = [
           ...filled,
           ...(unfiled.length > 0 ? [{ section: null, items: unfiled }] : []),
           ...empty
         ]
         const sectioned = sections.length > 0
+
+        const blockedChip =
+          blockedIn.length > 0 ? (
+            <span
+              className={`task-group-add task-group-blocked ${blockedShown.has(group.key) ? 'on' : ''}`}
+              role="button"
+              aria-label={blockedShown.has(group.key) ? 'Hide blocked tasks' : 'Show blocked tasks'}
+              title={
+                blockedShown.has(group.key)
+                  ? 'Hide blocked tasks'
+                  : `Show ${blockedIn.length} blocked ${blockedIn.length === 1 ? 'task' : 'tasks'}`
+              }
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleBlockedShown(group.key)
+              }}
+            >
+              ⛔ {blockedIn.length}
+            </span>
+          ) : null
 
         const cardsFor = (list: Item[], ids: string[]): React.JSX.Element => (
           <div className={`item-list ${showHeaders ? 'task-group-indent' : ''}`}>
@@ -208,7 +248,8 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
                     ＋
                   </span>
                 )}
-                {collapsed.has(group.key) && <span className="pill">{group.items.length}</span>}
+                {blockedChip}
+                {collapsed.has(group.key) && <span className="pill">{shown.length}</span>}
                 {group.project && (
                   <span
                     className="task-group-add task-group-add-section"
@@ -225,6 +266,9 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
                 )}
               </button>
             )}
+            {/* No headers to carry the chip (nothing has a project):
+                give it a small row of its own. */}
+            {!showHeaders && blockedChip && <div className="row">{blockedChip}</div>}
             {(!showHeaders || !collapsed.has(group.key)) && (
               <>
                 {addingSection === group.key && group.project && (
