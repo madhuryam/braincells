@@ -16,8 +16,7 @@ import { ProjectPicker } from '../components/ProjectPicker'
 import { DraggableCard, DropZone } from '../components/dnd'
 import { Timeline } from '../components/Timeline'
 import { CheckableInput, Checkbox, EmptyState } from '../components/bits'
-import type { Item } from '@shared/types'
-import { longDate, prettyDate, rollingDays, type RollingDay } from '../format'
+import { longDate, rollingDays, type RollingDay } from '../format'
 
 /** 'August 5' — the weekday already leads the header, so no repeat. */
 function monthDay(date: string): string {
@@ -132,9 +131,6 @@ export function Today(): React.JSX.Element {
           {/* The viewed day's own sections sit on a soft accent wash;
               the rest of the week stays plain below. */}
           <div className="today-scope">
-            {/* Deadlines answer "what's due by this day" — including
-                everything already overdue when viewing today. */}
-            <DueStrip date={date} includeOverdue={date === today} />
             <DropZone id="list-today" data={{ type: 'schedule', date }}>
               <div style={{ margin: '14px 0 10px' }}>
                 <CheckableInput
@@ -457,25 +453,15 @@ function DayQuickAdd({ date, onClose }: { date: string; onClose: () => void }): 
 
 /**
  * What's DUE by a day — distinct from what's scheduled on it. Quiet
- * pills; on today, everything already overdue rides along in the
- * danger color (text only — calm, not alarming).
+ * pills inside each coming-up day's fold (the viewed day itself shows
+ * no strip — deadlines surface on the task cards).
  */
-function DueStrip({ date, includeOverdue = false }: { date: string; includeOverdue?: boolean }): React.JSX.Element | null {
+function DueStrip({ date }: { date: string }): React.JSX.Element | null {
   const due = useLiveQuery(() => window.api.tasksDueOn(date), [date]) ?? []
-  const overdue =
-    useLiveQuery(
-      () => (includeOverdue ? window.api.tasksOverdue(date) : Promise.resolve([] as Item[])),
-      [date, includeOverdue]
-    ) ?? []
-  if (due.length === 0 && overdue.length === 0) return null
+  if (due.length === 0) return null
   return (
     <div className="row" style={{ flexWrap: 'wrap', gap: 6, margin: '2px 0 8px' }}>
       <span className="section-sublabel" style={{ marginTop: 0 }}>Due</span>
-      {overdue.map((t) => (
-        <span key={t.id} className="pill" title={`was due ${prettyDate(t.dueDate!)}`} style={{ color: 'var(--danger)' }}>
-          {t.title}
-        </span>
-      ))}
       {due.map((t) => (
         <span key={t.id} className="pill">
           {t.title}
