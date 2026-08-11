@@ -5,7 +5,6 @@ import { useLiveQuery, useMutate } from '../state/data'
 import { useEditing } from '../state/editing'
 import { useNav } from '../state/nav'
 import { MeetingPeekProvider } from '../state/peek'
-import { useUndo } from '../state/undo'
 import { Card } from '../components/Card'
 import { DetailPanel } from '../components/DetailPanel'
 import { TaskPeek } from '../components/TaskPeek'
@@ -38,9 +37,25 @@ export function Today(): React.JSX.Element {
   const doneSubs = useLiveQuery(() => window.api.completedSubtasksOn(date), [date]) ?? []
   const doneSubIds = new Set(doneSubs.map((d) => d.item.id))
   const doneStandalone = doneToday.filter((i) => !doneSubIds.has(i.id))
-  const doneGroups = [...new Map(doneSubs.map((d) => [d.rootId, d.rootTitle])).entries()]
-  const carried = useLiveQuery(() => window.api.carriedOver(today), [today]) ?? []
-  const [showDone, setShowDone] = useState(true)
+  // A subtask group earns its own block only while the parent is still
+  // in progress. A parent finished this day already shows its subtasks
+  // on its own done card, and a parent with nothing left open reads as
+  // one done block wherever it appears — repeating either as a group
+  // would show the same work twice.
+  const doneTodayIds = new Set(doneToday.map((i) => i.id))
+  const doneGroups = [
+    ...new Map(
+      doneSubs
+        .filter((d) => d.rootHasOpenSubtasks && !doneTodayIds.has(d.rootId))
+        .map((d) => [d.rootId, d.rootTitle])
+    ).entries()
+  ]
+  // Folded until asked for — done work is a record, not the day's focus.
+  const [showDone, setShowDone] = useState(false)
+  // "Coming up" starts open on the real today and folded when paging
+  // other days — there it's context, not the page's subject.
+  const [showComingUp, setShowComingUp] = useState(date === today)
+  useEffect(() => setShowComingUp(date === today), [date, today])
   // 📥 Intake: unfiled captures (⌥Space dumps, meeting follow-ups) to
   // categorize from right here — the Inbox tab is gone.
   const intake = useLiveQuery(() => window.api.inboxItems(), []) ?? []
@@ -49,7 +64,6 @@ export function Today(): React.JSX.Element {
   const [showBacklog, setShowBacklog] = useState(false)
   const mutate = useMutate()
   const { openOverlay } = useNav()
-  const { pushUndo } = useUndo()
   const [taskDraft, setTaskDraft] = useState('')
   // Everything shows by default — "Show fewer" is the opt-in trim,
   // not the other way around.
@@ -141,7 +155,11 @@ export function Today(): React.JSX.Element {
                   onKeyDown={(e) => e.key === 'Enter' && addTask()}
                 />
               </div>
-              {tasks.length === 0 && (
+              {/* No "clean slate" on a past day that has done items:
+                its unfinished tasks were carried forward, so the slate
+                wasn't clean — it's just been swept. The section stays
+                (blank) as a drop target for moving a task back. */}
+              {tasks.length === 0 && !(date < today && doneToday.length > 0) && (
                 <EmptyState art="🪷"> a clean slate, no scheduled tasks
                 </EmptyState>
               )}
@@ -190,50 +208,6 @@ export function Today(): React.JSX.Element {
               </>
             )}
 
-            {/* A "right now" section like triage — it stays on real
-                today rather than following the ‹ › paging. */}
-            {date === today && carried.length > 0 && (
-              <>
-                <div className="section-label row">
-                  Carried over
-                  <button
-                    className="btn ghost"
-                    title="Bring them all to today"
-                    onClick={() =>
-                      mutate(async () => {
-                        for (const i of carried)
-                          await window.api.updateItem(i.id, { scheduledDate: today })
-                      })
-                    }
-                  >
-                    ↻ do today
-                  </button>
-                  <button
-                    className="btn ghost"
-                    title="Let them go, guilt-free"
-                    onClick={() => {
-                      const ids = carried.map((i) => i.id)
-                      mutate(() => window.api.dropItems(ids))
-                      pushUndo(`Let go of ${ids.length} carried-over tasks`, async () => {
-                        for (const id of ids) await window.api.updateItem(id, { status: 'active' })
-                      })
-                    }}
-                  >
-                    🧹 let go
-                  </button>
-                </div>
-                <div className="item-list">
-                  <AnimatePresence>
-                    {carried.map((item) => (
-                      <DraggableCard key={item.id} item={item}>
-                        <ItemCard item={item} faded showDate={false} />
-                      </DraggableCard>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              </>
-            )}
-
           </div>
 
           {/* 📥 Intake: unfiled captures and meeting follow-ups waiting
@@ -260,12 +234,16 @@ export function Today(): React.JSX.Element {
           )}
 
           {/* The rest of the 5-day window, one collapsible group per day. */}
-          <div className="section-label coming-up">Coming up</div>
-          {rollingDays()
-            .slice(1)
-            .map((day) => (
-              <DaySection key={day.date} day={day} />
-            ))}
+          <button
+            className="section-label day-toggle coming-up"
+            onClick={() => setShowComingUp(!showComingUp)}
+          >
+            {showComingUp ? '▾' : '▸'} Coming up
+          </button>
+          {showComingUp &&
+            rollingDays()
+              .slice(1)
+              .map((day) => <DaySection key={day.date} day={day} />)}
 
           {/* Undated tasks sink to the very bottom, folded — around,
             not in the way, until one gets dragged onto a day. */}
@@ -296,17 +274,21 @@ export function Today(): React.JSX.Element {
         {/* Right column: the chosen day's schedule (events + time blocks). */}
         <section className="timeline-pane">
           <div className="section-label">Schedule</div>
-          <Timeline
-            date={date}
-            onPeekEvent={(e) => {
-              setPeekTask(null)
-              setPeek(e)
-            }}
-            onPeekTask={(id) => {
-              setPeek(null)
-              setPeekTask(id)
-            }}
-          />
+          {/* The fill layer lets the timeline run the full length of the
+              day list beside it (see .timeline-fill in app.css). */}
+          <div className="timeline-fill">
+            <Timeline
+              date={date}
+              onPeekEvent={(e) => {
+                setPeekTask(null)
+                setPeek(e)
+              }}
+              onPeekTask={(id) => {
+                setPeek(null)
+                setPeekTask(id)
+              }}
+            />
+          </div>
           {peek && (
             <div className="timeline-peek">
               <DetailPanel

@@ -116,10 +116,10 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
           : group.items.filter((i) => !blockedSet.has(i.id))
 
         // The same shape as the project page: one slice per section,
-        // then unfiled tasks (set apart by a gap, not a header), then
-        // the day's empty sections — kept visible at the bottom so
-        // they stay available as drop targets. Sort within each slice
-        // is untouched.
+        // then unfiled tasks under the automatic "General" header,
+        // then the day's empty sections — kept visible at the bottom
+        // so they stay available as drop targets. Sort within each
+        // slice is untouched.
         const sections = group.project ? (sectionsByProject?.get(group.project.id) ?? []) : []
         const known = new Set(sections.map((s) => s.id))
         const filled: Array<{ section: Section | null; items: Item[] }> = []
@@ -202,13 +202,11 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
               }}
               className={`task-subgroup${gap}`}
             >
-              {sg.section && (
-                <div
-                  className={`section-subhead ${sg.items.length === 0 ? 'empty ' : ''}${showHeaders ? 'task-group-indent' : ''}`}
-                >
-                  {sg.section.name}
-                </div>
-              )}
+              <div
+                className={`section-subhead ${sg.items.length === 0 ? 'empty ' : ''}${showHeaders ? 'task-group-indent' : ''}`}
+              >
+                {sg.section?.name ?? 'General'}
+              </div>
               {sg.items.length > 0 && listed}
             </DropZone>
           )

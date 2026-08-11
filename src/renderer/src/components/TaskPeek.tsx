@@ -4,8 +4,16 @@ import { Checkbox } from './bits'
 import { ProjectPicker } from './ProjectPicker'
 import { ampm } from '../format'
 
-const DURATIONS = [15, 30, 45, 60, 90, 120] // minutes, matching the 15-min grid
-const durLabel = (m: number): string => (m < 60 ? `${m} min` : `${m / 60} hr`)
+const DURATIONS = [5, 10, 15, 30, 45, 60, 90, 120] // minutes
+// Non-preset lengths (a custom end time) read plainly in minutes.
+const durLabel = (m: number): string => (m < 60 || m % 30 !== 0 ? `${m} min` : `${m / 60} hr`)
+
+function toMin(t: string): number {
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
+const toHHMM = (m: number): string =>
+  `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 
 /**
  * The peek body for a time-blocked task, shown beside the schedule when
@@ -25,6 +33,9 @@ export function TaskPeek({
   onClose?: () => void
 }): React.JSX.Element | null {
   const item = useLiveQuery(() => window.api.getItem(itemId), [itemId])
+  // A subtask's block only says its own title — the lineage line adds
+  // which task (and chain of parents) it's a piece of.
+  const ancestors = useLiveQuery(() => window.api.ancestorsOf(itemId), [itemId]) ?? []
   const mutate = useMutate()
   if (!item) return null
 
@@ -42,21 +53,53 @@ export function TaskPeek({
         </h2>
       </div>
 
-      {/* When it sits on the calendar and for how long. */}
+      {/* Where this piece belongs: the whole chain, outermost first. */}
+      {ancestors.length > 0 && (
+        <div style={{ fontSize: 13, color: 'var(--text-soft)', marginTop: -4 }}>
+          ↳ part of{' '}
+          {ancestors.map((a, i) => (
+            <span key={a.id}>
+              {i > 0 && <span style={{ color: 'var(--text-faint)' }}> › </span>}
+              <span style={{ fontWeight: 600 }}>{a.title || 'Untitled'}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* When it sits on the calendar and for how long. Start and end
+          edit to the minute (the 15-min grid is only the drag default);
+          the end field writes back as the duration. The preset list
+          gains the block's current length when it's a non-standard one,
+          so the select never lies about what's set. */}
       <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
         <label className="pill">
           ⏱
           <input
             type="time"
-            step={900}
+            step={60}
             value={item.scheduledTime ?? ''}
             onChange={(e) => e.target.value && patch({ scheduledTime: e.target.value })}
           />
         </label>
+        {item.scheduledTime && (
+          <label className="pill">
+            –
+            <input
+              type="time"
+              step={60}
+              value={toHHMM(Math.min(toMin(item.scheduledTime) + dur, 23 * 60 + 59))}
+              onChange={(e) => {
+                if (!e.target.value) return
+                const mins = toMin(e.target.value) - toMin(item.scheduledTime!)
+                if (mins > 0) patch({ timeEstimateMinutes: mins })
+              }}
+            />
+          </label>
+        )}
         <label className="pill">
           for
           <select value={dur} onChange={(e) => patch({ timeEstimateMinutes: Number(e.target.value) })}>
-            {DURATIONS.map((m) => (
+            {(DURATIONS.includes(dur) ? DURATIONS : [...DURATIONS, dur].sort((a, b) => a - b)).map((m) => (
               <option key={m} value={m}>
                 {durLabel(m)}
               </option>
@@ -65,7 +108,7 @@ export function TaskPeek({
         </label>
         {item.scheduledTime && (
           <span className="pill" style={{ color: 'var(--text-soft)' }}>
-            {ampm(item.scheduledTime)}
+            {ampm(item.scheduledTime)}–{ampm(toHHMM(Math.min(toMin(item.scheduledTime) + dur, 23 * 60 + 59)))}
           </span>
         )}
         <button

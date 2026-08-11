@@ -536,7 +536,7 @@ function LocalEventEditor({
       <div className="row">
         <input
           type="time"
-          step={SLOT_MIN * 60}
+          step={60}
           value={start}
           onChange={(e) => {
             setStart(e.target.value)
@@ -546,7 +546,7 @@ function LocalEventEditor({
         <span>–</span>
         <input
           type="time"
-          step={SLOT_MIN * 60}
+          step={60}
           value={end}
           onChange={(e) => {
             setEnd(e.target.value)
@@ -614,8 +614,9 @@ function TaskDraftEditor({
       projectId: patch.projectId !== undefined ? patch.projectId : projectId
     }
     // The drawn range maps onto the task's block fields: a start time
-    // plus a duration — the same pair a drag-in drop sets.
-    const duration = Math.max(SLOT_MIN, toMin(f.end) - toMin(f.start))
+    // plus a duration — the same pair a drag-in drop sets. Hand-typed
+    // times may be off-grid, so the floor is 5 minutes, not one slot.
+    const duration = Math.max(5, toMin(f.end) - toMin(f.start))
     void mutate(async () => {
       if (creating.current) await creating.current
       if (idRef.current) {
@@ -675,7 +676,7 @@ function TaskDraftEditor({
       <div className="row">
         <input
           type="time"
-          step={SLOT_MIN * 60}
+          step={60}
           value={start}
           onChange={(e) => {
             setStart(e.target.value)
@@ -685,7 +686,7 @@ function TaskDraftEditor({
         <span>–</span>
         <input
           type="time"
-          step={SLOT_MIN * 60}
+          step={60}
           value={end}
           onChange={(e) => {
             setEnd(e.target.value)

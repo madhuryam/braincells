@@ -71,13 +71,13 @@ const api = {
     invoke('items:update', id, patch),
   deleteItem: (id: string): Promise<void> => invoke('items:delete', id),
   reorderItems: (ids: string[]): Promise<void> => invoke('items:reorder', ids),
-  dropItems: (ids: string[]): Promise<void> => invoke('items:drop', ids),
   starredItems: (): Promise<Item[]> => invoke('items:starred'),
   subtasksOf: (parentId: string): Promise<Item[]> => invoke('items:subtasks', parentId),
   subtaskTreeOf: (
     rootId: string
   ): Promise<Array<{ parentId: string; depth: number; item: Item }>> =>
     invoke('items:subtaskTree', rootId),
+  ancestorsOf: (itemId: string): Promise<Item[]> => invoke('items:ancestors', itemId),
 
   // Screen queries
   inboxItems: (): Promise<Item[]> => invoke('inbox:items'),
@@ -88,15 +88,21 @@ const api = {
   tasksFor: (date: string): Promise<Item[]> => invoke('today:tasks', date),
   scheduledBlocks: (date: string): Promise<Item[]> => invoke('today:blocks', date),
   tasksThisWeek: (date: string): Promise<Item[]> => invoke('today:week', date),
-  carriedOver: (date: string): Promise<Item[]> => invoke('today:carriedOver', date),
   tasksDueOn: (date: string): Promise<Item[]> => invoke('today:dueOn', date),
   tasksOverdue: (date: string): Promise<Item[]> => invoke('today:overdue', date),
   projectItems: (projectId: string): Promise<Item[]> => invoke('project:items', projectId),
   completedOn: (date: string): Promise<Item[]> => invoke('log:completedOn', date),
   completedSubtasksOn: (
     date: string
-  ): Promise<Array<{ rootId: string; rootTitle: string; depth: number; item: Item }>> =>
-    invoke('log:completedSubtasksOn', date),
+  ): Promise<
+    Array<{
+      rootId: string
+      rootTitle: string
+      rootHasOpenSubtasks: boolean
+      depth: number
+      item: Item
+    }>
+  > => invoke('log:completedSubtasksOn', date),
   journalFor: (date: string): Promise<Item> => invoke('log:journal', date),
 
   // Links / meeting loop

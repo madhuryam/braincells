@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import type { Item, ItemStatus } from '@shared/types'
 import { useData, useLiveQuery, useMutate } from '../state/data'
@@ -9,6 +11,7 @@ import { useMeetingPeek } from '../state/peek'
 import { useSelection } from '../state/selection'
 import { shortTitle, useUndo } from '../state/undo'
 import { Card } from './Card'
+import { usePendingOrder } from './dnd'
 import { CheckableInput, Checkbox, ProjectDot } from './bits'
 import { ConfirmButton } from './ConfirmButton'
 import { ProjectPicker } from './ProjectPicker'
@@ -52,10 +55,13 @@ interface ItemCardProps {
 /**
  * One row of the subtask tree: indented by depth, checkable in place,
  * with hover actions to add a nested subtask (＋) or drop it (✕).
+ * The row is draggable like a task card — among its siblings to
+ * reorder, or out onto the timeline to give it a time block.
  */
 function SubtaskRow({
   sub,
   depth,
+  sortableIds,
   onToggle,
   onDrop,
   onRename,
@@ -63,6 +69,8 @@ function SubtaskRow({
 }: {
   sub: Item
   depth: number
+  /** Ids of the visible siblings at this row's level, in list order. */
+  sortableIds: string[]
   onToggle: (sub: Item) => void
   onDrop: (sub: Item) => void
   onRename: (sub: Item, title: string) => void
@@ -73,9 +81,32 @@ function SubtaskRow({
   const [editing, setEditing] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
   const indent = (depth - 1) * 22
+  // `subtask: true` keeps other cards from adopting this row's "home"
+  // (no date, parent's project) when they're dropped onto it.
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: sub.id,
+    data: { item: sub, sortableIds, subtask: true }
+  })
   return (
     <>
-      <div className="subtask-row" style={{ marginLeft: indent }}>
+      <div
+        ref={setNodeRef}
+        className="subtask-row"
+        {...attributes}
+        {...listeners}
+        // The row sits inside a draggable card — stop the pointer-down
+        // here so grabbing a subtask never also lifts the whole parent.
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          listeners?.onPointerDown?.(e)
+        }}
+        style={{
+          marginLeft: indent,
+          transform: CSS.Transform.toString(transform),
+          transition,
+          opacity: isDragging ? 0.35 : undefined
+        }}
+      >
         <Checkbox checked={sub.status === 'done'} onToggle={() => onToggle(sub)} />
         {editing ? (
           <input
@@ -240,12 +271,51 @@ export function ItemCard({
       [item.id, item.timeEstimateMinutes]
     ) ?? item.timeEstimateMinutes
   const subtasksDone = subtaskTree.filter(({ item: s }) => s.status === 'done').length
+  // While a subtask drag-reorder is persisting, the tree still carries
+  // the old DB order (same trap TaskGroups dodges) — re-rank the moved
+  // siblings and re-flatten depth-first so the drop doesn't snap back.
+  const pendingOrder = usePendingOrder()
+  let orderedTree = subtaskTree
+  if (pendingOrder && subtaskTree.some((r) => pendingOrder.includes(r.item.id))) {
+    const rank = new Map(pendingOrder.map((id, i) => [id, i]))
+    const kids = new Map<string, typeof subtaskTree>()
+    for (const row of subtaskTree) {
+      const list = kids.get(row.parentId) ?? []
+      list.push(row)
+      kids.set(row.parentId, list)
+    }
+    for (const list of kids.values()) {
+      const moved = list
+        .filter((r) => rank.has(r.item.id))
+        .sort((a, b) => rank.get(a.item.id)! - rank.get(b.item.id)!)
+      let n = 0
+      list.forEach((r, i) => {
+        if (rank.has(r.item.id)) list[i] = moved[n++]
+      })
+    }
+    orderedTree = []
+    const walk = (pid: string): void => {
+      for (const row of kids.get(pid) ?? []) {
+        orderedTree.push(row)
+        walk(row.item.id)
+      }
+    }
+    walk(item.id)
+  }
   // A finished subtask stays (struck through) only in the list of the
   // day it was completed; everywhere else the card shows what's left.
   const dayContext = contextDate ?? todayYmd()
-  const visibleTree = subtaskTree.filter(
+  const visibleTree = orderedTree.filter(
     ({ item: s }) => s.status !== 'done' || (s.completedAt ?? '').slice(0, 10) === dayContext
   )
+  // Visible siblings per parent: a drag-reorder stays within one
+  // nesting level (dropping on a row of another level is a no-op).
+  const siblingIds = new Map<string, string[]>()
+  for (const row of visibleTree) {
+    const list = siblingIds.get(row.parentId) ?? []
+    list.push(row.item.id)
+    siblingIds.set(row.parentId, list)
+  }
   const [subDraft, setSubDraft] = useState('')
   // The collapsed card's own ＋: add a subtask without opening the editor.
   const [quickSubOpen, setQuickSubOpen] = useState(false)
@@ -656,19 +726,25 @@ export function ItemCard({
         {/* The subtask tree is always visible — check things off right
           from the list, no need to open the card. */}
         {isCheckable && visibleTree.length > 0 && (
-          <div className="subtasks" style={{ marginTop: 8 }}>
-            {visibleTree.map(({ item: sub, depth }) => (
-              <SubtaskRow
-                key={sub.id}
-                sub={sub}
-                depth={depth}
-                onToggle={toggleSubtask}
-                onDrop={dropSubtask}
-                onRename={(s, title) => mutate(() => window.api.updateItem(s.id, { title }))}
-                onAddChild={addSubtask}
-              />
-            ))}
-          </div>
+          <SortableContext
+            items={visibleTree.map((t) => t.item.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="subtasks" style={{ marginTop: 8 }}>
+              {visibleTree.map(({ item: sub, depth, parentId }) => (
+                <SubtaskRow
+                  key={sub.id}
+                  sub={sub}
+                  depth={depth}
+                  sortableIds={siblingIds.get(parentId) ?? []}
+                  onToggle={toggleSubtask}
+                  onDrop={dropSubtask}
+                  onRename={(s, title) => mutate(() => window.api.updateItem(s.id, { title }))}
+                  onAddChild={addSubtask}
+                />
+              ))}
+            </div>
+          </SortableContext>
         )}
 
         {open && (

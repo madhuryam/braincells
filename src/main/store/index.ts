@@ -386,6 +386,25 @@ export class Store {
       vals.push(nowStamp())
       this.db.prepare(`UPDATE items SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id)
     }
+    // A subtask belongs to its parent's project — refiling a task takes
+    // its whole subtask tree along, so a time-blocked subtask on the
+    // calendar keeps wearing the right project color. Sections travel
+    // the same way they do for the item itself (cleared on a move).
+    if (patch.projectId !== undefined && patch.projectId !== existing.projectId) {
+      this.db
+        .prepare(
+          `WITH RECURSIVE tree(id) AS (
+             SELECT l.from_item_id FROM links l
+             WHERE l.to_item_id = ? AND l.role = 'subtask-of'
+             UNION ALL
+             SELECT l.from_item_id FROM links l JOIN tree t ON l.to_item_id = t.id
+             WHERE l.role = 'subtask-of'
+           )
+           UPDATE items SET project_id = ?, section_id = NULL
+           WHERE id IN (SELECT id FROM tree)`
+        )
+        .run(id, patch.projectId)
+    }
     return this.getItem(id)
   }
 
@@ -408,12 +427,20 @@ export class Store {
     return r.n
   }
 
-  /** Active tasks scheduled for exactly this date, in manual order. */
+  /**
+   * Active tasks scheduled for exactly this date, in manual order.
+   * Subtasks are excluded — a time-blocked subtask shows on the
+   * timeline and inside its parent's card, never as its own card.
+   */
   tasksFor(date: string): Item[] {
     return this.db
       .prepare(
         `SELECT ${ITEM_COLS} FROM items
          WHERE kind = 'task' AND status = 'active' AND scheduled_date = ?
+           AND NOT EXISTS (
+             SELECT 1 FROM links l
+             WHERE l.from_item_id = items.id AND l.role = 'subtask-of'
+           )
          ORDER BY sort_order, created_at`
       )
       .all(date)
@@ -444,6 +471,10 @@ export class Store {
         `SELECT ${ITEM_COLS} FROM items
          WHERE kind = 'task' AND status = 'active'
            AND scheduled_date > ? AND scheduled_date <= ?
+           AND NOT EXISTS (
+             SELECT 1 FROM links l
+             WHERE l.from_item_id = items.id AND l.role = 'subtask-of'
+           )
          ORDER BY scheduled_date, sort_order`
       )
       .all(date, ymdAddDays(date, 7))
@@ -451,18 +482,25 @@ export class Store {
   }
 
   /**
-   * Unfinished tasks scheduled before today. Shown in the quiet
-   * "carried over" group — never styled as overdue (SPEC §6).
+   * Roll every unfinished past task forward to today — never styled
+   * as overdue, never a triage step (SPEC §6): the day just starts
+   * with yesterday's leftovers already on it. Returns how many moved.
+   *
+   * A missed time block does NOT follow the task: it lands on the new
+   * day's list only, off the calendar, until it's re-blocked on
+   * purpose. (The estimate is cleared with the time — it only existed
+   * as the block's length, same as removeFromCalendar.)
    */
-  carriedOver(today: string): Item[] {
+  carryOver(today: string): number {
     return this.db
       .prepare(
-        `SELECT ${ITEM_COLS} FROM items
-         WHERE kind = 'task' AND status = 'active' AND scheduled_date < ?
-         ORDER BY scheduled_date, sort_order`
+        `UPDATE items SET scheduled_date = ?,
+           time_estimate_minutes = CASE WHEN scheduled_time IS NOT NULL
+             THEN NULL ELSE time_estimate_minutes END,
+           scheduled_time = NULL
+         WHERE kind = 'task' AND status = 'active' AND scheduled_date < ?`
       )
-      .all(today)
-      .map(rowToItem)
+      .run(today, today).changes
   }
 
   /** Live (active or inbox) tasks whose deadline is exactly this date. */
@@ -540,13 +578,13 @@ export class Store {
       .map(rowToItem)
   }
 
-  /** A task's checkbox subtasks, oldest first. */
+  /** A task's checkbox subtasks, in manual order (creation order until dragged). */
   subtasksOf(parentId: string): Item[] {
     return this.db
       .prepare(
         `SELECT i.* FROM links l JOIN items i ON i.id = l.from_item_id
          WHERE l.to_item_id = ? AND l.role = 'subtask-of' AND i.status != 'dropped'
-         ORDER BY i.created_at`
+         ORDER BY i.sort_order, i.rowid`
       )
       .all(parentId)
       .map(rowToItem)
@@ -557,16 +595,17 @@ export class Store {
    * order — subtasks can themselves have subtasks, to any depth.
    */
   subtaskTreeOf(rootId: string): Array<{ parentId: string; depth: number; item: Item }> {
-    // The path orders depth-first; rowid (monotonic) breaks sibling
-    // ties in creation order — created_at only has second precision.
+    // The path orders depth-first; siblings sort by manual order
+    // (drag-reorder), with rowid (monotonic) breaking ties in creation
+    // order — created_at only has second precision.
     const rows = this.db
       .prepare(
         `WITH RECURSIVE tree(id, parent_id, depth, path) AS (
-           SELECT l.from_item_id, l.to_item_id, 1, printf('%012d', i.rowid)
+           SELECT l.from_item_id, l.to_item_id, 1, printf('%012d%012d', i.sort_order, i.rowid)
            FROM links l JOIN items i ON i.id = l.from_item_id
            WHERE l.to_item_id = ? AND l.role = 'subtask-of' AND i.status != 'dropped'
            UNION ALL
-           SELECT l.from_item_id, l.to_item_id, t.depth + 1, t.path || '/' || printf('%012d', i.rowid)
+           SELECT l.from_item_id, l.to_item_id, t.depth + 1, t.path || '/' || printf('%012d%012d', i.sort_order, i.rowid)
            FROM links l
            JOIN tree t ON l.to_item_id = t.id
            JOIN items i ON i.id = l.from_item_id
@@ -577,6 +616,29 @@ export class Store {
       )
       .all(rootId) as any[]
     return rows.map((r) => ({ parentId: r.parent_id, depth: r.depth, item: rowToItem(r) }))
+  }
+
+  /**
+   * The chain of parents above a subtask, outermost (root) first —
+   * empty for a top-level item. Feeds the lineage line in peeks, so a
+   * block on the calendar says which task it's a piece of.
+   */
+  ancestorsOf(itemId: string): Item[] {
+    const rows = this.db
+      .prepare(
+        `WITH RECURSIVE up(id, depth) AS (
+           SELECT l.to_item_id, 1 FROM links l
+           WHERE l.from_item_id = ? AND l.role = 'subtask-of'
+           UNION ALL
+           SELECT l.to_item_id, up.depth + 1
+           FROM links l JOIN up ON l.from_item_id = up.id
+           WHERE l.role = 'subtask-of'
+         )
+         SELECT i.* FROM up JOIN items i ON i.id = up.id
+         ORDER BY up.depth DESC`
+      )
+      .all(itemId)
+    return rows.map(rowToItem)
   }
 
   /** Quick-access favorites for the sidebar. */
@@ -608,7 +670,14 @@ export class Store {
    */
   completedSubtasksOn(
     date: string
-  ): Array<{ rootId: string; rootTitle: string; depth: number; item: Item }> {
+  ): Array<{
+    rootId: string
+    rootTitle: string
+    /** True while the root still has unfinished subtasks anywhere in its tree. */
+    rootHasOpenSubtasks: boolean
+    depth: number
+    item: Item
+  }> {
     const rows = this.db
       .prepare(
         `WITH RECURSIVE up(start_id, ancestor_id, depth) AS (
@@ -624,7 +693,12 @@ export class Store {
            FROM up u
            WHERE depth = (SELECT MAX(depth) FROM up WHERE start_id = u.start_id)
          )
-         SELECT r.root_id, p.title AS root_title, r.depth, i.*
+         SELECT r.root_id, p.title AS root_title, r.depth,
+           EXISTS (
+             SELECT 1 FROM up u2 JOIN items s ON s.id = u2.start_id
+             WHERE u2.ancestor_id = r.root_id AND s.status IN ('active', 'inbox')
+           ) AS root_has_open,
+           i.*
          FROM roots r
          JOIN items i ON i.id = r.start_id
          JOIN items p ON p.id = r.root_id
@@ -635,6 +709,7 @@ export class Store {
     return rows.map((r) => ({
       rootId: r.root_id,
       rootTitle: r.root_title,
+      rootHasOpenSubtasks: !!r.root_has_open,
       depth: r.depth,
       item: rowToItem(r)
     }))
@@ -674,14 +749,6 @@ export class Store {
     const stmt = this.db.prepare('UPDATE items SET sort_order = ? WHERE id = ?')
     this.db.transaction(() => {
       ids.forEach((id, i) => stmt.run(i, id))
-    })()
-  }
-
-  /** "Declare bankruptcy": drop a batch of items guiltlessly, no judgment. */
-  dropItems(ids: string[]): void {
-    const stmt = this.db.prepare("UPDATE items SET status = 'dropped' WHERE id = ?")
-    this.db.transaction(() => {
-      ids.forEach((id) => stmt.run(id))
     })()
   }
 

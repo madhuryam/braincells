@@ -37,10 +37,10 @@ export function registerStoreIpc(store: Store): void {
   ipcMain.handle('items:update', (_e, id: string, patch: ItemPatch) => store.updateItem(id, patch))
   ipcMain.handle('items:delete', (_e, id: string) => store.deleteItem(id))
   ipcMain.handle('items:reorder', (_e, ids: string[]) => store.reorderItems(ids))
-  ipcMain.handle('items:drop', (_e, ids: string[]) => store.dropItems(ids))
   ipcMain.handle('items:starred', () => store.starredItems())
   ipcMain.handle('items:subtasks', (_e, parentId: string) => store.subtasksOf(parentId))
   ipcMain.handle('items:subtaskTree', (_e, rootId: string) => store.subtaskTreeOf(rootId))
+  ipcMain.handle('items:ancestors', (_e, itemId: string) => store.ancestorsOf(itemId))
 
   // Screen queries
   ipcMain.handle('inbox:items', () => store.inboxItems())
@@ -51,7 +51,6 @@ export function registerStoreIpc(store: Store): void {
   ipcMain.handle('today:tasks', (_e, date: string) => store.tasksFor(date))
   ipcMain.handle('today:blocks', (_e, date: string) => store.scheduledBlocks(date))
   ipcMain.handle('today:week', (_e, date: string) => store.tasksThisWeek(date))
-  ipcMain.handle('today:carriedOver', (_e, date: string) => store.carriedOver(date))
   ipcMain.handle('today:dueOn', (_e, date: string) => store.tasksDueOn(date))
   ipcMain.handle('today:overdue', (_e, date: string) => store.tasksOverdue(date))
   ipcMain.handle('project:items', (_e, projectId: string) => store.projectItems(projectId))

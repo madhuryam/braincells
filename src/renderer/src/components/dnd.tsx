@@ -2,10 +2,13 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  pointerWithin,
+  rectIntersection,
   useDraggable,
   useDroppable,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent
 } from '@dnd-kit/core'
@@ -33,6 +36,8 @@ interface DragData {
   item: Item
   /** Present when the card lives in a sortable list: ids in list order. */
   sortableIds?: string[]
+  /** True for subtask rows — they reorder and time-block, but nothing adopts their home. */
+  subtask?: boolean
 }
 
 /*
@@ -178,6 +183,17 @@ function addMinutes(time: string, minutes: number): string {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
+/**
+ * Where the POINTER is decides the drop target, not the card's big
+ * rectangle — otherwise reaching the timeline means shoving half the
+ * card over it before a slot lights up. The rect fallback still
+ * catches drags whose pointer sits in a gap (list edges, spacers).
+ */
+const pointerFirst: CollisionDetection = (args) => {
+  const hits = pointerWithin(args)
+  return hits.length > 0 ? hits : rectIntersection(args)
+}
+
 class CardPointerSensor extends PointerSensor {
   static activators = [
     {
@@ -238,6 +254,7 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
           event?: CalendarEvent
           item?: Item
           sortableIds?: string[]
+          subtask?: boolean
         }
       | undefined
 
@@ -362,8 +379,9 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
     }
 
     // Dropped directly onto a card in another list: adopt that card's
-    // home — same day, same project block, same section.
-    if (overData?.item && over.id !== active.id) {
+    // home — same day, same project block, same section. Subtask rows
+    // aren't a home: their day/project belongs to their parent.
+    if (overData?.item && !overData.subtask && over.id !== active.id) {
       const target = overData.item
       mutate(() =>
         window.api.updateItem(item.id, {
@@ -378,7 +396,12 @@ export function AppDnd({ children }: { children: ReactNode }): React.JSX.Element
   }
 
   return (
-    <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={pointerFirst}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+    >
       <PendingOrderContext.Provider value={pendingOrder}>{children}</PendingOrderContext.Provider>
       {/* The ghost card that follows the pointer during a drag.
           For sortable reorders the drop animation is disabled: the list

@@ -1,5 +1,6 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
+import { todayYmd } from '../shared/dates'
 import { Store } from './store'
 import { registerStoreIpc } from './ipc'
 import { setUpQuickCapture, tearDownQuickCapture } from './capture'
@@ -59,6 +60,24 @@ app.whenReady().then(() => {
   }
 
   store = new Store(join(app.getPath('userData'), 'braincells.sqlite3'))
+
+  // Auto carry-over: unfinished tasks roll forward to today on their
+  // own — at launch, then again the moment the date flips while the
+  // app stays open (the minute tick catches midnight and wake-from-
+  // sleep). It only runs when the day changes, so backdating a task
+  // onto a past day mid-session isn't yanked forward underfoot.
+  let lastCarryDay = ''
+  const carryOver = (): void => {
+    const today = todayYmd()
+    if (today === lastCarryDay) return
+    lastCarryDay = today
+    if (store.carryOver(today) > 0) {
+      for (const w of BrowserWindow.getAllWindows()) w.webContents.send('data-changed')
+    }
+  }
+  carryOver()
+  setInterval(carryOver, 60_000)
+
   registerStoreIpc(store)
   registerCalendarIpc(store)
   registerBackupIpc(store, () => mainWindow)

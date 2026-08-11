@@ -210,15 +210,45 @@ describe('Today / This Week / carried over', () => {
 
     expect(store.tasksFor(today).map((i) => i.id)).toEqual([todayTask.id])
     expect(store.tasksThisWeek(today).map((i) => i.id)).toEqual([soon.id])
-    expect(store.carriedOver(today).map((i) => i.id)).toEqual([yesterday.id])
+
+    // Auto carry-over rolls the unfinished past task onto today.
+    expect(store.carryOver(today)).toBe(1)
+    expect(store.tasksFor(today).map((i) => i.id)).toEqual([yesterday.id, todayTask.id])
   })
 
-  it('done and dropped tasks never appear as carried over', () => {
+  it('a missed time block does not follow the task to the next day', () => {
+    const blocked = store.createItem({
+      kind: 'task', title: 'blocked', status: 'active',
+      scheduledDate: ymdAddDays(today, -1), scheduledTime: '09:00', timeEstimateMinutes: 45
+    })
+    // A plain estimate (no block) survives the roll — only calendar
+    // placement is dropped.
+    const estimated = store.createItem({
+      kind: 'task', title: 'estimated', status: 'active',
+      scheduledDate: ymdAddDays(today, -1), timeEstimateMinutes: 30
+    })
+
+    expect(store.carryOver(today)).toBe(2)
+    const rolled = store.getItem(blocked.id)!
+    expect(rolled.scheduledDate).toBe(today)
+    expect(rolled.scheduledTime).toBeNull()
+    expect(rolled.timeEstimateMinutes).toBeNull()
+    expect(store.scheduledBlocks(today)).toEqual([])
+    expect(store.getItem(estimated.id)!.timeEstimateMinutes).toBe(30)
+  })
+
+  it('done and dropped tasks never carry over', () => {
     const a = store.createItem({
       kind: 'task', title: 'a', status: 'active', scheduledDate: ymdAddDays(today, -2)
     })
     store.updateItem(a.id, { status: 'done' })
-    expect(store.carriedOver(today)).toHaveLength(0)
+    const b = store.createItem({
+      kind: 'task', title: 'b', status: 'active', scheduledDate: ymdAddDays(today, -2)
+    })
+    store.updateItem(b.id, { status: 'dropped' })
+
+    expect(store.carryOver(today)).toBe(0)
+    expect(store.getItem(a.id)!.scheduledDate).toBe(ymdAddDays(today, -2))
   })
 
   it('manual reorder persists', () => {
@@ -230,13 +260,6 @@ describe('Today / This Week / carried over', () => {
     expect(store.tasksFor(today).map((i) => i.title)).toEqual(['b', 'a'])
   })
 
-  it('declare bankruptcy drops a batch in one go', () => {
-    const a = store.createItem({ kind: 'task', title: 'a' })
-    const b = store.createItem({ kind: 'task', title: 'b' })
-    store.dropItems([a.id, b.id])
-    expect(store.inboxCount()).toBe(0)
-    expect(store.getItem(a.id)!.status).toBe('dropped')
-  })
 })
 
 describe('due dates', () => {
@@ -379,7 +402,7 @@ describe('search (FTS5)', () => {
     expect(store.search('alpha')).toHaveLength(0)
     expect(store.search('omega')).toHaveLength(1)
 
-    store.dropItems([item.id])
+    store.updateItem(item.id, { status: 'dropped' })
     expect(store.search('omega')).toHaveLength(0)
   })
 
@@ -460,7 +483,7 @@ describe('starred items', () => {
     expect(store.getItem(note.id)!.starred).toBe(true)
     expect(store.starredItems().map((i) => i.id)).toEqual([note.id])
 
-    store.dropItems([note.id])
+    store.updateItem(note.id, { status: 'dropped' })
     expect(store.starredItems()).toHaveLength(0)
   })
 })
@@ -484,6 +507,59 @@ describe('subtasks', () => {
 
     store.updateItem(sub.id, { status: 'dropped' })
     expect(store.subtasksOf(parent.id)).toHaveLength(0)
+  })
+
+  it('subtasks reorder among themselves', () => {
+    const parent = store.createItem({ kind: 'task', title: 'ship v2', status: 'active' })
+    const a = store.createItem({ kind: 'task', title: 'a', status: 'active' })
+    const b = store.createItem({ kind: 'task', title: 'b', status: 'active' })
+    store.linkItems(a.id, parent.id, 'subtask-of')
+    store.linkItems(b.id, parent.id, 'subtask-of')
+    expect(store.subtasksOf(parent.id).map((i) => i.title)).toEqual(['a', 'b'])
+
+    store.reorderItems([b.id, a.id])
+    expect(store.subtasksOf(parent.id).map((i) => i.title)).toEqual(['b', 'a'])
+    expect(store.subtaskTreeOf(parent.id).map((t) => t.item.title)).toEqual(['b', 'a'])
+  })
+
+  it('refiling a task carries its whole subtask tree to the new project', () => {
+    const p1 = store.createProject('One', '#339af0')
+    const p2 = store.createProject('Two', '#ff6b6b')
+    const parent = store.createItem({
+      kind: 'task', title: 'ship v2', status: 'active', projectId: p1.id
+    })
+    const a = store.createItem({ kind: 'task', title: 'a', status: 'active', projectId: p1.id })
+    const a1 = store.createItem({ kind: 'task', title: 'a1', status: 'active', projectId: p1.id })
+    store.linkItems(a.id, parent.id, 'subtask-of')
+    store.linkItems(a1.id, a.id, 'subtask-of')
+
+    store.updateItem(parent.id, { projectId: p2.id })
+    expect(store.getItem(a.id)!.projectId).toBe(p2.id)
+    expect(store.getItem(a1.id)!.projectId).toBe(p2.id)
+  })
+
+  it('lists a subtask’s ancestors outermost first', () => {
+    const parent = store.createItem({ kind: 'task', title: 'ship v2', status: 'active' })
+    const a = store.createItem({ kind: 'task', title: 'a', status: 'active' })
+    const a1 = store.createItem({ kind: 'task', title: 'a1', status: 'active' })
+    store.linkItems(a.id, parent.id, 'subtask-of')
+    store.linkItems(a1.id, a.id, 'subtask-of')
+
+    expect(store.ancestorsOf(a1.id).map((i) => i.title)).toEqual(['ship v2', 'a'])
+    expect(store.ancestorsOf(parent.id)).toHaveLength(0)
+  })
+
+  it('a time-blocked subtask shows on the timeline, not as its own card', () => {
+    const parent = store.createItem({
+      kind: 'task', title: 'ship v2', status: 'active', scheduledDate: today
+    })
+    const sub = store.createItem({ kind: 'task', title: 'write changelog', status: 'active' })
+    store.linkItems(sub.id, parent.id, 'subtask-of')
+    // What the timeline drop does: a date and a time land together.
+    store.updateItem(sub.id, { scheduledDate: today, scheduledTime: '09:00' })
+
+    expect(store.tasksFor(today).map((i) => i.id)).toEqual([parent.id])
+    expect(store.scheduledBlocks(today).map((i) => i.id)).toEqual([sub.id])
   })
 })
 
@@ -632,5 +708,14 @@ describe('completed subtasks grouping', () => {
       ['a', 'ship v2', 1],
       ['a1', 'ship v2', 2]
     ])
+    // Everything under the root is done — the flag says so, so the UI
+    // can fold the whole thing into the parent's one done block.
+    expect(grouped.every((g) => !g.rootHasOpenSubtasks)).toBe(true)
+
+    // An open sibling flips the flag back on: the group stays visible
+    // while the parent is still in progress.
+    const b = store.createItem({ kind: 'task', title: 'b', status: 'active' })
+    store.linkItems(b.id, root.id, 'subtask-of')
+    expect(store.completedSubtasksOn(today).every((g) => g.rootHasOpenSubtasks)).toBe(true)
   })
 })

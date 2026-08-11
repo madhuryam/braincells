@@ -20,11 +20,11 @@ interface SectionGroupsProps {
 /**
  * A project's to-dos, separated into its sections ("Testing",
  * "Customer", …) — flat blocks under small headers, deliberately NOT
- * deeper nesting. Unsectioned tasks trail at the bottom, set apart by
- * a gap instead of a header; a project that never makes a section
- * looks exactly like it always did. Each block is a drop target:
- * dropping a card files it into that section (the trailing block
- * unfiles it).
+ * deeper nesting. Unsectioned tasks trail at the bottom under an
+ * automatic "General" header (a display grouping, not a real section —
+ * no rename/move/delete); a project that never makes a section looks
+ * exactly like it always did. Each block is a drop target: dropping a
+ * card files it into that section (General unfiles it).
  */
 export function SectionGroups({
   projectId,
@@ -69,18 +69,47 @@ export function SectionGroups({
           {/* The name input sits where the section it creates will
               appear: after the last one, before the unsectioned tail. */}
           {addingSection && <NewSectionInput projectId={projectId} onClose={onCloseAddSection} />}
-          {unfiled.length > 0 && (
-            <DropZone
-              id={`section-none-${projectId}`}
-              data={{ type: 'section', projectId, sectionId: null }}
-              className="task-group unsectioned"
-            >
-              {cardsFor(unfiled)}
-            </DropZone>
-          )}
+          <GeneralBlock projectId={projectId} items={unfiled} />
         </>
       )}
     </>
+  )
+}
+
+/**
+ * The automatic "General" section: everything not filed into a named
+ * section. Same header look, none of the management actions — it
+ * exists as long as the project has sections, even empty, so there's
+ * always somewhere to drop a card to unfile it.
+ */
+function GeneralBlock({ projectId, items }: { projectId: string; items: Item[] }): React.JSX.Element {
+  const [collapsed, setCollapsed] = useState(false)
+  return (
+    <DropZone
+      id={`section-none-${projectId}`}
+      data={{ type: 'section', projectId, sectionId: null }}
+      className="task-group unsectioned"
+    >
+      <div
+        className="task-group-header"
+        role="button"
+        tabIndex={0}
+        onClick={() => setCollapsed(!collapsed)}
+        onKeyDown={(e) => e.key === 'Enter' && setCollapsed(!collapsed)}
+      >
+        <span aria-hidden>{collapsed ? '▸' : '▾'}</span>
+        <span>General</span>
+        {collapsed && <span className="pill">{items.length}</span>}
+      </div>
+      {!collapsed &&
+        (items.length > 0 ? (
+          cardsFor(items)
+        ) : (
+          <span style={{ color: 'var(--text-faint)', fontSize: 14 }}>
+            no tasks — drop one here to unfile it
+          </span>
+        ))}
+    </DropZone>
   )
 }
 
