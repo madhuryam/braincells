@@ -1074,8 +1074,10 @@ kbd.key {
 
 /* The per-block blocked-tasks filter (⛔ n): click to show them
    inline, in their normal section slots. Unlike the quiet ＋ it's
-   readable at rest — hidden tasks are information. */
-.task-group-blocked {
+   readable at rest — hidden tasks are information. The ∅ variant
+   does the same for empty sections, wordlessly. */
+.task-group-blocked,
+.task-group-empty {
   width: auto;
   padding: 0 7px;
   font-size: 12px;
@@ -1085,6 +1087,13 @@ kbd.key {
 
 .task-group-blocked.on {
   background: var(--accent-soft);
+  opacity: 1;
+}
+
+/* Revealed (○), the chip carries its state in the glyph alone: no
+   resting background, just extra weight. */
+.task-group-empty.on {
+  font-weight: 800;
   opacity: 1;
 }
 

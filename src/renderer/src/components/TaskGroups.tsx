@@ -58,6 +58,16 @@ export function TaskGroups({
       else next.add(key)
       return next
     })
+  // Empty sections hide the same way; each block's ∅ chip reveals
+  // them (they come back as drop targets at the bottom of the block).
+  const [emptyShown, setEmptyShown] = useState<Set<string>>(new Set())
+  const toggleEmptyShown = (key: string): void =>
+    setEmptyShown((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   // A busy project can fold away so the rest of the day is scannable.
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   // The page's collapse-all/expand-all control: each bump overwrites
@@ -95,6 +105,8 @@ export function TaskGroups({
   }
   const openSectionAdder = (key: string): void => {
     setAddingSection((cur) => (cur === key ? null : key))
+    // The section about to be created is empty — it must not be born hidden.
+    setEmptyShown((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
     unfold(key)
   }
 
@@ -138,9 +150,9 @@ export function TaskGroups({
 
         // The same shape as the project page: one slice per section,
         // then unfiled tasks under the automatic "General" header,
-        // then the day's empty sections — kept visible at the bottom
-        // so they stay available as drop targets. Sort within each
-        // slice is untouched.
+        // then the day's empty sections — tucked away until the ∅
+        // chip shows them (at the bottom, as drop targets). Sort
+        // within each slice is untouched.
         const sections = group.project ? (sectionsByProject?.get(group.project.id) ?? []) : []
         const known = new Set(sections.map((s) => s.id))
         const filled: Array<{ section: Section | null; items: Item[] }> = []
@@ -156,7 +168,7 @@ export function TaskGroups({
         const subgroups = [
           ...filled,
           ...(unfiled.length > 0 ? [{ section: null, items: unfiled }] : []),
-          ...empty
+          ...(emptyShown.has(group.key) ? empty : [])
         ]
         const sectioned = sections.length > 0
 
@@ -177,6 +189,29 @@ export function TaskGroups({
               }}
             >
               ⛔ {blockedIn.length}
+            </span>
+          ) : null
+
+        // Same idea for empty sections, but wordless — hidden sections
+        // are only structure, not work, so no count to report.
+        const emptyChip =
+          empty.length > 0 ? (
+            <span
+              className={`task-group-add task-group-empty ${emptyShown.has(group.key) ? 'on' : ''}`}
+              role="button"
+              aria-label={emptyShown.has(group.key) ? 'Hide empty sections' : 'Show empty sections'}
+              title={
+                emptyShown.has(group.key)
+                  ? 'Hide empty sections'
+                  : `Show ${empty.length} empty ${empty.length === 1 ? 'section' : 'sections'}`
+              }
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleEmptyShown(group.key)
+              }}
+            >
+              {/* Crossed out while they're hidden; a plain circle once shown. */}
+              {emptyShown.has(group.key) ? '○' : '∅'}
             </span>
           ) : null
 
@@ -271,6 +306,7 @@ export function TaskGroups({
                   </span>
                 )}
                 {blockedChip}
+                {emptyChip}
                 {collapsed.has(group.key) && <span className="pill">{shown.length}</span>}
                 {group.project && (
                   <span

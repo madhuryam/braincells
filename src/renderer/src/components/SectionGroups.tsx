@@ -15,6 +15,8 @@ interface SectionGroupsProps {
   /** The "new section" name input (opened from the To-dos header row). */
   addingSection: boolean
   onCloseAddSection: () => void
+  /** The To-dos header's ∅ chip: reveal sections with no open to-dos. */
+  showEmpty: boolean
 }
 
 /**
@@ -31,7 +33,8 @@ export function SectionGroups({
   sections,
   todos,
   addingSection,
-  onCloseAddSection
+  onCloseAddSection,
+  showEmpty
 }: SectionGroupsProps): React.JSX.Element {
   const mutate = useMutate()
   const known = new Set(sections.map((s) => s.id))
@@ -39,6 +42,11 @@ export function SectionGroups({
   // NULL — but an unknown id must not make the task vanish).
   const unfiled = todos.filter((t) => !t.sectionId || !known.has(t.sectionId))
   const active = sections.filter((s) => s.status === 'active')
+  // Empty sections stay off the page until the ∅ chip asks for them —
+  // structure with nothing in it shouldn't cost rows every visit.
+  const visible = showEmpty
+    ? active
+    : active.filter((s) => todos.some((t) => t.sectionId === s.id))
   // Archived sections all disappear into one folded "Archived" shelf
   // at the very bottom — the filing they hold is still real, but a
   // project that accretes dead sections over time shouldn't wear them
@@ -46,8 +54,12 @@ export function SectionGroups({
   const archived = sections.filter((s) => s.status === 'archived')
 
   const move = (idx: number, dir: -1 | 1): void => {
+    // Swap by id in the full active list: with empties hidden, the
+    // displayed neighbors may not be adjacent in the real order.
     const ids = active.map((s) => s.id)
-    ;[ids[idx], ids[idx + dir]] = [ids[idx + dir], ids[idx]]
+    const a = ids.indexOf(visible[idx].id)
+    const b = ids.indexOf(visible[idx + dir].id)
+    ;[ids[a], ids[b]] = [ids[b], ids[a]]
     void mutate(() => window.api.reorderSections([...ids, ...archived.map((s) => s.id)]))
   }
 
@@ -61,21 +73,25 @@ export function SectionGroups({
         </>
       ) : (
         <>
-          {active.map((s, i) => (
+          {visible.map((s, i) => (
             <SectionBlock
               key={s.id}
               section={s}
               projectId={projectId}
               items={todos.filter((t) => t.sectionId === s.id)}
               first={i === 0}
-              last={i === active.length - 1}
+              last={i === visible.length - 1}
               onMove={(dir) => move(i, dir)}
             />
           ))}
           {/* The name input sits where the section it creates will
               appear: after the last one, before the unsectioned tail. */}
           {addingSection && <NewSectionInput projectId={projectId} onClose={onCloseAddSection} />}
-          <GeneralBlock projectId={projectId} items={unfiled} />
+          {/* An empty General hides with the other empties; any
+              unfiled task brings it (and the unfile drop target) back. */}
+          {(unfiled.length > 0 || showEmpty) && (
+            <GeneralBlock projectId={projectId} items={unfiled} />
+          )}
           {archived.length > 0 && (
             <ArchivedShelf projectId={projectId} sections={archived} todos={todos} />
           )}

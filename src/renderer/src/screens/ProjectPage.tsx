@@ -154,6 +154,9 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   const sections = useLiveQuery(() => window.api.listSections(projectId), [projectId]) ?? []
   const [draft, setDraft] = useState('')
   const [addingSection, setAddingSection] = useState(false)
+  // Empty sections hide behind the To-dos header's ∅ chip (the same
+  // pattern as a day block's ⛔ chip for blocked tasks).
+  const [showEmpty, setShowEmpty] = useState(false)
   const [showDone, setShowDone] = useState(false)
   // Canvases and To-dos collapse like Meetings/Done, but start open —
   // they're the reason you came to the project.
@@ -204,6 +207,9 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
     .filter((i) => i.kind === 'task' || i.kind === 'prep')
     .sort((a, b) => (a.scheduledDate ?? '9999-99-99').localeCompare(b.scheduledDate ?? '9999-99-99'))
   const done = (items ?? []).filter((i) => i.status === 'done' && i.kind !== 'page')
+  const emptySections = sections.filter(
+    (s) => s.status === 'active' && !todos.some((t) => t.sectionId === s.id)
+  ).length
 
   // Meetings split around today: upcoming soonest-first, previous
   // most-recent-first — each browseable on its own.
@@ -383,11 +389,28 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
             >
               {todosOpen ? '▾' : '▸'} To-dos
             </button>
+            {emptySections > 0 && (
+              <span
+                className={`task-group-add task-group-empty ${showEmpty ? 'on' : ''}`}
+                role="button"
+                aria-label={showEmpty ? 'Hide empty sections' : 'Show empty sections'}
+                title={
+                  showEmpty
+                    ? 'Hide empty sections'
+                    : `Show ${emptySections} empty ${emptySections === 1 ? 'section' : 'sections'}`
+                }
+                onClick={() => setShowEmpty(!showEmpty)}
+              >
+                {/* Crossed out while they're hidden; a plain circle once shown. */}
+                {showEmpty ? '○' : '∅'}
+              </span>
+            )}
             <button
               className="btn ghost"
               onClick={() => {
                 setAddingSection(true)
                 setTodosOpen(true) // the name input lives inside the fold
+                setShowEmpty(true) // the new section is empty — don't birth it hidden
               }}
             >
               ＋ add section
@@ -401,6 +424,7 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
                 todos={todos}
                 addingSection={addingSection}
                 onCloseAddSection={() => setAddingSection(false)}
+                showEmpty={showEmpty}
               />
             </div>
           )}
