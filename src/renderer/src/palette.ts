@@ -7,7 +7,7 @@ export const PROJECT_COLORS = [
   '#9b1b3f', // ruby
   '#ba653e', // copper
   '#c09435', // topaz
-  '#166532', // emerald
+  '#166532cd', // emerald
   '#0f5872', // sapphire
   '#223a72', // navy
   '#732a63', // plum
