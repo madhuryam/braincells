@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Item } from '@shared/types'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { MeetingPeekProvider } from '../state/peek'
-import { Card } from '../components/Card'
 import { DetailPanel } from '../components/DetailPanel'
 import { ItemCard } from '../components/ItemCard'
 import { ItemDetail } from '../components/ItemDetail'
@@ -13,7 +13,8 @@ import { SectionGroups } from '../components/SectionGroups'
 import { Meeting } from './Meeting'
 import { BackButton, CheckableInput, EmptyState, ProgressBar, ProjectDot } from '../components/bits'
 import { PROJECT_COLORS } from '../palette'
-import { mmdd } from '../format'
+import { itemPreviewHtml } from '../richtext'
+import { mmdd, prettyDate } from '../format'
 
 /** What the right-hand detail panel is showing. */
 type Detail =
@@ -21,21 +22,125 @@ type Detail =
   | { kind: 'item'; itemId: string }
 
 /**
- * One canvas in the project's list. Clicking opens the side panel —
- * no action buttons here: deletion lives on the canvas's full view,
- * where you can see what you're deleting.
+ * One canvas in the project's gallery: a cropped preview of the page
+ * itself on a project-tinted mat, title + last edit below (the Slack
+ * canvas-card look). A click peeks it in the side panel; a double
+ * click opens the full view. Right-click offers delete — two-step,
+ * like task cards, so a stray click can't discard a document.
  */
-function CanvasRow({ item, onOpen }: { item: Item; onOpen: () => void }): React.JSX.Element {
+function CanvasCard({
+  item,
+  accent,
+  onOpen,
+  onOpenFull,
+  onDeleted
+}: {
+  item: Item
+  /** The project's color — tints the preview's backdrop. */
+  accent?: string
+  onOpen: () => void
+  onOpenFull: () => void
+  onDeleted: () => void
+}): React.JSX.Element {
+  const mutate = useMutate()
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  // "Delete canvas": always two-step — first click arms, second deletes.
+  const [deleteArmed, setDeleteArmed] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!menu) {
+      setDeleteArmed(false)
+      return
+    }
+    // Capture-phase, so a click anywhere else dismisses before it lands.
+    const onDown = (e: PointerEvent): void => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenu(null)
+    }
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setMenu(null)
+    }
+    window.addEventListener('pointerdown', onDown, true)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('pointerdown', onDown, true)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [menu])
+
   return (
-    <Card
-      interactive
-      className={item.starred ? 'starred-canvas' : undefined}
+    <div
+      className={`canvas-card${item.starred ? ' starred' : ''}`}
+      style={accent ? ({ '--cc-accent': accent } as React.CSSProperties) : undefined}
       onClick={onOpen}
+      onDoubleClick={onOpenFull}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setMenu({ x: e.clientX, y: e.clientY })
+      }}
     >
-      <div className="row">
-        <span className="card-title">{item.title || 'Untitled canvas'}</span>
+      <div className="canvas-card-preview" aria-hidden>
+        <div
+          className="canvas-card-page"
+          dangerouslySetInnerHTML={{ __html: itemPreviewHtml(item) }}
+        />
       </div>
-    </Card>
+      <div className="canvas-card-footer">
+        <div className="card-title">
+          {item.starred && <span aria-hidden>⭐ </span>}
+          {item.title || 'Untitled canvas'}
+        </div>
+        <div className="canvas-card-sub">
+          edited {prettyDate((item.updatedAt ?? item.createdAt).slice(0, 10))}
+        </div>
+      </div>
+      {/* Portaled to <body>: inside the card, the hover transform
+          makes the card the containing block for position:fixed, so
+          the menu would render clipped inside it (overflow: hidden)
+          instead of at the cursor. */}
+      {menu &&
+        createPortal(
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top: menu.y,
+            left: menu.x,
+            zIndex: 50,
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: 160,
+            padding: 4,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            boxShadow: 'var(--shadow-lift)'
+          }}
+          // Even portaled, React bubbles events through the COMPONENT
+          // tree — without this, arming the delete also opens the peek.
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            className="btn ghost small"
+            style={{
+              justifyContent: 'flex-start',
+              ...(deleteArmed ? { color: 'var(--danger)', fontWeight: 700 } : {})
+            }}
+            onClick={() => {
+              if (!deleteArmed) {
+                setDeleteArmed(true)
+                return
+              }
+              setMenu(null)
+              void mutate(() => window.api.deleteItem(item.id)).then(onDeleted)
+            }}
+          >
+            {deleteArmed ? '🗑 Confirm Delete' : '🗑 Delete'}
+          </button>
+        </div>,
+        document.body
+      )}
+    </div>
   )
 }
 
@@ -236,9 +341,19 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
       </div>
       {canvasesOpen && (
         <>
-          <div className="item-list project-section">
+          <div className="canvas-grid project-section">
             {pages.slice(0, canvasesShown).map((p) => (
-              <CanvasRow key={p.id} item={p} onOpen={() => setDetail({ kind: 'item', itemId: p.id })} />
+              <CanvasCard
+                key={p.id}
+                item={p}
+                accent={project.color}
+                onOpen={() => setDetail({ kind: 'item', itemId: p.id })}
+                onOpenFull={() => openOverlay({ name: 'page', itemId: p.id })}
+                // A deleted canvas can't stay peeked in the side panel.
+                onDeleted={() =>
+                  setDetail((d) => (d?.kind === 'item' && d.itemId === p.id ? null : d))
+                }
+              />
             ))}
           </div>
           {pages.length > canvasesShown && (

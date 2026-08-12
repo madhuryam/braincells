@@ -482,10 +482,98 @@ kbd.key {
   border-left: 3.5px solid transparent;
 }
 
-/* Starred canvases: a warm gold left edge instead of a star glyph
-   crowding the title. Quiet, but unmistakably "pinned". */
-.item-list .card.starred-canvas {
-  border-left: 3.5px solid #e0a92e;
+/* ── Canvas cards (project page): a Slack-style gallery ──────────── */
+
+.canvas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.canvas-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.canvas-card:hover {
+  box-shadow: var(--shadow-lift);
+  transform: translateY(-1.5px);
+}
+
+/* Starred: the same warm gold the old list rows wore. */
+.canvas-card.starred {
+  border-color: #e0a92e;
+}
+
+/* The mat the page preview floats on — washed in the project's color. */
+.canvas-card-preview {
+  height: 118px;
+  flex-shrink: 0;
+  padding: 12px 14px 0;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--cc-accent, var(--accent)) 14%, var(--bg-sunken));
+}
+
+/* A miniature of the canvas body, cropped by the mat's bottom edge.
+   Non-interactive — the whole card is the open affordance. */
+.canvas-card-page {
+  height: 100%;
+  padding: 10px 12px;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-soft);
+  pointer-events: none;
+  user-select: none;
+}
+
+.canvas-card-page:empty::before {
+  content: 'Nothing here yet';
+  color: var(--text-faint);
+}
+
+.canvas-card-page>*+* {
+  margin-top: 0.45em;
+}
+
+/* Headings shrink into the miniature — hierarchy reads by weight. */
+.canvas-card-page h1,
+.canvas-card-page h2,
+.canvas-card-page h3 {
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.canvas-card-page img {
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+.canvas-card-page ul,
+.canvas-card-page ol {
+  padding-left: 16px;
+}
+
+.canvas-card-footer {
+  padding: 9px 13px 11px;
+  border-top: 1px solid var(--border);
+}
+
+.canvas-card-sub {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--text-faint);
 }
 
 .item-list .card:not(.open):hover {
@@ -1699,6 +1787,35 @@ kbd.key {
   min-height: 22vh;
 }
 
+/* Canvas peek: unlike meeting notes, the body IS the content — the
+   editor stretches to fill the panel, so clicking anywhere below the
+   text drops the caret in. The flex chain has to thread through
+   EditorContent's anonymous wrapper div to reach the contenteditable. */
+.detail-panel .peek-canvas {
+  min-height: 100%;
+}
+
+.peek-canvas .rich-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.peek-canvas .rich-editor>div:not(.rich-toolbar) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The compact variant caps notes at 38vh so cards stay card-sized —
+   here that cap must go, or the editor stops at a gray box mid-panel.
+   And the full-height surface reads better barely tinted, not sunken. */
+.detail-panel .peek-canvas .ProseMirror {
+  flex: 1;
+  max-height: none;
+  background: color-mix(in srgb, var(--bg-sunken) 35%, var(--bg-card));
+}
+
 /* Meeting notes pane: full toolbar, mid height. A soft outline and a
    focus ring make it read as a typeable area, not blank canvas. */
 .meeting-notes .ProseMirror {
@@ -2001,9 +2118,12 @@ kbd.key {
 
 /* A modal header must never be a window-drag region — dragging the OS
    window from inside a modal is meaningless, and the drag region eats
-   clicks meant for the header's buttons (and the ✕ above it). */
+   clicks meant for the header's buttons (and the ✕ above it). The
+   right padding keeps the header's own trailing buttons (a canvas's
+   🗑 delete) clear of the floating ✕ pinned to the modal's corner. */
 .overlay-modal .canvas-header {
   -webkit-app-region: no-drag;
+  padding-right: 40px;
 }
 
 /* Inside the overlay, "back" is meaningless — closing is the exit. */

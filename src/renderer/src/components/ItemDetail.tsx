@@ -86,7 +86,9 @@ export function ItemDetail({
   const isPage = item.kind === 'page'
 
   return (
-    <div className="stack">
+    // Canvas peeks stretch to the panel's full height (peek-canvas) —
+    // the body IS the content, so the whole panel is writing surface.
+    <div className={isPage ? 'stack peek-canvas' : 'stack'}>
       <div className="row">
         {checkable ? (
           <Checkbox
