@@ -62,6 +62,8 @@ const api = {
     invoke('sections:create', projectId, name),
   renameSection: (id: string, name: string): Promise<void> => invoke('sections:rename', id, name),
   reorderSections: (ids: string[]): Promise<void> => invoke('sections:reorder', ids),
+  setSectionStatus: (id: string, status: 'active' | 'archived'): Promise<void> =>
+    invoke('sections:setStatus', id, status),
   deleteSection: (id: string): Promise<void> => invoke('sections:delete', id),
 
   // Items
@@ -98,6 +100,7 @@ const api = {
     Array<{
       rootId: string
       rootTitle: string
+      rootProjectId: string | null
       rootHasOpenSubtasks: boolean
       depth: number
       item: Item
@@ -169,6 +172,8 @@ const api = {
   googleConnect: (clientId: string, clientSecret: string): Promise<{ ok: boolean; error?: string }> =>
     invoke('calendar:googleConnect', clientId, clientSecret),
   googleDisconnect: (): Promise<void> => invoke('calendar:googleDisconnect'),
+  /** Drop the fetch cache and refresh every window's calendar queries. */
+  syncCalendarNow: (): Promise<void> => invoke('calendar:syncNow'),
 
   // Backup / export / restore (each opens a native dialog)
   createBackup: (): Promise<string | null> => invoke('backup:create'),

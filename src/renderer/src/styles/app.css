@@ -910,6 +910,16 @@ kbd.key {
   background: var(--bg-hover);
 }
 
+/* A header that only labels (the Done list's project blocks): no
+   pointer, no hover fill — nothing to click here. */
+.task-group-header.static {
+  cursor: default;
+}
+
+.task-group-header.static:hover {
+  background: transparent;
+}
+
 /* A quiet "+" that adds a task into this project. Sits by the name,
    only comes forward on hover so headers stay calm at rest. */
 .task-group-add {
@@ -2125,9 +2135,8 @@ kbd.key {
   cursor: pointer;
 }
 
-/* Project pages: comfortable single-column sections, left-aligned. */
+/* Project pages: single-column sections, full available width. */
 .project-section {
-  max-width: 720px;
   margin-bottom: 6px;
 }
 

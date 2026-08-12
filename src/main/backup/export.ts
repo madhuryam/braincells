@@ -21,6 +21,10 @@ export function buildExport(store: Store, now = new Date()): ExportFile[] {
   const items = store.allItems()
   const links = store.allLinks()
   const meetings = store.allMeetings()
+  const sections = store.allSections()
+  const sectionName = new Map(sections.map((s) => [s.id, s.name]))
+  const timeblocks = store.allLocalEvents()
+  const settings = store.allSettings() // credentials already excluded
 
   const files: ExportFile[] = []
 
@@ -29,12 +33,23 @@ export function buildExport(store: Store, now = new Date()): ExportFile[] {
     contents: pretty({
       app: 'braincells',
       exportedAt: now.toISOString(),
-      counts: { projects: projects.length, items: items.length, links: links.length, meetings: meetings.length }
+      counts: {
+        projects: projects.length,
+        items: items.length,
+        links: links.length,
+        meetings: meetings.length,
+        sections: sections.length,
+        timeblocks: timeblocks.length,
+        settings: Object.keys(settings).length
+      }
     })
   })
   files.push({ path: 'projects.json', contents: pretty(projects) })
   files.push({ path: 'links.json', contents: pretty(links) })
   files.push({ path: 'meetings.json', contents: pretty(meetings) })
+  files.push({ path: 'sections.json', contents: pretty(sections) })
+  files.push({ path: 'timeblocks.json', contents: pretty(timeblocks) })
+  files.push({ path: 'settings.json', contents: pretty(settings) })
 
   const seen = new Set<string>()
   for (const item of items) {
@@ -43,7 +58,7 @@ export function buildExport(store: Store, now = new Date()): ExportFile[] {
     // but be safe if an id prefix ever repeats.
     while (seen.has(path)) path = path.replace(/\.md$/, '_.md')
     seen.add(path)
-    files.push({ path, contents: itemMarkdown(item, projectName) })
+    files.push({ path, contents: itemMarkdown(item, projectName, sectionName) })
     // Anything written in the rich editor (pages, card notes, meeting
     // notes) also exports its full layout as a sibling .html — the .md
     // holds the plain-text mirror, which loses tables/formatting.
@@ -65,16 +80,26 @@ function itemFileName(item: Item): string {
   return `${date}-${slug}-${item.id.slice(0, 8)}.md`
 }
 
-function itemMarkdown(item: Item, projectName: Map<string, string>): string {
+function itemMarkdown(
+  item: Item,
+  projectName: Map<string, string>,
+  sectionName: Map<string, string>
+): string {
   const meta: Array<[string, string | null]> = [
     ['id', item.id],
     ['kind', item.kind],
     ['status', item.status],
     ['project', item.projectId ? (projectName.get(item.projectId) ?? item.projectId) : null],
+    ['section', item.sectionId ? (sectionName.get(item.sectionId) ?? item.sectionId) : null],
     ['created', item.createdAt],
+    ['updated', item.updatedAt ?? null],
     ['scheduled', item.scheduledDate],
+    ['scheduledTime', item.scheduledTime ?? null],
+    ['estimateMinutes', item.timeEstimateMinutes != null ? String(item.timeEstimateMinutes) : null],
     ['due', item.dueDate],
-    ['completed', item.completedAt]
+    ['completed', item.completedAt],
+    ['starred', item.starred ? 'true' : null],
+    ['sortOrder', item.sortOrder != null ? String(item.sortOrder) : null]
   ]
   const frontMatter = meta
     .filter(([, v]) => v !== null)

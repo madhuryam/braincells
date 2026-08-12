@@ -281,6 +281,15 @@ const MIGRATIONS: string[] = [
 
   CREATE INDEX idx_links_from  ON links(from_item_id);
   CREATE INDEX idx_links_event ON links(to_event_key);
+  `,
+
+  // 14: sections archive instead of vanishing — deleting threw away
+  // which bucket every task was filed in. An archived section keeps
+  // its items' section_id intact and can come back; hard delete stays
+  // available from the archived state.
+  `
+  ALTER TABLE sections ADD COLUMN status TEXT NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active','archived'));
   `
 ]
 

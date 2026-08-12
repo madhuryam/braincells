@@ -38,9 +38,15 @@ export function SectionGroups({
   // Guards against a stale sectionId (shouldn't happen — deletes SET
   // NULL — but an unknown id must not make the task vanish).
   const unfiled = todos.filter((t) => !t.sectionId || !known.has(t.sectionId))
+  // Archived sections sink below the active ones, folded — around (the
+  // filing they hold is still real) but out of the way.
+  const ordered = [
+    ...sections.filter((s) => s.status === 'active'),
+    ...sections.filter((s) => s.status === 'archived')
+  ]
 
   const move = (idx: number, dir: -1 | 1): void => {
-    const ids = sections.map((s) => s.id)
+    const ids = ordered.map((s) => s.id)
     ;[ids[idx], ids[idx + dir]] = [ids[idx + dir], ids[idx]]
     void mutate(() => window.api.reorderSections(ids))
   }
@@ -55,14 +61,14 @@ export function SectionGroups({
         </>
       ) : (
         <>
-          {sections.map((s, i) => (
+          {ordered.map((s, i) => (
             <SectionBlock
               key={s.id}
               section={s}
               projectId={projectId}
               items={todos.filter((t) => t.sectionId === s.id)}
               first={i === 0}
-              last={i === sections.length - 1}
+              last={i === ordered.length - 1}
               onMove={(dir) => move(i, dir)}
             />
           ))}
@@ -134,7 +140,9 @@ function SectionBlock({
   onMove: (dir: -1 | 1) => void
 }): React.JSX.Element {
   const mutate = useMutate()
-  const [collapsed, setCollapsed] = useState(false)
+  const archived = section.status === 'archived'
+  // Archived blocks start folded — present, not in the way.
+  const [collapsed, setCollapsed] = useState(archived)
   const [adding, setAdding] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
@@ -179,43 +187,72 @@ function SectionBlock({
         ) : (
           <span>{section.name}</span>
         )}
-        <span
-          className="task-group-add"
-          role="button"
-          aria-label={`Add a task to ${section.name}`}
-          title={`Add a task to ${section.name}`}
-          onClick={(e) => {
-            e.stopPropagation()
-            setAdding(!adding)
-            setCollapsed(false) // typing into a folded block goes nowhere
-          }}
-        >
-          ＋
-        </span>
-        {collapsed && <span className="pill">{items.length}</span>}
-        <span className="section-actions" onClick={(e) => e.stopPropagation()}>
-          <button
-            className="btn ghost small"
-            title="Rename section"
-            onClick={() => {
-              setNameDraft(section.name)
-              setRenaming(true)
+        {!archived && (
+          <span
+            className="task-group-add"
+            role="button"
+            aria-label={`Add a task to ${section.name}`}
+            title={`Add a task to ${section.name}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              setAdding(!adding)
+              setCollapsed(false) // typing into a folded block goes nowhere
             }}
           >
-            ✎
-          </button>
-          <button className="btn ghost small" title="Move up" disabled={first} onClick={() => onMove(-1)}>
-            ↑
-          </button>
-          <button className="btn ghost small" title="Move down" disabled={last} onClick={() => onMove(1)}>
-            ↓
-          </button>
-          <ConfirmButton
-            label="✕"
-            className="btn ghost small"
-            tooltip="Delete section — its tasks stay in the project"
-            onConfirm={() => void mutate(() => window.api.deleteSection(section.id))}
-          />
+            ＋
+          </span>
+        )}
+        {archived && <span className="pill">archived</span>}
+        {collapsed && <span className="pill">{items.length}</span>}
+        <span className="section-actions" onClick={(e) => e.stopPropagation()}>
+          {!archived && (
+            <>
+              <button
+                className="btn ghost small"
+                title="Rename section"
+                onClick={() => {
+                  setNameDraft(section.name)
+                  setRenaming(true)
+                }}
+              >
+                ✎
+              </button>
+              <button className="btn ghost small" title="Move up" disabled={first} onClick={() => onMove(-1)}>
+                ↑
+              </button>
+              <button className="btn ghost small" title="Move down" disabled={last} onClick={() => onMove(1)}>
+                ↓
+              </button>
+              {/* Archive, not delete: the tasks keep their filing and
+                  the section can come back. */}
+              <button
+                className="btn ghost small"
+                title="Archive section — tasks keep their filing; restore any time"
+                onClick={() =>
+                  void mutate(() => window.api.setSectionStatus(section.id, 'archived'))
+                }
+              >
+                🗄
+              </button>
+            </>
+          )}
+          {archived && (
+            <>
+              <button
+                className="btn ghost small"
+                title="Restore section"
+                onClick={() => void mutate(() => window.api.setSectionStatus(section.id, 'active'))}
+              >
+                ↩
+              </button>
+              <ConfirmButton
+                label="✕"
+                className="btn ghost small"
+                tooltip="Delete for good — its tasks unfile to General"
+                onConfirm={() => void mutate(() => window.api.deleteSection(section.id))}
+              />
+            </>
+          )}
         </span>
       </div>
       {!collapsed && (
@@ -227,7 +264,7 @@ function SectionBlock({
             ? cardsFor(items)
             : !adding && (
                 <span style={{ color: 'var(--text-faint)', fontSize: 14 }}>
-                  no tasks — drag one here, or ＋ to add
+                  {archived ? 'nothing filed here' : 'no tasks — drag one here, or ＋ to add'}
                 </span>
               )}
         </>

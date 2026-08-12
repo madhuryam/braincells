@@ -68,7 +68,18 @@ export async function restoreBackup(store: Store, win: BrowserWindow): Promise<v
 
   const dbPath = store.path
   store.close()
-  replaceDatabase(dbPath, filePaths[0])
+  try {
+    replaceDatabase(dbPath, filePaths[0])
+  } catch (err) {
+    // Validation refused the file before anything was touched — the
+    // live database is unchanged. Relaunch either way; the store is
+    // already closed.
+    dialog.showMessageBoxSync(win, {
+      type: 'error',
+      message: 'Restore failed — your data is unchanged.',
+      detail: err instanceof Error ? err.message : String(err)
+    })
+  }
   app.relaunch()
   app.exit(0)
 }

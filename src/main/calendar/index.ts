@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import type { CalendarEvent } from '../../shared/types'
 import type { Store } from '../store'
 import { autoFileMeetingsByLabel } from './classify'
@@ -66,6 +66,13 @@ export function registerCalendarIpc(store: Store): void {
       return events
     }
   )
+
+  // "Sync now": forget every cached range, then nudge every window to
+  // re-run its queries — the calendar ones come back to Google fresh.
+  ipcMain.handle('calendar:syncNow', () => {
+    googleCache.clear()
+    for (const w of BrowserWindow.getAllWindows()) w.webContents.send('data-changed')
+  })
 
   ipcMain.handle('calendar:googleStatus', () => ({ connected: google.isConnected() }))
 

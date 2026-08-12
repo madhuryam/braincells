@@ -126,7 +126,10 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
         const empty: Array<{ section: Section | null; items: Item[] }> = []
         for (const s of sections) {
           const inSection = shown.filter((i) => i.sectionId === s.id)
-          ;(inSection.length > 0 ? filled : empty).push({ section: s, items: inSection })
+          // An archived section still names the tasks filed in it, but
+          // empty it offers nothing — no drop target, no header.
+          if (inSection.length > 0) filled.push({ section: s, items: inSection })
+          else if (s.status === 'active') empty.push({ section: s, items: inSection })
         }
         const unfiled = shown.filter((i) => !i.sectionId || !known.has(i.sectionId))
         const subgroups = [

@@ -255,27 +255,71 @@ describe('backup → restore round-trip (high volume, all data types)', () => {
     restored.close()
   })
 
-  it('markdown export covers items/projects/links/meetings — and documents what it omits', () => {
+  it('markdown export covers items/projects/links/meetings/sections/timeblocks/settings — and documents what it omits', () => {
     const store = new Store(':memory:')
     seedEverything(store)
     const files = buildExport(store)
-    const paths = new Set(files.map((f) => f.path))
+    const byPath = new Map(files.map((f) => [f.path, f.contents]))
 
-    // What it DOES capture:
-    expect(paths.has('projects.json')).toBe(true)
-    expect(paths.has('links.json')).toBe(true)
-    expect(paths.has('meetings.json')).toBe(true)
+    // Every structure file is present.
+    for (const p of [
+      'manifest.json',
+      'projects.json',
+      'links.json',
+      'meetings.json',
+      'sections.json',
+      'timeblocks.json',
+      'settings.json'
+    ])
+      expect(byPath.has(p), p).toBe(true)
     expect(files.filter((f) => f.path.endsWith('.md')).length).toBe(store.allItems().length)
     expect(files.some((f) => f.path.endsWith('.html'))).toBe(true) // rich pages
 
-    // What it DOES NOT capture (documented gaps — the .sqlite3 backup is
-    // the complete one; markdown export is human-readable, not a full
-    // restore source):
-    expect(paths.has('local_events.json')).toBe(false) // timeblocks omitted
-    expect(paths.has('settings.json')).toBe(false) // theme/labels/config omitted
-    const aMd = files.find((f) => f.path.endsWith('.md'))!.contents
-    expect(aMd).not.toContain('starred:') // item flags not in front matter
-    expect(aMd).not.toContain('sortOrder')
+    // Manifest counts line up with the seeded fixture.
+    const manifest = JSON.parse(byPath.get('manifest.json')!)
+    expect(manifest.counts).toEqual({
+      projects: 40,
+      items: store.allItems().length,
+      links: store.allLinks().length,
+      meetings: 250,
+      sections: store.allSections().length,
+      timeblocks: 400,
+      settings: 6 // 8 seeded minus the two credential keys
+    })
+
+    // The JSON dumps carry the same rows the counts advertise.
+    expect(JSON.parse(byPath.get('sections.json')!)).toHaveLength(manifest.counts.sections)
+    expect(JSON.parse(byPath.get('timeblocks.json')!)).toHaveLength(400)
+
+    // Settings export deliberately excludes Google credentials, keeps
+    // everything else.
+    const settings = JSON.parse(byPath.get('settings.json')!)
+    expect(settings).not.toHaveProperty('googleTokens')
+    expect(settings).not.toHaveProperty('googleClient')
+    expect(Object.keys(settings).sort()).toEqual([
+      'calendarLabels',
+      'calendarMode',
+      'hideWorkLocation',
+      'theme',
+      'timeZone',
+      'timelineBounds'
+    ])
+    expect(settings.theme).toBe('plum')
+
+    // Item front matter now carries the richer fields the fixture sets.
+    const allMd = files
+      .filter((f) => f.path.endsWith('.md'))
+      .map((f) => f.contents)
+      .join('\n')
+    for (const key of [
+      'section: ',
+      'updated: ',
+      'scheduledTime: ',
+      'estimateMinutes: ',
+      'starred: true',
+      'sortOrder: '
+    ])
+      expect(allMd, key).toContain(key)
     store.close()
   })
 })

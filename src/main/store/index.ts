@@ -134,25 +134,26 @@ export class Store {
 
   createProject(name: string, color: string): Project {
     this.assertProjectNameFree(name)
-    const p: Project = {
-      id: randomUUID(),
-      name,
-      nickname: null, // set later from the Projects page, if ever
-      color,
-      status: 'active',
-      createdAt: nowStamp()
-    }
     // New projects land at the end of the user's ordering.
     const nextOrder = (
       this.db.prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM projects').get() as {
         n: number
       }
     ).n
+    const p: Project = {
+      id: randomUUID(),
+      name,
+      nickname: null, // set later from the Projects page, if ever
+      color,
+      status: 'active',
+      createdAt: nowStamp(),
+      sortOrder: nextOrder
+    }
     this.db
       .prepare(
         'INSERT INTO projects (id, name, nickname, color, status, created_at, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
       )
-      .run(p.id, p.name, p.nickname, p.color, p.status, p.createdAt, nextOrder)
+      .run(p.id, p.name, p.nickname, p.color, p.status, p.createdAt, p.sortOrder)
     return p
   }
 
@@ -160,7 +161,8 @@ export class Store {
     const where = includeArchived ? '' : "WHERE status = 'active'"
     return this.db
       .prepare(
-        `SELECT id, name, nickname, color, status, created_at AS createdAt FROM projects ${where} ORDER BY sort_order, name`
+        `SELECT id, name, nickname, color, status, created_at AS createdAt, sort_order AS sortOrder
+         FROM projects ${where} ORDER BY sort_order, name`
       )
       .all() as Project[]
   }
@@ -205,7 +207,7 @@ export class Store {
     return this.db
       .prepare(
         `SELECT id, project_id AS projectId, name, sort_order AS sortOrder,
-           created_at AS createdAt
+           created_at AS createdAt, status
          FROM sections WHERE project_id = ? ORDER BY sort_order, created_at`
       )
       .all(projectId) as Section[]
@@ -224,18 +226,28 @@ export class Store {
       projectId,
       name,
       sortOrder: nextOrder,
-      createdAt: nowStamp()
+      createdAt: nowStamp(),
+      status: 'active'
     }
     this.db
       .prepare(
-        'INSERT INTO sections (id, project_id, name, sort_order, created_at) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO sections (id, project_id, name, sort_order, created_at, status) VALUES (?, ?, ?, ?, ?, ?)'
       )
-      .run(s.id, s.projectId, s.name, s.sortOrder, s.createdAt)
+      .run(s.id, s.projectId, s.name, s.sortOrder, s.createdAt, s.status)
     return s
   }
 
   renameSection(id: string, name: string): void {
     this.db.prepare('UPDATE sections SET name = ? WHERE id = ?').run(name, id)
+  }
+
+  /**
+   * Archive (or restore) a section. Archived, it keeps every item's
+   * section_id — the filing survives — but stops offering itself for
+   * new work. The reversible counterpart to deleteSection.
+   */
+  setSectionStatus(id: string, status: 'active' | 'archived'): void {
+    this.db.prepare('UPDATE sections SET status = ? WHERE id = ?').run(status, id)
   }
 
   /** Persist a new section order: sort_order follows the given id list. */
@@ -673,6 +685,8 @@ export class Store {
   ): Array<{
     rootId: string
     rootTitle: string
+    /** The root's project — lets callers group these under it. */
+    rootProjectId: string | null
     /** True while the root still has unfinished subtasks anywhere in its tree. */
     rootHasOpenSubtasks: boolean
     depth: number
@@ -693,7 +707,7 @@ export class Store {
            FROM up u
            WHERE depth = (SELECT MAX(depth) FROM up WHERE start_id = u.start_id)
          )
-         SELECT r.root_id, p.title AS root_title, r.depth,
+         SELECT r.root_id, p.title AS root_title, p.project_id AS root_project_id, r.depth,
            EXISTS (
              SELECT 1 FROM up u2 JOIN items s ON s.id = u2.start_id
              WHERE u2.ancestor_id = r.root_id AND s.status IN ('active', 'inbox')
@@ -709,6 +723,7 @@ export class Store {
     return rows.map((r) => ({
       rootId: r.root_id,
       rootTitle: r.root_title,
+      rootProjectId: r.root_project_id,
       rootHasOpenSubtasks: !!r.root_has_open,
       depth: r.depth,
       item: rowToItem(r)
@@ -988,6 +1003,43 @@ export class Store {
     return this.db
       .prepare('SELECT event_key AS eventKey, project_id AS projectId, title, date FROM meetings ORDER BY date')
       .all() as Meeting[]
+  }
+
+  allSections(): Section[] {
+    return this.db
+      .prepare(
+        `SELECT id, project_id AS projectId, name, sort_order AS sortOrder,
+           created_at AS createdAt, status
+         FROM sections ORDER BY project_id, sort_order, created_at`
+      )
+      .all() as Section[]
+  }
+
+  allLocalEvents(): LocalEvent[] {
+    return this.db
+      .prepare(
+        `SELECT id, title, date, start_time AS startTime, end_time AS endTime,
+                project_id AS projectId, item_id AS itemId
+         FROM local_events ORDER BY date, start_time`
+      )
+      .all() as LocalEvent[]
+  }
+
+  /**
+   * Every setting except credentials: the export folder is meant to be
+   * read (and shared) by humans, so OAuth secrets never land in it.
+   */
+  allSettings(): Record<string, unknown> {
+    const rows = this.db.prepare('SELECT key, value FROM settings ORDER BY key').all() as Array<{
+      key: string
+      value: string
+    }>
+    const out: Record<string, unknown> = {}
+    for (const r of rows) {
+      if (r.key === 'googleTokens' || r.key === 'googleClient') continue
+      out[r.key] = JSON.parse(r.value)
+    }
+    return out
   }
 
   // ── Search ──────────────────────────────────────────────────────────

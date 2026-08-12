@@ -9,3 +9,15 @@ import type { CalendarEvent } from '../../shared/types'
 export function withoutWorkLocationEvents(events: CalendarEvent[]): CalendarEvent[] {
   return events.filter((e) => !(e.startTime === null && /^(home|office)$/i.test(e.title.trim())))
 }
+
+/**
+ * Declining an invite doesn't delete the event — Google keeps it on
+ * the calendar with responseStatus 'declined' and merely hides it in
+ * its own UI. The feed drops those here: "I said no" means off the
+ * schedule. (`self` marks which attendee is the connected account.)
+ */
+export function isDeclinedByMe(
+  attendees?: Array<{ self?: boolean; responseStatus?: string }>
+): boolean {
+  return attendees?.some((a) => a.self && a.responseStatus === 'declined') ?? false
+}

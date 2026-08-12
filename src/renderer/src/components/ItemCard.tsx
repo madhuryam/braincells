@@ -302,11 +302,14 @@ export function ItemCard({
     }
     walk(item.id)
   }
-  // A finished subtask stays (struck through) only in the list of the
-  // day it was completed; everywhere else the card shows what's left.
+  // A finished subtask leaves the card — it reappears in the day's
+  // Done section, grouped under this parent's name. Only a card that
+  // is itself done keeps that day's finished pieces: it IS the record.
   const dayContext = contextDate ?? todayYmd()
-  const visibleTree = orderedTree.filter(
-    ({ item: s }) => s.status !== 'done' || (s.completedAt ?? '').slice(0, 10) === dayContext
+  const visibleTree = orderedTree.filter(({ item: s }) =>
+    s.status !== 'done'
+      ? true
+      : item.status === 'done' && (s.completedAt ?? '').slice(0, 10) === dayContext
   )
   // Visible siblings per parent: a drag-reorder stays within one
   // nesting level (dropping on a row of another level is a no-op).
@@ -558,18 +561,8 @@ export function ItemCard({
         >
           {isCheckable && checkboxSelects && (
             // Selection checkbox: gathers the row instead of completing
-            // it. The accent outline says "this checks selection, not
-            // done" — the card's multi-selected wash confirms it.
-            <span
-              style={{
-                display: 'inline-flex',
-                borderRadius: 6,
-                outline: '1px solid var(--accent)',
-                outlineOffset: 1
-              }}
-            >
-              <Checkbox checked={multiSelected} onToggle={() => toggle(item.id)} />
-            </span>
+            // it — the card's multi-selected wash is what says "picked".
+            <Checkbox checked={multiSelected} onToggle={() => toggle(item.id)} />
           )}
           {isCheckable && !checkboxSelects && (
             <Checkbox

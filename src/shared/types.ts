@@ -57,6 +57,8 @@ export interface Project {
   color: string // hex accent color, carries through the whole UI
   status: ProjectStatus
   createdAt: string
+  /** Sidebar position (drag-to-reorder); also lands in the export. */
+  sortOrder: number
 }
 
 /**
@@ -71,6 +73,8 @@ export interface Section {
   name: string
   sortOrder: number
   createdAt: string
+  /** Archived sections keep their items filed but bow out of the UI. */
+  status: 'active' | 'archived'
 }
 
 /**

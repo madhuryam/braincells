@@ -9,7 +9,7 @@ import { MeetingPeekProvider } from '../state/peek'
 import { Card } from '../components/Card'
 import { AllDayBar } from '../components/AllDayBar'
 import { DetailPanel } from '../components/DetailPanel'
-import { ItemDetail } from '../components/ItemDetail'
+import { DoneList } from '../components/DoneList'
 import { Meeting } from './Meeting'
 import { BackButton, EmptyState } from '../components/bits'
 import { ampm, longDate } from '../format'
@@ -21,10 +21,9 @@ import { ampm, longDate } from '../format'
  * right-hand detail panel instead of leaving the screen.
  */
 
-/** What the detail panel is currently showing. */
-type Detail =
-  | { kind: 'meeting'; eventKey: string; title: string; date: string }
-  | { kind: 'item'; itemId: string }
+/** What the detail panel is currently showing. (Done items expand in
+ *  place like on Today, so only meetings peek here now.) */
+type Detail = { kind: 'meeting'; eventKey: string; title: string; date: string }
 
 /** Monday of the week containing `date`. */
 function weekStartOf(date: string): string {
@@ -63,7 +62,7 @@ export function DailyLog(): React.JSX.Element {
   return (
     // The width never changes when the panel opens — the log column
     // always lives in the left half, so peeking shifts nothing.
-    <div className="canvas" style={{ '--canvas-max': '1500px' } as React.CSSProperties}>
+    <div className="canvas">
       <header className="canvas-header">
         <BackButton />
         <h1>Weekly Log</h1>
@@ -116,34 +115,28 @@ export function DailyLog(): React.JSX.Element {
           ))}
         </div>
 
-        {detail &&
-          (detail.kind === 'meeting' ? (
-            <DetailPanel
+        {detail && (
+          <DetailPanel
+            title={detail.title}
+            onOpenFull={() =>
+              openOverlay({
+                name: 'meeting',
+                eventKey: detail.eventKey,
+                title: detail.title,
+                date: detail.date
+              })
+            }
+            onClose={() => setDetail(null)}
+          >
+            <Meeting
+              key={detail.eventKey}
+              embedded
+              eventKey={detail.eventKey}
               title={detail.title}
-              onOpenFull={() =>
-                openOverlay({
-                  name: 'meeting',
-                  eventKey: detail.eventKey,
-                  title: detail.title,
-                  date: detail.date
-                })
-              }
-              onClose={() => setDetail(null)}
-            >
-              <Meeting
-                key={detail.eventKey}
-                embedded
-                eventKey={detail.eventKey}
-                title={detail.title}
-                date={detail.date}
-              />
-            </DetailPanel>
-          ) : (
-            // ItemDetail owns the header row (title · star · open · ✕).
-            <DetailPanel>
-              <ItemDetail key={detail.itemId} itemId={detail.itemId} onClose={() => setDetail(null)} />
-            </DetailPanel>
-          ))}
+              date={detail.date}
+            />
+          </DetailPanel>
+        )}
       </div>
       </MeetingPeekProvider>
     </div>
@@ -190,19 +183,10 @@ function DayBlock({
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
             <div className="stack">
               <span className="section-sublabel">Done</span>
-              <div className="item-list">
-                {completed.map((item) => (
-                  <Card key={item.id} interactive done onClick={() => onPeek({ kind: 'item', itemId: item.id })}>
-                    <div className="row">
-                      {/* Quiet ✓ instead of KIND_ICON — the bright ✅ overpowers a log view. */}
-                      <span aria-hidden style={{ color: 'var(--text-faint)', fontWeight: 700 }}>
-                        ✓
-                      </span>
-                      <span className="card-title">{item.title || 'Untitled'}</span>
-                    </div>
-                  </Card>
-                ))}
-              </div>
+              {/* The same element as Today's Done section — full cards,
+                  subtask lineage grouped under each parent, checkboxes
+                  uncheckable in place. */}
+              <DoneList date={date} />
             </div>
 
             <div className="stack">

@@ -135,7 +135,7 @@ export function ProjectPage({ projectId }: { projectId: string }): React.JSX.Ele
   }
 
   return (
-    <div className="canvas" style={{ '--canvas-max': '1500px' } as React.CSSProperties}>
+    <div className="canvas">
       <header className="canvas-header">
         <BackButton />
         <button

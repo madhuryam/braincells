@@ -5,8 +5,8 @@ import { useLiveQuery, useMutate } from '../state/data'
 import { useEditing } from '../state/editing'
 import { useNav } from '../state/nav'
 import { MeetingPeekProvider } from '../state/peek'
-import { Card } from '../components/Card'
 import { DetailPanel } from '../components/DetailPanel'
+import { DoneList } from '../components/DoneList'
 import { TaskPeek } from '../components/TaskPeek'
 import { Meeting } from './Meeting'
 import { ItemCard } from '../components/ItemCard'
@@ -14,7 +14,7 @@ import { TaskGroups } from '../components/TaskGroups'
 import { ProjectPicker } from '../components/ProjectPicker'
 import { DraggableCard, DropZone } from '../components/dnd'
 import { Timeline } from '../components/Timeline'
-import { CheckableInput, Checkbox, EmptyState } from '../components/bits'
+import { CheckableInput, EmptyState } from '../components/bits'
 import { longDate, rollingDays, type RollingDay } from '../format'
 
 /** 'August 5' — the weekday already leads the header, so no repeat. */
@@ -31,25 +31,9 @@ export function Today(): React.JSX.Element {
   // *now* (carried over, the rolling week, triage) stay on real today.
   const [date, setDate] = useState(today)
   const tasks = useLiveQuery(() => window.api.tasksFor(date), [date]) ?? []
+  // Only the count is needed here — the DoneList element owns the
+  // grouping (standalone cards + subtask lineage under each parent).
   const doneToday = useLiveQuery(() => window.api.completedOn(date), [date]) ?? []
-  // Subtasks finished this day show grouped under their parent's name,
-  // not as orphan cards.
-  const doneSubs = useLiveQuery(() => window.api.completedSubtasksOn(date), [date]) ?? []
-  const doneSubIds = new Set(doneSubs.map((d) => d.item.id))
-  const doneStandalone = doneToday.filter((i) => !doneSubIds.has(i.id))
-  // A subtask group earns its own block only while the parent is still
-  // in progress. A parent finished this day already shows its subtasks
-  // on its own done card, and a parent with nothing left open reads as
-  // one done block wherever it appears — repeating either as a group
-  // would show the same work twice.
-  const doneTodayIds = new Set(doneToday.map((i) => i.id))
-  const doneGroups = [
-    ...new Map(
-      doneSubs
-        .filter((d) => d.rootHasOpenSubtasks && !doneTodayIds.has(d.rootId))
-        .map((d) => [d.rootId, d.rootTitle])
-    ).entries()
-  ]
   // Folded until asked for — done work is a record, not the day's focus.
   const [showDone, setShowDone] = useState(false)
   // "Coming up" starts open on the real today and folded when paging
@@ -188,23 +172,7 @@ export function Today(): React.JSX.Element {
                   {showDone ? '▾' : '▸'} {date === today ? 'Done today' : 'Done'}
                   <span className="pill">{doneToday.length}</span>
                 </button>
-                {showDone && (
-                  <div className="item-list">
-                    <AnimatePresence initial={false}>
-                      {doneStandalone.map((item) => (
-                        // contextDate: ticking a leftover subtask inside a
-                        // done card on a past day's view logs it on THAT
-                        // day, like every other checkbox on the page.
-                        <ItemCard key={item.id} item={item} showDate={false} contextDate={date} />
-                      ))}
-                    </AnimatePresence>
-                    {/* Subtasks finished this day, under their parent's
-                      name — uncheckable in place if one was a misclick. */}
-                    {doneGroups.map(([rootId, rootTitle]) => (
-                      <DoneSubtaskGroup key={rootId} rootId={rootId} rootTitle={rootTitle} date={date} />
-                    ))}
-                  </div>
-                )}
+                {showDone && <DoneList date={date} />}
               </>
             )}
 
@@ -322,62 +290,6 @@ export function Today(): React.JSX.Element {
       </div>
       </MeetingPeekProvider>
     </div>
-  )
-}
-
-/**
- * One parent task's subtasks finished on `date`, in true tree order.
- * Unfinished intermediate levels are skipped, so each row indents
- * under its nearest *shown* ancestor — a lone grandchild sits at the
- * first level rather than appearing to belong to an unrelated sibling.
- */
-function DoneSubtaskGroup({
-  rootId,
-  rootTitle,
-  date
-}: {
-  rootId: string
-  rootTitle: string
-  date: string
-}): React.JSX.Element {
-  const tree = useLiveQuery(() => window.api.subtaskTreeOf(rootId), [rootId]) ?? []
-  const mutate = useMutate()
-
-  const shown = tree.filter(
-    ({ item }) => item.status === 'done' && (item.completedAt ?? '').slice(0, 10) === date
-  )
-  const shownIds = new Set(shown.map((s) => s.item.id))
-  const parentOf = new Map(tree.map((t) => [t.item.id, t.parentId]))
-  const depthOf = (id: string): number => {
-    let p = parentOf.get(id)
-    while (p && p !== rootId) {
-      if (shownIds.has(p)) return depthOf(p) + 1
-      p = parentOf.get(p)
-    }
-    return 1
-  }
-
-  return (
-    <Card>
-      <div className="row">
-        <span aria-hidden style={{ color: 'var(--text-faint)', fontWeight: 700 }}>✓</span>
-        <span className="card-title">{rootTitle}</span>
-        <span className="pill" style={{ marginLeft: 'auto' }}>
-          subtasks
-        </span>
-      </div>
-      <div className="subtasks" style={{ marginTop: 8 }}>
-        {shown.map(({ item: sub }) => (
-          <div key={sub.id} className="subtask-row" style={{ marginLeft: (depthOf(sub.id) - 1) * 22 }}>
-            <Checkbox
-              checked
-              onToggle={() => mutate(() => window.api.updateItem(sub.id, { status: 'active' }))}
-            />
-            <span className="subtask-title done">{sub.title}</span>
-          </div>
-        ))}
-      </div>
-    </Card>
   )
 }
 

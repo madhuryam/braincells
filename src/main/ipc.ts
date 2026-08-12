@@ -29,6 +29,9 @@ export function registerStoreIpc(store: Store): void {
   )
   ipcMain.handle('sections:rename', (_e, id: string, name: string) => store.renameSection(id, name))
   ipcMain.handle('sections:reorder', (_e, ids: string[]) => store.reorderSections(ids))
+  ipcMain.handle('sections:setStatus', (_e, id: string, status: 'active' | 'archived') =>
+    store.setSectionStatus(id, status)
+  )
   ipcMain.handle('sections:delete', (_e, id: string) => store.deleteSection(id))
 
   // Items

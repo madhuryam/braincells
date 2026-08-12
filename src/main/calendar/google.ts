@@ -2,6 +2,7 @@ import { createServer, type Server } from 'node:http'
 import { createHash, randomBytes } from 'node:crypto'
 import { shell } from 'electron'
 import { eventKeyOf, type CalendarEvent } from '../../shared/types'
+import { isDeclinedByMe } from './filter'
 import { hhmm, ymd } from '../../shared/dates'
 import type { Store } from '../store'
 
@@ -116,11 +117,13 @@ export class GoogleCalendar {
           eventLabelId?: string
           start?: { dateTime?: string; date?: string }
           end?: { dateTime?: string; date?: string }
+          attendees?: Array<{ self?: boolean; responseStatus?: string }>
         }>
       }
 
       for (const e of body.items ?? []) {
         if (e.status === 'cancelled' || !e.start) continue
+        if (isDeclinedByMe(e.attendees)) continue
         const startsAt = e.start.dateTime ? new Date(e.start.dateTime) : null
         const date = startsAt ? ymd(startsAt) : e.start.date
         if (!date) continue

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CalendarEvent } from '../../shared/types'
-import { withoutWorkLocationEvents } from './filter'
+import { isDeclinedByMe, withoutWorkLocationEvents } from './filter'
 
 const ev = (title: string, startTime: string | null): CalendarEvent => ({
   eventKey: `${title}::2026-07-30`,
@@ -25,5 +25,30 @@ describe('work-location filter', () => {
       'Home',
       'Standup'
     ])
+  })
+})
+
+describe('declined-invite filter', () => {
+  it('drops an event only when the connected account itself declined', () => {
+    // I declined → gone, no matter what others said.
+    expect(
+      isDeclinedByMe([
+        { responseStatus: 'accepted' },
+        { self: true, responseStatus: 'declined' }
+      ])
+    ).toBe(true)
+    // Someone ELSE declined → still my meeting.
+    expect(
+      isDeclinedByMe([
+        { responseStatus: 'declined' },
+        { self: true, responseStatus: 'accepted' }
+      ])
+    ).toBe(false)
+    // Tentative / needsAction / no answer yet → keep showing it.
+    expect(isDeclinedByMe([{ self: true, responseStatus: 'tentative' }])).toBe(false)
+    expect(isDeclinedByMe([{ self: true, responseStatus: 'needsAction' }])).toBe(false)
+    // Own events without attendees (solo blocks, self-created) stay.
+    expect(isDeclinedByMe(undefined)).toBe(false)
+    expect(isDeclinedByMe([])).toBe(false)
   })
 })

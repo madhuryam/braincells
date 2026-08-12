@@ -122,6 +122,13 @@ export function CalendarScreen(): React.JSX.Element {
           <button className="btn ghost icon-btn" title="Forward a month" onClick={() => scrollWeeks(4)}>
             ›
           </button>
+          <button
+            className="btn ghost icon-btn"
+            title="Sync calendar now"
+            onClick={() => window.api.syncCalendarNow()}
+          >
+            ↻
+          </button>
         </span>
       </header>
 
