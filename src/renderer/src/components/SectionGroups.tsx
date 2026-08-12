@@ -38,17 +38,17 @@ export function SectionGroups({
   // Guards against a stale sectionId (shouldn't happen — deletes SET
   // NULL — but an unknown id must not make the task vanish).
   const unfiled = todos.filter((t) => !t.sectionId || !known.has(t.sectionId))
-  // Archived sections sink below the active ones, folded — around (the
-  // filing they hold is still real) but out of the way.
-  const ordered = [
-    ...sections.filter((s) => s.status === 'active'),
-    ...sections.filter((s) => s.status === 'archived')
-  ]
+  const active = sections.filter((s) => s.status === 'active')
+  // Archived sections all disappear into one folded "Archived" shelf
+  // at the very bottom — the filing they hold is still real, but a
+  // project that accretes dead sections over time shouldn't wear them
+  // all as rows.
+  const archived = sections.filter((s) => s.status === 'archived')
 
   const move = (idx: number, dir: -1 | 1): void => {
-    const ids = ordered.map((s) => s.id)
+    const ids = active.map((s) => s.id)
     ;[ids[idx], ids[idx + dir]] = [ids[idx + dir], ids[idx]]
-    void mutate(() => window.api.reorderSections(ids))
+    void mutate(() => window.api.reorderSections([...ids, ...archived.map((s) => s.id)]))
   }
 
   return (
@@ -61,14 +61,14 @@ export function SectionGroups({
         </>
       ) : (
         <>
-          {ordered.map((s, i) => (
+          {active.map((s, i) => (
             <SectionBlock
               key={s.id}
               section={s}
               projectId={projectId}
               items={todos.filter((t) => t.sectionId === s.id)}
               first={i === 0}
-              last={i === ordered.length - 1}
+              last={i === active.length - 1}
               onMove={(dir) => move(i, dir)}
             />
           ))}
@@ -76,9 +76,58 @@ export function SectionGroups({
               appear: after the last one, before the unsectioned tail. */}
           {addingSection && <NewSectionInput projectId={projectId} onClose={onCloseAddSection} />}
           <GeneralBlock projectId={projectId} items={unfiled} />
+          {archived.length > 0 && (
+            <ArchivedShelf projectId={projectId} sections={archived} todos={todos} />
+          )}
         </>
       )}
     </>
+  )
+}
+
+/**
+ * Every archived section, behind one folded row at the bottom of the
+ * project. Sections come and go as topics flare up and die down, so
+ * the dead ones must cost one line total, not one line each. Opening
+ * the shelf shows the archived blocks (each still folded) for
+ * restore, delete, or a look at what's filed inside.
+ */
+function ArchivedShelf({
+  projectId,
+  sections,
+  todos
+}: {
+  projectId: string
+  sections: Section[]
+  todos: Item[]
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="task-group archived-shelf">
+      <div
+        className="task-group-header"
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(!open)}
+        onKeyDown={(e) => e.key === 'Enter' && setOpen(!open)}
+      >
+        <span aria-hidden>{open ? '▾' : '▸'}</span>
+        <span>Archived</span>
+        <span className="pill">{sections.length}</span>
+      </div>
+      {open &&
+        sections.map((s) => (
+          <SectionBlock
+            key={s.id}
+            section={s}
+            projectId={projectId}
+            items={todos.filter((t) => t.sectionId === s.id)}
+            first
+            last
+            onMove={() => {}}
+          />
+        ))}
+    </div>
   )
 }
 
@@ -202,7 +251,8 @@ function SectionBlock({
             ＋
           </span>
         )}
-        {archived && <span className="pill">archived</span>}
+        {/* No "archived" badge needed: archived blocks only ever
+            render inside the Archived shelf, which already says so. */}
         {collapsed && <span className="pill">{items.length}</span>}
         <span className="section-actions" onClick={(e) => e.stopPropagation()}>
           {!archived && (

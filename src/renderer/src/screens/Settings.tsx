@@ -34,6 +34,9 @@ export function Settings(): React.JSX.Element {
     () => window.api.getSetting<{ start: number; end: number }>('timelineBounds'),
     []
   ) ?? { start: 7, end: 20 }
+  // Stored as the CSS opacity (0–1); shown as a percentage.
+  const timeblockedFade =
+    useLiveQuery(() => window.api.getSetting<number>('timeblockedFade'), []) ?? 0.5
   const [clientId, setClientId] = useState('')
   const [clientSecret, setClientSecret] = useState('')
   const [connecting, setConnecting] = useState(false)
@@ -121,6 +124,29 @@ export function Settings(): React.JSX.Element {
             />
             Show the time-on-calendar pill
           </label>
+          <label className="row" style={{ gap: 8 }}>
+            Fade once on the calendar
+            <input
+              type="range"
+              min={20}
+              max={100}
+              step={5}
+              style={{ width: 160, padding: 0, accentColor: 'var(--accent)' }}
+              value={Math.round(timeblockedFade * 100)}
+              onChange={(e) =>
+                mutate(() =>
+                  window.api.setSetting('timeblockedFade', Number(e.target.value) / 100)
+                )
+              }
+            />
+            <span style={{ color: 'var(--text-soft)', fontVariantNumeric: 'tabular-nums' }}>
+              {Math.round(timeblockedFade * 100)}%
+            </span>
+          </label>
+          <p style={{ margin: 0, color: 'var(--text-soft)', fontSize: 14 }}>
+            How strongly a task (or subtask) still reads once it has a block on the
+            timeline — 100% means no fade at all.
+          </p>
         </Card>
 
         <Card className="stack">

@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { Item, Project, Section } from '@shared/types'
@@ -16,6 +16,12 @@ interface TaskGroupsProps {
   sortable?: boolean
   /** Rendered inside the last group (e.g. 'Show all'), folding with it. */
   footer?: React.ReactNode
+  /**
+   * Page-level "collapse all / expand all": each seq bump folds or
+   * unfolds every block at once. Individual headers still toggle
+   * freely afterwards — this is a broadcast, not a lock.
+   */
+  fold?: { seq: number; collapsed: boolean }
 }
 
 /**
@@ -26,7 +32,13 @@ interface TaskGroupsProps {
  * names the day and the block names the project, so cards hide both
  * pills. If nothing has a project, the list renders flat.
  */
-export function TaskGroups({ items, date, sortable = false, footer }: TaskGroupsProps): React.JSX.Element {
+export function TaskGroups({
+  items,
+  date,
+  sortable = false,
+  footer,
+  fold
+}: TaskGroupsProps): React.JSX.Element {
   const { projects } = useData()
   // Sections for every project, so each block can separate its tasks
   // under the same section names as the project's own page.
@@ -48,6 +60,15 @@ export function TaskGroups({ items, date, sortable = false, footer }: TaskGroups
     })
   // A busy project can fold away so the rest of the day is scannable.
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  // The page's collapse-all/expand-all control: each bump overwrites
+  // every block's fold state in one stroke.
+  useEffect(() => {
+    if (!fold || fold.seq === 0) return
+    setCollapsed(fold.collapsed ? new Set([...projects.map((p) => p.id), 'none']) : new Set())
+    // Deliberately only the bump: a projects change must not replay the
+    // last broadcast over folds the user has since toggled by hand.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fold?.seq])
   const toggle = (key: string): void =>
     setCollapsed((prev) => {
       const next = new Set(prev)

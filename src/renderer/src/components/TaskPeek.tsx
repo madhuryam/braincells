@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useLiveQuery, useMutate } from '../state/data'
 import { ItemBody } from './Markdown'
 import { Checkbox } from './bits'
@@ -14,6 +15,38 @@ function toMin(t: string): number {
 }
 const toHHMM = (m: number): string =>
   `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+
+/**
+ * A time input you can actually type into. While focused it owns a
+ * local draft (typing the hour, then the minutes, fires interim change
+ * events) and commits once, on blur or Enter. Wiring `value` straight
+ * to the store meant every half-typed segment patched the DB and the
+ * live-query re-render snapped the field back mid-keystroke.
+ */
+function TimeField({
+  value,
+  onCommit
+}: {
+  value: string
+  onCommit: (v: string) => void
+}): React.JSX.Element {
+  const [draft, setDraft] = useState<string | null>(null)
+  return (
+    <input
+      type="time"
+      step={60}
+      value={draft ?? value}
+      onFocus={() => setDraft(value)}
+      onChange={(e) => setDraft(e.target.value)}
+      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      onBlur={() => {
+        // An empty draft (cleared field) reverts, same as before.
+        if (draft && draft !== value) onCommit(draft)
+        setDraft(null)
+      }}
+    />
+  )
+}
 
 /**
  * The peek body for a time-blocked task, shown beside the schedule when
@@ -74,23 +107,20 @@ export function TaskPeek({
       <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
         <label className="pill">
           ⏱
-          <input
-            type="time"
-            step={60}
+          <TimeField
             value={item.scheduledTime ?? ''}
-            onChange={(e) => e.target.value && patch({ scheduledTime: e.target.value })}
+            onCommit={(v) => patch({ scheduledTime: v })}
           />
         </label>
         {item.scheduledTime && (
           <label className="pill">
             –
-            <input
-              type="time"
-              step={60}
+            <TimeField
               value={toHHMM(Math.min(toMin(item.scheduledTime) + dur, 23 * 60 + 59))}
-              onChange={(e) => {
-                if (!e.target.value) return
-                const mins = toMin(e.target.value) - toMin(item.scheduledTime!)
+              onCommit={(v) => {
+                // An end at or before the start would be a zero/negative
+                // block — ignored, and the field snaps back on blur.
+                const mins = toMin(v) - toMin(item.scheduledTime!)
                 if (mins > 0) patch({ timeEstimateMinutes: mins })
               }}
             />

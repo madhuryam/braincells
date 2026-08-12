@@ -62,6 +62,7 @@ function SubtaskRow({
   sub,
   depth,
   sortableIds,
+  dimmed,
   onToggle,
   onDrop,
   onRename,
@@ -71,6 +72,9 @@ function SubtaskRow({
   depth: number
   /** Ids of the visible siblings at this row's level, in list order. */
   sortableIds: string[]
+  /** This subtask has its own block on the calendar: the same
+   *  whisper-gray the parent's header wears — per row, never inherited. */
+  dimmed?: boolean
   onToggle: (sub: Item) => void
   onDrop: (sub: Item) => void
   onRename: (sub: Item, title: string) => void
@@ -91,7 +95,7 @@ function SubtaskRow({
     <>
       <div
         ref={setNodeRef}
-        className="subtask-row"
+        className={`subtask-row${dimmed ? ' timeblocked' : ''}`}
         {...attributes}
         {...listeners}
         // The row sits inside a draggable card — stop the pointer-down
@@ -501,7 +505,13 @@ export function ItemCard({
       accentColor={project?.color}
       done={done}
       faded={faded}
-      className={[open ? 'open' : '', multiSelected ? 'multi-selected' : '']
+      className={[
+        open ? 'open' : '',
+        multiSelected ? 'multi-selected' : '',
+        // Already placed on the timeline: a whisper of gray, only in
+        // day lists (contextDate) — "handled", not "dimmed out".
+        contextDate && item.scheduledTime ? 'timeblocked' : ''
+      ]
         .filter(Boolean)
         .join(' ')}
     >
@@ -730,6 +740,7 @@ export function ItemCard({
                   sub={sub}
                   depth={depth}
                   sortableIds={siblingIds.get(parentId) ?? []}
+                  dimmed={!!(contextDate && sub.scheduledTime)}
                   onToggle={toggleSubtask}
                   onDrop={dropSubtask}
                   onRename={(s, title) => mutate(() => window.api.updateItem(s.id, { title }))}

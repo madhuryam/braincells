@@ -109,6 +109,17 @@ export function DataProvider({ children }: { children: ReactNode }): React.JSX.E
     window.api.setSetting('showTimePill', v)
   }, [])
 
+  // How far a time-blocked task's row fades in day lists (Settings →
+  // Task cards). CSS reads it as --timeblocked-fade on <html>; keyed
+  // on `version` so the Settings slider applies live.
+  useEffect(() => {
+    window.api.getSetting<number>('timeblockedFade').then((v) => {
+      if (typeof v === 'number') {
+        document.documentElement.style.setProperty('--timeblocked-fade', String(v))
+      }
+    })
+  }, [version])
+
   // Remembered so the sidebar moon can flip back to *your* light theme.
   const lastLight = useRef<ThemeId>('slate')
   useEffect(() => {

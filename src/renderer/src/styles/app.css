@@ -407,6 +407,22 @@ kbd.key {
   /* carried-over: quiet, never red */
 }
 
+/* Already on the calendar: the row's own content fades a whisper —
+   no background box, just slightly quieter ink, enough to read as
+   "placed" when scanning the day list. Fades only what's actually
+   placed: the task's header row when the TASK has a block, and each
+   subtask row when THAT subtask has one — a parent's block never
+   grays the pieces still waiting for theirs. (On these inner rows
+   plain `opacity` is safe — the enter animation's inline opacity
+   lives on the card root, not here.) The card you're editing (open)
+   stays at full strength. */
+.card.timeblocked:not(.open) .card-header,
+.subtask-row.timeblocked {
+  /* The value is the `timeblockedFade` setting (Settings → Task
+     cards), mirrored onto <html> by DataProvider. */
+  opacity: var(--timeblocked-fade, 0.5);
+}
+
 /* The card's header row pins to the top, so the checkbox rides the
    title's FIRST line — it never re-centers against the taller block
    when meta pills add a second line below. (Doubled selector: the
@@ -487,7 +503,7 @@ kbd.key {
 
 /* Drop the hairline dividers between task rows — the block reads as one
    clean surface, no ruled lines. */
-.today-grid .item-list> *+* {
+.today-grid .item-list>*+* {
   border-top: none;
 }
 
@@ -889,6 +905,17 @@ kbd.key {
   margin-bottom: 10px;
 }
 
+/* The "Archived" shelf on a project page: one quiet folded row
+   holding every archived section, set slightly apart and muted so the
+   project's dead topics cost a single line at the bottom. */
+.task-group.archived-shelf {
+  margin-top: 18px;
+}
+
+.task-group.archived-shelf>.task-group-header {
+  color: var(--text-soft);
+}
+
 /* A clickable fold header: caret column keeps names aligned. */
 .task-group-header {
   display: flex;
@@ -1010,7 +1037,9 @@ kbd.key {
    project header — padding would inset the rows (and their accent
    edges) inside the container's own border. */
 .task-group-indent {
-  margin-left: 4px;
+  /* Cards sit a step in from their project header — subtle, but
+     enough that the block reads as header-plus-contents. */
+  margin-left: 20px;
 }
 
 /* Section header actions (rename · move · delete): pushed to the far

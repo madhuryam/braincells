@@ -25,6 +25,22 @@ function monthDay(date: string): string {
 
 const TOP_TASK_CAP = 5 // soft cap — never a hard limit (SPEC §4.1)
 
+/** A wide open chevron (∨ / ∧) — roomier than the ▾/▴ glyphs. */
+function Chevron({ up }: { up: boolean }): React.JSX.Element {
+  return (
+    <svg width="16" height="9" viewBox="0 0 16 9" aria-hidden>
+      <path
+        d={up ? 'M1.5 7.5 L8 1.5 L14.5 7.5' : 'M1.5 1.5 L8 7.5 L14.5 1.5'}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export function Today(): React.JSX.Element {
   const today = todayYmd()
   // ‹ › page the schedule/tasks/done to another day; sections about
@@ -52,6 +68,9 @@ export function Today(): React.JSX.Element {
   // Everything shows by default — "Show fewer" is the opt-in trim,
   // not the other way around.
   const [showAll, setShowAll] = useState(true)
+  // The header's collapse-all/expand-all for the day's project blocks;
+  // each click broadcasts (seq bump), then blocks toggle freely again.
+  const [fold, setFold] = useState({ seq: 0, collapsed: false })
   // A clicked calendar event peeks in a panel over the schedule —
   // no page navigation just to glance at a meeting.
   const [peek, setPeek] = useState<{ eventKey: string; title: string; date: string } | null>(null)
@@ -130,20 +149,36 @@ export function Today(): React.JSX.Element {
               the rest of the week stays plain below. */}
           <div className="today-scope">
             <DropZone id="list-today" data={{ type: 'schedule', date }}>
-              <div style={{ margin: '14px 0 10px' }}>
-                <CheckableInput
-                  id="quick-capture"
-                  placeholder="Add a task for today…"
-                  value={taskDraft}
-                  onChange={(e) => setTaskDraft(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addTask()}
-                />
+              <div className="row" style={{ margin: '14px 0 10px', gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <CheckableInput
+                    id="quick-capture"
+                    placeholder="Add a task for today…"
+                    value={taskDraft}
+                    onChange={(e) => setTaskDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addTask()}
+                  />
+                </div>
+                {/* Hugs the task list's top-right corner: one click
+                    folds/unfolds every project block below AND the
+                    Coming up section — the whole column packs up. */}
+                <button
+                  className="btn ghost icon-btn"
+                  title={fold.collapsed ? 'Expand all' : 'Collapse all'}
+                  onClick={() => {
+                    const collapsed = !fold.collapsed
+                    setFold((f) => ({ seq: f.seq + 1, collapsed }))
+                    setShowComingUp(!collapsed)
+                  }}
+                >
+                  <Chevron up={!fold.collapsed} />
+                </button>
               </div>
-              {/* No "clean slate" on a past day that has done items:
-                its unfinished tasks were carried forward, so the slate
-                wasn't clean — it's just been swept. The section stays
-                (blank) as a drop target for moving a task back. */}
-              {tasks.length === 0 && !(date < today && doneToday.length > 0) && (
+              {/* The lotus only when the day is truly blank: if items
+                sit in Done, the slate wasn't clean — it's been worked
+                through (today) or swept forward (a past day). The
+                section stays (blank) as a drop target either way. */}
+              {tasks.length === 0 && doneToday.length === 0 && (
                 <EmptyState art="🪷"> a clean slate, no scheduled tasks
                 </EmptyState>
               )}
@@ -154,6 +189,7 @@ export function Today(): React.JSX.Element {
                 items={visibleTasks}
                 date={date}
                 sortable
+                fold={fold}
                 footer={
                   tasks.length > TOP_TASK_CAP ? (
                     <button className="btn ghost" style={{ marginTop: 4 }} onClick={() => setShowAll(!showAll)}>
