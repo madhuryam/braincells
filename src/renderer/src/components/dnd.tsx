@@ -17,6 +17,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import type { CalendarEvent, Item } from '@shared/types'
 import { useMutate } from '../state/data'
+import { preferEventPrep } from './dndCollision'
 
 /*
  * One DndContext wraps the whole app (set up in App.tsx), so a card
@@ -191,7 +192,14 @@ function addMinutes(time: string, minutes: number): string {
  */
 const pointerFirst: CollisionDetection = (args) => {
   const hits = pointerWithin(args)
-  return hits.length > 0 ? hits : rectIntersection(args)
+  const base = hits.length > 0 ? hits : rectIntersection(args)
+  // A meeting shares its pixels with the invisible time-blocking slots;
+  // when both are under the pointer, dropping onto the meeting means prep.
+  return preferEventPrep(
+    base,
+    (id) =>
+      (args.droppableContainers.find((c) => c.id === id)?.data.current as { type?: string })?.type
+  )
 }
 
 class CardPointerSensor extends PointerSensor {
