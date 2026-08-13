@@ -1,6 +1,6 @@
 {
   "name": "braincells",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A personal, local-first productivity dashboard: meetings, prep, notes, todos, daily log.",
   "main": "out/main/index.js",
   "private": true,
