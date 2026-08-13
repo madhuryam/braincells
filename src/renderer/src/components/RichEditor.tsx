@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react'
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import { BulletList } from '@tiptap/extension-bullet-list'
 import { Image as ImageExtension } from '@tiptap/extension-image'
 import { TableKit } from '@tiptap/extension-table'
 import { TextStyleKit } from '@tiptap/extension-text-style'
@@ -109,6 +110,15 @@ function insertImageFiles(view: EditorView, files: File[], pos?: number): boolea
   return true
 }
 
+// Keep bullet lists (toolbar button, existing/pasted lists) but drop the
+// "- " / "* " / "+ " input rule — typing a dash at line start should stay
+// a dash, not silently become a bullet.
+const BulletListNoAutoformat = BulletList.extend({
+  addInputRules() {
+    return []
+  }
+})
+
 const FONTS: Array<[label: string, css: string]> = [
   ['Default', ''],
   ['Serif', 'Georgia, serif'],
@@ -126,7 +136,8 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   onExitRef.current = onExit
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({ bulletList: false }),
+      BulletListNoAutoformat,
       TableKit.configure({ table: { resizable: false } }),
       TextStyleKit,
       TaskList,
