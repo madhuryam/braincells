@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import type { CalendarEvent, LocalEvent } from '@shared/types'
 import { hhmm, todayYmd } from '@shared/dates'
@@ -112,6 +112,8 @@ export function Timeline({
   const [taskDrag, setTaskDrag] = useState<{ id: string; start: number; end: number } | null>(null)
   const suppressClick = useRef(false) // a resize's mouseup must not open the editor
   const timelineRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const centeredDate = useRef<string | null>(null)
 
   const timed = events.filter((e) => e.startTime)
 
@@ -296,10 +298,28 @@ export function Timeline({
 
   const totalHeight = (dayEnd - dayStart) * PX_PER_MIN
 
+  // When a day first comes into view, scroll its timeline so the now-line
+  // sits mid-viewport rather than wherever it happens to fall. Fires once
+  // per day shown — not on the per-minute now tick, and not fighting a
+  // scroll you've made — and waits for the settings-driven window to load
+  // so it measures against the real layout.
+  useLayoutEffect(() => {
+    if (centeredDate.current === date) return
+    if (!isToday) {
+      centeredDate.current = date // other days open at the top
+      return
+    }
+    if (bounds === undefined) return // window still loading — center once it's real
+    const scroller = scrollRef.current
+    if (!scroller || totalHeight === 0) return
+    scroller.scrollTop = Math.max(0, y(nowMins) - scroller.clientHeight / 2)
+    centeredDate.current = date
+  }, [date, isToday, bounds, totalHeight, nowMins])
+
   return (
     <div>
       <AllDayBar events={events} />
-      <div className="timeline-scroll">
+      <div className="timeline-scroll" ref={scrollRef}>
         <div
           ref={timelineRef}
           className="timeline"
