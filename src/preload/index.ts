@@ -8,6 +8,7 @@ import type {
   LinkRole,
   LocalEvent,
   Meeting,
+  AttachedLink,
   PrepProgress,
   Project,
   ProjectStatus,
@@ -85,6 +86,7 @@ const api = {
   inboxItems: (): Promise<Item[]> => invoke('inbox:items'),
   inboxCount: (): Promise<number> => invoke('inbox:count'),
   backlogTasks: (): Promise<Item[]> => invoke('inbox:backlog'),
+  openTaskTree: (): Promise<Array<{ depth: number; item: Item }>> => invoke('items:openTree'),
   unfiledNotes: (): Promise<Item[]> => invoke('inbox:unfiledNotes'),
   recentCompleted: (limit?: number): Promise<Item[]> => invoke('inbox:recentCompleted', limit),
   tasksFor: (date: string): Promise<Item[]> => invoke('today:tasks', date),
@@ -128,6 +130,10 @@ const api = {
     event: { eventKey: string; title: string; date: string },
     projectId: string | null
   ): Promise<void> => invoke('meetings:assignProject', event, projectId),
+  setMeetingLinks: (
+    event: { eventKey: string; title: string; date: string },
+    links: AttachedLink[]
+  ): Promise<void> => invoke('meetings:setLinks', event, links),
   meetingsForProject: (projectId: string): Promise<Meeting[]> =>
     invoke('meetings:forProject', projectId),
   meetingsByKeys: (eventKeys: string[]): Promise<Meeting[]> =>

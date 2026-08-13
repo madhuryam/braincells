@@ -324,7 +324,8 @@ describe('meetings table and calendar-event metadata survive backup → restore'
       eventKey: 'gcal-abc::2026-08-11',
       projectId: p2.id,
       title: 'Standup 🧠 (renamed)',
-      date: '2026-08-11'
+      date: '2026-08-11',
+      links: []
     })
     // Meeting notes: link + snapshot + prep deadline all intact.
     expect(restored.itemsForEvent('gcal-abc::2026-08-11', 'notes-for')).toEqual(beforeNotes)

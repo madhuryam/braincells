@@ -95,20 +95,27 @@ describe.runIf(existsSync(SNAPSHOT))('real-data backup → restore audit', () =>
     expect(store.allItems().length).toBe(79)
     store.close()
 
-    // The snapshot predates migration 14 (sections.status). Opening it
-    // migrates forward; the only permitted change is that new column
-    // (defaulted 'active') — every pre-existing value must survive.
+    // The snapshot predates migrations 14 (sections.status), 15
+    // (meetings.links) and 16 (items.links). Opening it migrates
+    // forward; the only permitted changes are those new defaulted
+    // columns — every pre-existing value must survive.
     expect(versionBefore).toBe(13)
-    expect(versionAfter).toBe(14)
+    expect(versionAfter).toBe(16)
     const after = dumpAll(copy)
     for (const table of Object.keys(before)) {
-      if (table === 'sections') continue
+      if (table === 'sections' || table === 'meetings' || table === 'items') continue
       expect(after[table]).toEqual(before[table])
     }
     // dumpAll rows are JSON strings — re-add the defaulted column to
     // each pre-migration row and the sets must match exactly.
     expect(after.sections.map((row) => JSON.parse(row))).toEqual(
       before.sections.map((row) => ({ ...JSON.parse(row), status: 'active' }))
+    )
+    expect(after.meetings.map((row) => JSON.parse(row))).toEqual(
+      before.meetings.map((row) => ({ ...JSON.parse(row), links: '[]' }))
+    )
+    expect(after.items.map((row) => JSON.parse(row))).toEqual(
+      before.items.map((row) => ({ ...JSON.parse(row), links: '[]' }))
     )
   })
 

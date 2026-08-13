@@ -39,6 +39,8 @@ export interface Item {
   /** Set when the item is dragged onto the Today timeline (a time block). */
   scheduledTime: string | null
   timeEstimateMinutes: number | null
+  /** Attached URLs (chips in the editor); notes hyperlinks ride along at render time. */
+  links: AttachedLink[]
   /** Manual ordering within the Today "top tasks" list. */
   sortOrder: number
   /** Quick-access favorites, surfaced in the sidebar. */
@@ -167,15 +169,22 @@ export interface LocalEvent {
   itemId: string | null
 }
 
+/** A URL attached to a meeting or item — the Slack thread, the doc, the deck. */
+export interface AttachedLink {
+  title: string
+  url: string
+}
+
 /**
- * Per-meeting app data (currently: which project the meeting belongs
- * to), keyed by eventKey, with the same survive-deletion snapshot.
+ * Per-meeting app data (project assignment, attached links), keyed by
+ * eventKey, with the same survive-deletion snapshot.
  */
 export interface Meeting {
   eventKey: string
   projectId: string | null
   title: string
   date: string
+  links: AttachedLink[]
 }
 
 /** "2 of 3 prep items done" badges, computed per event. */

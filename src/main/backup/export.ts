@@ -99,7 +99,9 @@ function itemMarkdown(
     ['due', item.dueDate],
     ['completed', item.completedAt],
     ['starred', item.starred ? 'true' : null],
-    ['sortOrder', item.sortOrder != null ? String(item.sortOrder) : null]
+    ['sortOrder', item.sortOrder != null ? String(item.sortOrder) : null],
+    // Attached links, sparse like starred: one JSON line when present.
+    ['links', item.links.length > 0 ? JSON.stringify(item.links) : null]
   ]
   const frontMatter = meta
     .filter(([, v]) => v !== null)

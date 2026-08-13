@@ -3,6 +3,8 @@ import { useData, useLiveQuery, useMutate } from '../state/data'
 import { useNav } from '../state/nav'
 import { Checkbox, ProjectDot } from './bits'
 import { KIND_ICON, prettyDate, projectLabel } from '../format'
+import { LinkChips } from './LinkChips'
+import { extractLinksFromHtml } from '../links'
 import { RichEditor } from './RichEditor'
 import { itemBodyHtml } from '../richtext'
 
@@ -152,6 +154,13 @@ export function ItemDetail({
         {item.dueDate && <span className="pill">⏰ due {prettyDate(item.dueDate)}</span>}
         {item.completedAt && <span className="pill">✓ {prettyDate(item.completedAt.slice(0, 10))}</span>}
       </div>
+      {/* Attached URLs, same chips as the card editor; hyperlinks in
+          the notes ride along read-only. */}
+      <LinkChips
+        links={item.links}
+        derived={extractLinksFromHtml(item.richContent ?? '')}
+        onSave={(next) => mutate(() => window.api.updateItem(item.id, { links: next }))}
+      />
       {/* Toolbar-less: markdown shortcuts (`# `, `**`, `- `) format as
           you type, and the placeholder replaces the old "no notes" dead-end. */}
       <RichEditor

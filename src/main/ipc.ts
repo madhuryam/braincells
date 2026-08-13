@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import type { ItemPatch, NewItem, Store } from './store'
-import type { CalendarEvent, LinkRole, ProjectStatus } from '../shared/types'
+import type { CalendarEvent, LinkRole, AttachedLink, ProjectStatus } from '../shared/types'
 
 /**
  * Exposes the Store to the UI, one named channel per operation.
@@ -49,6 +49,7 @@ export function registerStoreIpc(store: Store): void {
   ipcMain.handle('inbox:items', () => store.inboxItems())
   ipcMain.handle('inbox:count', () => store.inboxCount())
   ipcMain.handle('inbox:backlog', () => store.backlogTasks())
+  ipcMain.handle('items:openTree', () => store.openTaskTree())
   ipcMain.handle('inbox:unfiledNotes', () => store.unfiledNotes())
   ipcMain.handle('inbox:recentCompleted', (_e, limit?: number) => store.recentCompleted(limit))
   ipcMain.handle('today:tasks', (_e, date: string) => store.tasksFor(date))
@@ -83,6 +84,11 @@ export function registerStoreIpc(store: Store): void {
     'meetings:assignProject',
     (_e, event: { eventKey: string; title: string; date: string }, projectId: string | null) =>
       store.assignMeetingProject(event, projectId)
+  )
+  ipcMain.handle(
+    'meetings:setLinks',
+    (_e, event: { eventKey: string; title: string; date: string }, links: AttachedLink[]) =>
+      store.setMeetingLinks(event, links)
   )
   ipcMain.handle('meetings:forProject', (_e, projectId: string) => store.meetingsForProject(projectId))
   ipcMain.handle('meetings:byKeys', (_e, eventKeys: string[]) => store.meetingsByKeys(eventKeys))

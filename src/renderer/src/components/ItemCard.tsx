@@ -14,6 +14,8 @@ import { Card } from './Card'
 import { usePendingOrder } from './dnd'
 import { CheckableInput, Checkbox, ProjectDot } from './bits'
 import { ConfirmButton } from './ConfirmButton'
+import { LinkChips } from './LinkChips'
+import { extractLinksFromHtml } from '../links'
 import { ProjectPicker } from './ProjectPicker'
 import { RichEditor, type RichEditorHandle } from './RichEditor'
 import { itemBodyHtml } from '../richtext'
@@ -25,6 +27,9 @@ interface ItemCardProps {
   showProject?: boolean
   /** Hide the scheduled-date pill when the surrounding group names the day. */
   showDate?: boolean
+  /** Hide the due pill where the deadline is implied (a meeting's prep
+   *  list: due = the meeting — the pill would just repeat the header). */
+  showDue?: boolean
   /** Carried-over styling: quiet, faded, never red. */
   faded?: boolean
   /**
@@ -190,6 +195,7 @@ export function ItemCard({
   item,
   showProject = true,
   showDate = true,
+  showDue = true,
   faded,
   contextDate,
   checkboxSelects = false,
@@ -499,6 +505,25 @@ export function ItemCard({
             e.preventDefault()
             closeCard()
           }}
+          // The scrim covers the viewport, so the wheel dies on it and
+          // the page can't scroll unless the pointer is over the open
+          // card. Hand the scroll to whatever scrollable sits beneath
+          // the pointer — editing shouldn't pin the page.
+          onWheel={(e) => {
+            const under = document
+              .elementsFromPoint(e.clientX, e.clientY)
+              .find((el) => !el.classList.contains('edit-scrim'))
+            for (let el = under as HTMLElement | null; el; el = el.parentElement) {
+              const s = getComputedStyle(el)
+              if (
+                (s.overflowY === 'auto' || s.overflowY === 'scroll') &&
+                el.scrollHeight > el.clientHeight
+              ) {
+                el.scrollBy({ top: e.deltaY, left: e.deltaX })
+                return
+              }
+            }
+          }}
         />
       )}
     <Card
@@ -664,7 +689,7 @@ export function ItemCard({
               {showDate && item.scheduledDate && (
                 <span className="pill">{prettyDate(item.scheduledDate)}</span>
               )}
-              {showDuePill && item.dueDate && (
+              {showDue && showDuePill && item.dueDate && (
                 <span className="pill">due {prettyDate(item.dueDate)}</span>
               )}
               {openBlockers.length > 0 && (
@@ -909,6 +934,13 @@ export function ItemCard({
                 ))}
               </div>
             )}
+            {/* Attached URLs (named chips; ✎ to edit, notes hyperlinks
+                ride along read-only at the end). */}
+            <LinkChips
+              links={item.links}
+              derived={extractLinksFromHtml(item.richContent ?? '')}
+              onSave={(next) => patch({ links: next })}
+            />
             <div className="row" style={{ flexWrap: 'wrap' }}>
               <label className="pill">
                 do

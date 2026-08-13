@@ -11,6 +11,7 @@ import type {
   LinkRole,
   LocalEvent,
   Meeting,
+  AttachedLink,
   PrepProgress,
   Project,
   Section
@@ -46,7 +47,7 @@ export interface LinkedItem {
 
 // Column lists are written out once so every query returns identical shapes.
 const ITEM_COLS = `id, kind, title, content, rich_content, status, project_id, section_id,
-  due_date, scheduled_date, scheduled_time, time_estimate_minutes, sort_order, starred,
+  due_date, scheduled_date, scheduled_time, time_estimate_minutes, links, sort_order, starred,
   created_at, updated_at, completed_at`
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -64,12 +65,19 @@ function rowToItem(r: any): Item {
     scheduledDate: r.scheduled_date,
     scheduledTime: r.scheduled_time,
     timeEstimateMinutes: r.time_estimate_minutes,
+    links: JSON.parse(r.links),
     sortOrder: r.sort_order,
     starred: !!r.starred,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     completedAt: r.completed_at
   }
+}
+
+const MEETING_COLS = 'event_key AS eventKey, project_id AS projectId, title, date, links'
+
+function rowToMeeting(r: any): Meeting {
+  return { ...r, links: JSON.parse(r.links) }
 }
 
 function rowToLink(r: any): Link {
@@ -279,6 +287,7 @@ export class Store {
       scheduledDate: n.scheduledDate ?? null,
       scheduledTime: n.scheduledTime ?? null,
       timeEstimateMinutes: n.timeEstimateMinutes ?? null,
+      links: [],
       sortOrder: this.nextSortOrder(),
       starred: false,
       createdAt: nowStamp(),
@@ -287,7 +296,7 @@ export class Store {
     }
     this.db
       .prepare(
-        `INSERT INTO items (${ITEM_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO items (${ITEM_COLS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         item.id,
@@ -302,6 +311,7 @@ export class Store {
         item.scheduledDate,
         item.scheduledTime,
         item.timeEstimateMinutes,
+        JSON.stringify(item.links),
         item.sortOrder,
         item.starred ? 1 : 0,
         item.createdAt,
@@ -344,6 +354,7 @@ export class Store {
       scheduledDate: 'scheduled_date',
       scheduledTime: 'scheduled_time',
       timeEstimateMinutes: 'time_estimate_minutes',
+      links: 'links',
       sortOrder: 'sort_order',
       starred: 'starred'
     }
@@ -353,8 +364,8 @@ export class Store {
       const v = (patch as any)[field]
       if (v !== undefined) {
         sets.push(`${col} = ?`)
-        // SQLite can't bind booleans directly.
-        vals.push(typeof v === 'boolean' ? (v ? 1 : 0) : v)
+        // SQLite can't bind booleans (or the links array) directly.
+        vals.push(field === 'links' ? JSON.stringify(v) : typeof v === 'boolean' ? (v ? 1 : 0) : v)
       }
     }
     const explicitDone =
@@ -557,6 +568,39 @@ export class Store {
       )
       .all()
       .map(rowToItem)
+  }
+
+  /**
+   * Every live task, whatever day it's on (or none) — the prep picker's
+   * candidate pool. Top-level tasks newest first, each followed by its
+   * live subtasks depth-first (any depth, individually pickable);
+   * inbox items count, since untriaged work can still be prep.
+   */
+  openTaskTree(): Array<{ depth: number; item: Item }> {
+    // Same path trick as subtaskTreeOf; roots order newest-first by
+    // inverting rowid (monotonic ≈ creation order) into the path.
+    const rows = this.db
+      .prepare(
+        `WITH RECURSIVE tree(id, depth, path) AS (
+           SELECT i.id, 0, printf('%012d', 999999999999 - i.rowid)
+           FROM items i
+           WHERE i.kind = 'task' AND i.status IN ('inbox', 'active')
+             AND NOT EXISTS (
+               SELECT 1 FROM links l
+               WHERE l.from_item_id = i.id AND l.role = 'subtask-of'
+             )
+           UNION ALL
+           SELECT l.from_item_id, t.depth + 1, t.path || '/' || printf('%012d%012d', i.sort_order, i.rowid)
+           FROM links l
+           JOIN tree t ON l.to_item_id = t.id
+           JOIN items i ON i.id = l.from_item_id
+           WHERE l.role = 'subtask-of' AND i.status IN ('inbox', 'active')
+         )
+         SELECT t.depth, i.* FROM tree t JOIN items i ON i.id = t.id
+         ORDER BY t.path`
+      )
+      .all() as any[]
+    return rows.map((r) => ({ depth: r.depth, item: rowToItem(r) }))
   }
 
   /** Notes that were triaged out of the inbox but never given a project. */
@@ -952,9 +996,9 @@ export class Store {
 
   getMeeting(eventKey: string): Meeting | null {
     const r = this.db
-      .prepare('SELECT event_key AS eventKey, project_id AS projectId, title, date FROM meetings WHERE event_key = ?')
+      .prepare(`SELECT ${MEETING_COLS} FROM meetings WHERE event_key = ?`)
       .get(eventKey)
-    return (r as Meeting) ?? null
+    return r ? rowToMeeting(r) : null
   }
 
   /** Assign a meeting to a project (or null to unassign). Upserts the snapshot. */
@@ -968,25 +1012,32 @@ export class Store {
       .run(event.eventKey, projectId, event.title, event.date)
   }
 
+  /** Replace a meeting's attached links (Slack, docs, …). Upserts the snapshot. */
+  setMeetingLinks(event: { eventKey: string; title: string; date: string }, links: AttachedLink[]): void {
+    this.db
+      .prepare(
+        `INSERT INTO meetings (event_key, project_id, title, date, links) VALUES (?, NULL, ?, ?, ?)
+         ON CONFLICT(event_key) DO UPDATE SET links = excluded.links,
+           title = excluded.title, date = excluded.date`
+      )
+      .run(event.eventKey, event.title, event.date, JSON.stringify(links))
+  }
+
   /** Batched lookup for the timeline's project tinting — one query, not per-event. */
   meetingsByKeys(eventKeys: string[]): Meeting[] {
     if (eventKeys.length === 0) return []
     const placeholders = eventKeys.map(() => '?').join(', ')
     return this.db
-      .prepare(
-        `SELECT event_key AS eventKey, project_id AS projectId, title, date
-         FROM meetings WHERE event_key IN (${placeholders})`
-      )
-      .all(...eventKeys) as Meeting[]
+      .prepare(`SELECT ${MEETING_COLS} FROM meetings WHERE event_key IN (${placeholders})`)
+      .all(...eventKeys)
+      .map(rowToMeeting)
   }
 
   meetingsForProject(projectId: string): Meeting[] {
     return this.db
-      .prepare(
-        `SELECT event_key AS eventKey, project_id AS projectId, title, date
-         FROM meetings WHERE project_id = ? ORDER BY date DESC`
-      )
-      .all(projectId) as Meeting[]
+      .prepare(`SELECT ${MEETING_COLS} FROM meetings WHERE project_id = ? ORDER BY date DESC`)
+      .all(projectId)
+      .map(rowToMeeting)
   }
 
   // ── Full dumps (markdown export) ────────────────────────────────────
@@ -1001,8 +1052,9 @@ export class Store {
 
   allMeetings(): Meeting[] {
     return this.db
-      .prepare('SELECT event_key AS eventKey, project_id AS projectId, title, date FROM meetings ORDER BY date')
-      .all() as Meeting[]
+      .prepare(`SELECT ${MEETING_COLS} FROM meetings ORDER BY date`)
+      .all()
+      .map(rowToMeeting)
   }
 
   allSections(): Section[] {

@@ -375,6 +375,88 @@ describe('meetings ↔ projects', () => {
     store.assignMeetingProject(demoEvent, null) // unassign
     expect(store.meetingsForProject(p.id)).toHaveLength(0)
   })
+
+  it('meeting links round-trip, and survive a project (re)assignment', () => {
+    const links = [
+      { title: 'slack thread', url: 'https://acme.slack.com/archives/C1/p2' },
+      { title: 'design doc', url: 'https://docs.google.com/document/d/abc' }
+    ]
+    store.setMeetingLinks(demoEvent, links)
+    expect(store.getMeeting(demoEvent.eventKey)?.links).toEqual(links)
+
+    // Assigning a project must not clobber the links (both upsert the
+    // same row), and setting links must not clobber the project.
+    const p = store.createProject('Q3 launch', '#1971c2')
+    store.assignMeetingProject(demoEvent, p.id)
+    expect(store.getMeeting(demoEvent.eventKey)?.links).toEqual(links)
+    store.setMeetingLinks(demoEvent, links.slice(0, 1))
+    const m = store.getMeeting(demoEvent.eventKey)
+    expect(m?.projectId).toBe(p.id)
+    expect(m?.links).toEqual(links.slice(0, 1))
+
+    // A meeting that has never been touched reports no links.
+    store.assignMeetingProject({ ...demoEvent, eventKey: 'other::2026-06-12' }, p.id)
+    expect(store.getMeeting('other::2026-06-12')?.links).toEqual([])
+  })
+
+  it('item links round-trip: born empty, patchable, clearable', () => {
+    const t = store.createItem({ kind: 'task', title: 'with links' })
+    expect(t.links).toEqual([])
+    expect(store.getItem(t.id)?.links).toEqual([])
+
+    const links = [{ title: 'the doc', url: 'https://docs.google.com/d/abc' }]
+    store.updateItem(t.id, { links })
+    expect(store.getItem(t.id)?.links).toEqual(links)
+    // And an unrelated patch leaves them alone.
+    store.updateItem(t.id, { title: 'renamed' })
+    expect(store.getItem(t.id)?.links).toEqual(links)
+
+    store.updateItem(t.id, { links: [] })
+    expect(store.getItem(t.id)?.links).toEqual([])
+  })
+})
+
+describe('openTaskTree (the prep picker pool)', () => {
+  it('lists live tasks on any day or none; not done/dropped or other kinds', () => {
+    const inbox = store.createItem({ kind: 'task', title: 'untriaged' })
+    const scheduled = store.createItem({
+      kind: 'task',
+      title: 'has a day',
+      status: 'active',
+      scheduledDate: today
+    })
+    const someday = store.createItem({ kind: 'task', title: 'no day', status: 'active' })
+    const done = store.createItem({ kind: 'task', title: 'finished', status: 'active' })
+    store.updateItem(done.id, { status: 'done' })
+    store.createItem({ kind: 'note', title: 'a note', status: 'active' })
+
+    const ids = store.openTaskTree().map((r) => r.item.id)
+    expect(ids).toContain(inbox.id)
+    expect(ids).toContain(scheduled.id)
+    expect(ids).toContain(someday.id)
+    expect(ids).not.toContain(done.id)
+    expect(ids).toHaveLength(3)
+  })
+
+  it('subtasks follow their parent depth-first, individually listed; done ones drop out', () => {
+    const parent = store.createItem({ kind: 'task', title: 'parent', status: 'active' })
+    const other = store.createItem({ kind: 'task', title: 'unrelated', status: 'active' })
+    const sub = store.createItem({ kind: 'task', title: 'sub', status: 'active' })
+    store.linkItems(sub.id, parent.id, 'subtask-of')
+    const nested = store.createItem({ kind: 'task', title: 'nested', status: 'active' })
+    store.linkItems(nested.id, sub.id, 'subtask-of')
+    const doneSub = store.createItem({ kind: 'task', title: 'done sub', status: 'active' })
+    store.linkItems(doneSub.id, parent.id, 'subtask-of')
+    store.updateItem(doneSub.id, { status: 'done' })
+
+    const rows = store.openTaskTree()
+    const at = (id: string): number => rows.findIndex((r) => r.item.id === id)
+    // Roots newest-first: 'unrelated' (created after 'parent') leads.
+    expect(rows.map((r) => r.item.id)).toEqual([other.id, parent.id, sub.id, nested.id])
+    expect(rows[at(parent.id)].depth).toBe(0)
+    expect(rows[at(sub.id)].depth).toBe(1)
+    expect(rows[at(nested.id)].depth).toBe(2)
+  })
 })
 
 describe('journal', () => {

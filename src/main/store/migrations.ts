@@ -290,6 +290,20 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE sections ADD COLUMN status TEXT NOT NULL DEFAULT 'active'
     CHECK (status IN ('active','archived'));
+  `,
+
+  // 15: meeting links — the Slack thread / doc / whatever a meeting
+  // orbits, as a JSON array of {title, url} on the meetings row. JSON
+  // (not a table) because links live and die with their one meeting,
+  // are never queried across meetings, and stay a handful per row.
+  `
+  ALTER TABLE meetings ADD COLUMN links TEXT NOT NULL DEFAULT '[]';
+  `,
+
+  // 16: items get the same attached links (chips in the card editor),
+  // same JSON-on-the-row reasoning as migration 15.
+  `
+  ALTER TABLE items ADD COLUMN links TEXT NOT NULL DEFAULT '[]';
   `
 ]
 

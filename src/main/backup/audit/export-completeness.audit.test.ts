@@ -124,7 +124,8 @@ describe('schema coverage census', () => {
       'due_date',
       'completed_at',
       'starred',
-      'sort_order'
+      'sort_order',
+      'links'
     ])
     const missing = cols.filter((c) => !represented.has(c))
     // If a migration adds an items column, this fails → extend the
@@ -334,6 +335,10 @@ describe('what the export captures (must keep working)', () => {
       'prep-for'
     )
     store.assignMeetingProject({ eventKey: 'ev1::2026-08-11', title: 'Standup 🌀', date: '2026-08-11' }, p.id)
+    store.setMeetingLinks(
+      { eventKey: 'ev1::2026-08-11', title: 'Standup 🌀', date: '2026-08-11' },
+      [{ title: 'doc', url: 'https://docs.example.com/x' }]
+    )
     store.createSection(p.id, 'a section')
     store.createLocalEvent({ title: 'block', date: '2026-08-11', startTime: '09:00', endTime: '10:00' })
     store.setSetting('theme', 'plum')
@@ -377,7 +382,13 @@ describe('what the export captures (must keep working)', () => {
 
     const meetings = JSON.parse(files.find((f) => f.path === 'meetings.json')!.contents)
     expect(meetings).toEqual([
-      { eventKey: 'ev1::2026-08-11', projectId: p.id, title: 'Standup 🌀', date: '2026-08-11' }
+      {
+        eventKey: 'ev1::2026-08-11',
+        projectId: p.id,
+        title: 'Standup 🌀',
+        date: '2026-08-11',
+        links: [{ title: 'doc', url: 'https://docs.example.com/x' }]
+      }
     ])
     store.close()
   })
@@ -522,7 +533,11 @@ describe('front-matter carries every item field', () => {
       scheduledTime: '13:37', // a calendar time block
       timeEstimateMinutes: 45
     })
-    store.updateItem(item.id, { starred: true, sortOrder: 777.5 })
+    store.updateItem(item.id, {
+      starred: true,
+      sortOrder: 777.5,
+      links: [{ title: 'gap doc', url: 'https://gap.example.com/doc' }]
+    })
     // Pin timestamps so '13:37' etc. cannot leak in via wall-clock created_at.
     pinTimestamps(store, item.id, '2026-01-15 08:00:00', '2026-01-16 09:30:00')
     return item.id
@@ -560,6 +575,17 @@ describe('front-matter carries every item field', () => {
     store.close()
   })
 
+  it('attached links are in the front-matter (JSON, only when present)', () => {
+    const store = new Store(':memory:')
+    const id = probeItem(store)
+    expect(fileFor(store, id).md).toContain(
+      'links: [{"title":"gap doc","url":"https://gap.example.com/doc"}]'
+    )
+    const bare = store.createItem({ kind: 'note', title: 'no links here' })
+    expect(fileFor(store, bare.id).md).not.toContain('links:')
+    store.close()
+  })
+
   it('section is in the front-matter, by NAME (not raw id)', () => {
     const store = new Store(':memory:')
     const id = probeItem(store)
@@ -589,7 +615,7 @@ describe('front-matter carries every item field', () => {
     const keys = block.split('\n').map((line) => line.split(':')[0])
     // Full canonical order is: id, kind, status, project, section,
     // created, updated, scheduled, scheduledTime, estimateMinutes, due,
-    // completed, starred, sortOrder — probe has no due/completed.
+    // completed, starred, sortOrder, links — probe has no due/completed.
     expect(keys).toEqual([
       'id',
       'kind',
@@ -602,7 +628,8 @@ describe('front-matter carries every item field', () => {
       'scheduledTime',
       'estimateMinutes',
       'starred',
-      'sortOrder'
+      'sortOrder',
+      'links'
     ])
     store.close()
   })

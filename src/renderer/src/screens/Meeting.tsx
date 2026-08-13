@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import type { CalendarEvent, Item } from '@shared/types'
+import type { CalendarEvent, Item, Link, AttachedLink } from '@shared/types'
 import { useLiveQuery, useMutate } from '../state/data'
 import { useLabels } from '../state/labels'
+import { Card } from '../components/Card'
 import { ItemCard } from '../components/ItemCard'
+import { LinkChips } from '../components/LinkChips'
+import { extractLinksFromHtml } from '../links'
+import { PrepPicker } from '../components/PrepPicker'
 import { ProjectPicker } from '../components/ProjectPicker'
-import { BackButton, CheckableInput, EmptyState, ProgressBar } from '../components/bits'
+import { BackButton, CheckableInput, Checkbox, ProgressBar } from '../components/bits'
 import { RichEditor } from '../components/RichEditor'
 import { itemBodyHtml } from '../richtext'
 import { ampm, prettyDate } from '../format'
@@ -27,6 +31,15 @@ interface MeetingProps {
  */
 export function Meeting({ eventKey, title, date, embedded = false }: MeetingProps): React.JSX.Element {
   const preps = useLiveQuery(() => window.api.itemsForEvent(eventKey, 'prep-for'), [eventKey]) ?? []
+  // Lineage for each prep item, so a linked SUBTASK doesn't render as
+  // its own standalone card (see the grouping below — same idea as the
+  // Done section).
+  const prepIds = preps.map((p) => p.item.id).join(',')
+  const prepAncestry = useLiveQuery(async () => {
+    const lists = await Promise.all(preps.map((p) => window.api.ancestorsOf(p.item.id)))
+    return new Map(preps.map((p, i) => [p.item.id, lists[i]]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prepIds])
   // undefined = still loading; the editor must not mount until we know
   // whether notes exist, or it would seed itself empty.
   const notesQuery = useLiveQuery(() => window.api.itemsForEvent(eventKey, 'notes-for'), [eventKey])
@@ -47,6 +60,7 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
 
   const [prepDraft, setPrepDraft] = useState('')
   const [followUpDraft, setFollowUpDraft] = useState('')
+  const [pickerOpen, setPickerOpen] = useState(false)
   const noteItem = notesQuery?.[0]?.item ?? null
   // The editor stays mounted across saves (keyed by eventKey), so the
   // current note item lives in a ref the debounced save reads.
@@ -178,6 +192,14 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
         </header>
       )}
 
+      {/* The meeting's attached links (Slack, docs, …) — meeting may
+          still be loading/absent; chips render from [] until then. */}
+      <AttachedLinks
+        event={event}
+        links={meeting?.links ?? []}
+        notesHtml={noteItem?.richContent ?? ''}
+      />
+
       <div className={embedded ? 'stack' : 'today-grid'}>
         <section className="stack">
           <div className="section-label row">
@@ -187,6 +209,14 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
                 <ProgressBar done={prepProg!.done} total={prepProg!.total} />
               </span>
             )}
+            <button
+              className="btn ghost small"
+              style={{ padding: '0 6px' }}
+              title="Pick existing tasks as prep for this meeting"
+              onClick={() => setPickerOpen(true)}
+            >
+              ＋
+            </button>
           </div>
           <CheckableInput
             placeholder="Add a prep item…"
@@ -195,14 +225,13 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
             onKeyDown={(e) => e.key === 'Enter' && addPrep()}
           />
           {/* Full ItemCards, same as follow-ups (and tasks on Today):
-              prep is editable in place wherever it appears. */}
-          <div className="item-list">
-            <AnimatePresence>
-              {preps.map(({ link, item }) => (
-                <ItemCard key={item.id} item={item} unlinkId={link.id} />
-              ))}
-            </AnimatePresence>
-          </div>
+              prep is editable in place wherever it appears. Dates stay
+              off — prep is due AT this meeting, the pills would only
+              repeat the header. Linked SUBTASKS don't get standalone
+              cards (the Done section's rule): with a linked ancestor
+              they already show inside its card's tree; otherwise they
+              group under a lineage card naming their root. */}
+          <PrepList preps={preps} ancestry={prepAncestry} />
 
           <div className="section-label">Follow-ups</div>
           <CheckableInput
@@ -218,9 +247,6 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
               ))}
             </AnimatePresence>
           </div>
-          {followUps.length === 0 && preps.length === 0 && (
-            <EmptyState art="📝">no todos here</EmptyState>
-          )}
         </section>
 
         <section className="meeting-notes">
@@ -235,6 +261,157 @@ export function Meeting({ eventKey, title, date, embedded = false }: MeetingProp
           )}
         </section>
       </div>
+
+      {pickerOpen && <PrepPicker event={event} onClose={() => setPickerOpen(false)} />}
     </div>
+  )
+}
+
+/**
+ * The prep section's cards, one per ADDED item — a linked subtask never
+ * becomes a standalone card. If one of its ancestors is linked too, it
+ * already shows inside that card's subtask tree (rendering it again
+ * put it in the section twice); otherwise it groups under a lineage
+ * card that only NAMES its root — the root reads as context, not as an
+ * added task (the Done section's rule).
+ */
+function PrepList({
+  preps,
+  ancestry
+}: {
+  preps: Array<{ link: Link; item: Item }>
+  ancestry: Map<string, Item[]> | undefined
+}): React.JSX.Element {
+  const mutate = useMutate()
+  const linkedIds = new Set(preps.map((p) => p.item.id))
+  const standalone: typeof preps = []
+  const roots = new Map<string, string>() // root id → title, insertion-ordered
+  for (const p of preps) {
+    const anc = ancestry?.get(p.item.id) ?? []
+    if (anc.length === 0) standalone.push(p)
+    else if (anc.some((a) => linkedIds.has(a.id))) continue
+    else roots.set(anc[0].id, anc[0].title)
+  }
+  const linkOf = new Map(preps.map((p) => [p.item.id, p.link.id]))
+  const unlink = (item: Item): void => {
+    mutate(async () => {
+      await window.api.deleteLink(linkOf.get(item.id)!)
+      // The due date came from this meeting — it goes with the link.
+      await window.api.updateItem(item.id, { dueDate: null })
+    })
+  }
+  return (
+    <div className="item-list">
+      <AnimatePresence>
+        {standalone.map(({ link, item }) => (
+          <ItemCard key={item.id} item={item} unlinkId={link.id} showDate={false} showDue={false} />
+        ))}
+      </AnimatePresence>
+      {[...roots].map(([rootId, rootTitle]) => (
+        <PrepSubtaskGroup
+          key={rootId}
+          rootId={rootId}
+          rootTitle={rootTitle}
+          linkedIds={linkedIds}
+          onUnlink={unlink}
+        />
+      ))}
+    </div>
+  )
+}
+
+/**
+ * One root task's subtasks that are linked as prep, in true tree order
+ * — the same shape as the Done section's lineage groups. Unfinished
+ * intermediate levels are skipped, so each row indents under its
+ * nearest shown ancestor.
+ */
+function PrepSubtaskGroup({
+  rootId,
+  rootTitle,
+  linkedIds,
+  onUnlink
+}: {
+  rootId: string
+  rootTitle: string
+  linkedIds: Set<string>
+  onUnlink: (item: Item) => void
+}): React.JSX.Element {
+  const tree = useLiveQuery(() => window.api.subtaskTreeOf(rootId), [rootId]) ?? []
+  const mutate = useMutate()
+
+  const shown = tree.filter(({ item }) => linkedIds.has(item.id))
+  const shownIds = new Set(shown.map((s) => s.item.id))
+  const parentOf = new Map(tree.map((t) => [t.item.id, t.parentId]))
+  const depthOf = (id: string): number => {
+    let p = parentOf.get(id)
+    while (p && p !== rootId) {
+      if (shownIds.has(p)) return depthOf(p) + 1
+      p = parentOf.get(p)
+    }
+    return 1
+  }
+
+  return (
+    <Card>
+      <div className="row">
+        <span className="card-title" style={{ color: 'var(--text-soft)' }}>
+          {rootTitle}
+        </span>
+        <span className="pill" style={{ marginLeft: 'auto' }}>
+          subtasks
+        </span>
+      </div>
+      <div className="subtasks" style={{ marginTop: 8 }}>
+        {shown.map(({ item: sub }) => (
+          <div key={sub.id} className="subtask-row" style={{ marginLeft: (depthOf(sub.id) - 1) * 22 }}>
+            <Checkbox
+              checked={sub.status === 'done'}
+              onToggle={() =>
+                mutate(() =>
+                  window.api.updateItem(sub.id, {
+                    status: sub.status === 'done' ? 'active' : 'done'
+                  })
+                )
+              }
+            />
+            <span className={`subtask-title${sub.status === 'done' ? ' done' : ''}`}>{sub.title}</span>
+            <button
+              className="btn ghost small"
+              style={{ marginLeft: 'auto' }}
+              title="No longer prep for this meeting"
+              onClick={() => onUnlink(sub)}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+/**
+ * The meeting's attached links — the Slack thread, the doc, the deck —
+ * shown by name (LinkChips owns the editing rules). Hyperlinks written
+ * into the meeting's notes ride along at the end, read-only. Stored
+ * whole on the meetings row via setMeetingLinks.
+ */
+function AttachedLinks({
+  event,
+  links,
+  notesHtml
+}: {
+  event: CalendarEvent
+  links: AttachedLink[]
+  notesHtml: string
+}): React.JSX.Element {
+  const mutate = useMutate()
+  return (
+    <LinkChips
+      links={links}
+      derived={extractLinksFromHtml(notesHtml)}
+      onSave={(next) => mutate(() => window.api.setMeetingLinks(event, next))}
+    />
   )
 }
