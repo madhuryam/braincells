@@ -1342,6 +1342,12 @@ kbd.key {
   top: 24px;
   bottom: 24px;
   z-index: 20;
+  /* Fixed at top:24px, the header overlaps the canvas-header window-drag
+     region behind it. A fixed element that's neither drag nor no-drag
+     doesn't carve itself out, so that drag zone would eat clicks on the
+     top of the ↗/✕ buttons (only their bottom edge stayed clickable).
+     Carve the whole peek out — same fix as the scrim/modal header. */
+  -webkit-app-region: no-drag;
 }
 
 .timeline-peek .detail-panel {
