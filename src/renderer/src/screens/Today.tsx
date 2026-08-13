@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { todayYmd, ymdAddDays } from '@shared/dates'
 import { useLiveQuery, useMutate } from '../state/data'
@@ -80,6 +80,33 @@ export function Today(): React.JSX.Element {
     setPeek(null)
     setPeekTask(null)
   }
+  // The peek panel is fixed to the viewport (so it never scrolls off),
+  // which means it can't inherit the schedule column's width/position —
+  // measure the pane and hand the panel its horizontal box. Anchored to
+  // the pane's right edge, at least the pane's width but never under
+  // 500px (it grows leftward over the day list when the pane is narrow).
+  const paneRef = useRef<HTMLElement>(null)
+  const [peekBox, setPeekBox] = useState<{ right: number; width: number } | null>(null)
+  useLayoutEffect(() => {
+    if (!peek && !peekTask) return
+    const measure = (): void => {
+      const el = paneRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      setPeekBox({
+        right: Math.round(window.innerWidth - r.right),
+        width: Math.max(Math.round(r.width), 500)
+      })
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    if (paneRef.current) ro.observe(paneRef.current)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [peek, peekTask])
   useEffect(() => {
     if (!peek && !peekTask) return
     const onKey = (e: KeyboardEvent): void => {
@@ -276,7 +303,7 @@ export function Today(): React.JSX.Element {
         </section>
 
         {/* Right column: the chosen day's schedule (events + time blocks). */}
-        <section className="timeline-pane">
+        <section className="timeline-pane" ref={paneRef}>
           <div className="section-label">Schedule</div>
           {/* The fill layer lets the timeline run the full length of the
               day list beside it (see .timeline-fill in app.css). */}
@@ -294,7 +321,10 @@ export function Today(): React.JSX.Element {
             />
           </div>
           {peek && (
-            <div className="timeline-peek">
+            <div
+              className="timeline-peek"
+              style={peekBox ? { right: peekBox.right, width: peekBox.width } : undefined}
+            >
               <DetailPanel
                 title={peek.title}
                 onOpenFull={() =>
@@ -313,7 +343,10 @@ export function Today(): React.JSX.Element {
             </div>
           )}
           {peekTask && (
-            <div className="timeline-peek">
+            <div
+              className="timeline-peek"
+              style={peekBox ? { right: peekBox.right, width: peekBox.width } : undefined}
+            >
               <DetailPanel
                 onOpenFull={() => openOverlay({ name: 'page', itemId: peekTask })}
                 onClose={() => setPeekTask(null)}

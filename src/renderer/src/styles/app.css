@@ -1331,15 +1331,16 @@ kbd.key {
   max-height: none;
 }
 
+/* Fixed to the viewport, not the (day-long) schedule pane: whatever the
+   scroll position, the peek opens in the current view at exactly its
+   height — click a meeting at the bottom of the day and it's right there,
+   never scrolled off or clipped. The horizontal box (right/width) is
+   measured from the pane and set inline, since a fixed element can't
+   inherit the grid column's geometry. */
 .timeline-peek {
-  position: absolute;
-  top: 26px;
-  /* below the 'Schedule' label */
-  right: 0;
-  bottom: 0;
-  /* Wide enough for the notes toolbar to stay on one line — the panel
-     grows leftward over the day list when the schedule pane is narrow. */
-  width: max(100%, 500px);
+  position: fixed;
+  top: 24px;
+  bottom: 24px;
   z-index: 20;
 }
 
